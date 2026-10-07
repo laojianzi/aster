@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -18,10 +18,17 @@ jobs:
         with:
           go-version: '1.27.x'
           cache: true
+      - name: Tidy module graph
+        run: go mod tidy
+      - name: Upload module snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-modules
+          path: |
+            go.mod
+            go.sum
       - name: Verify module graph
-        run: |
-          go mod tidy
-          git diff --exit-code -- go.mod go.sum
+        run: git diff --exit-code -- go.mod go.sum
       - name: Unit tests
         run: go test ./...
       - name: Race tests
