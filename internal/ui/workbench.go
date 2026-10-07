@@ -130,6 +130,8 @@ func (w *Workbench) runClusterSession(ctx context.Context, win *mygo.Window) {
 		w.errText = ""
 	})
 
+	watchCtx, stopWatch := context.WithCancel(ctx)
+	defer stopWatch()
 	queue := eventqueue.New[string, kube.ResourceEvent](4096)
 	defer queue.Close()
 	batchDone := make(chan struct{})
@@ -139,7 +141,7 @@ func (w *Workbench) runClusterSession(ctx context.Context, win *mygo.Window) {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-watchCtx.Done():
 				return
 			case <-ticker.C:
 				events := queue.Drain(256)
@@ -155,13 +157,14 @@ func (w *Workbench) runClusterSession(ctx context.Context, win *mygo.Window) {
 	}()
 
 	gvr := schema.GroupVersionResource{Version: "v1", Resource: "pods"}
-	err = backend.WatchResource(ctx, gvr, conn.Namespace, metav1.ListOptions{}, func(event kube.ResourceEvent) error {
+	err = backend.WatchResource(watchCtx, gvr, conn.Namespace, metav1.ListOptions{}, func(event kube.ResourceEvent) error {
 		uid := string(event.Object.GetUID())
 		if uid == "" {
 			uid = event.Object.GetNamespace() + "/" + event.Object.GetName()
 		}
 		return queue.Put(uid, event)
 	})
+	stopWatch()
 	if err != nil && !errors.Is(err, context.Canceled) {
 		win.Update(func() {
 			w.status = "Watch failed"
