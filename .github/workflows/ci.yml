@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -31,6 +31,17 @@ jobs:
           path: |
             go.mod
             go.sum
+      - name: Sync module lockfile
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if git diff --quiet -- go.mod go.sum && git ls-files --error-unmatch go.sum >/dev/null 2>&1; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add go.mod go.sum
+          git commit -m "build: lock Go dependencies"
+          git push origin "HEAD:${{ github.head_ref }}"
       - name: Unit tests
         run: go test ./...
       - name: Race tests
