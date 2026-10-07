@@ -1,6 +1,6 @@
 module github.com/laojianzi/aster
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/egoist/mygo v0.2.15
