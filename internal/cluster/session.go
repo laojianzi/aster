@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 )
 
 var ErrClosed = errors.New("cluster session closed")
@@ -13,7 +12,9 @@ type Session struct {
 	id     string
 	ctx    context.Context
 	cancel context.CancelFunc
-	closed atomic.Bool
+
+	mu     sync.Mutex
+	closed bool
 	wg     sync.WaitGroup
 }
 
@@ -26,10 +27,17 @@ func (s *Session) ID() string { return s.id }
 func (s *Session) Context() context.Context { return s.ctx }
 
 func (s *Session) Go(fn func(context.Context)) error {
-	if s.closed.Load() {
+	if fn == nil {
+		return errors.New("cluster session: nil worker")
+	}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
 		return ErrClosed
 	}
 	s.wg.Add(1)
+	s.mu.Unlock()
+
 	go func() {
 		defer s.wg.Done()
 		fn(s.ctx)
@@ -38,9 +46,13 @@ func (s *Session) Go(fn func(context.Context)) error {
 }
 
 func (s *Session) Close() {
-	if s.closed.Swap(true) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
 		return
 	}
+	s.closed = true
 	s.cancel()
+	s.mu.Unlock()
 	s.wg.Wait()
 }
