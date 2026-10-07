@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,34 +20,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.27.x'
+          go-version: '1.27.1'
           cache: true
-      - name: Tidy module graph
-        run: go mod tidy
-      - name: Upload module snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: go-modules
-          path: |
-            go.mod
-            go.sum
-      - name: Sync module lockfile
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Verify module graph
         run: |
-          if git diff --quiet -- go.mod go.sum && git ls-files --error-unmatch go.sum >/dev/null 2>&1; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add go.mod go.sum
-          git commit -m "build: lock Go dependencies"
-          git push origin "HEAD:${{ github.head_ref }}"
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Unit tests
         run: go test ./...
       - name: Race tests
         run: go test -race ./...
-      - name: Verify module graph
-        run: git diff --exit-code -- go.mod go.sum
 
   kind-e2e:
     name: kind e2e / Kubernetes ${{ matrix.k8s }}
@@ -66,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.27.x'
+          go-version: '1.27.1'
           cache: true
       - name: Install kind
         run: |
@@ -76,7 +58,7 @@ jobs:
         run: kind create cluster --image "${{ matrix.image }}" --wait 120s
       - name: Cluster diagnostics
         run: kubectl version && kubectl get nodes -o wide
-      - name: Prepare modules
-        run: go mod tidy
+      - name: Download modules
+        run: go mod download
       - name: E2E
         run: go test -tags=e2e ./e2e/... -count=1 -timeout=10m
