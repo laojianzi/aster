@@ -31,6 +31,23 @@ jobs:
       - name: Race tests
         run: go test -race ./...
 
+
+  desktop-build:
+    name: Desktop build / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Build native desktop
+        run: go build ./cmd/aster
+
   kind-e2e:
     name: kind e2e / Kubernetes ${{ matrix.k8s }}
     runs-on: ubuntu-latest
