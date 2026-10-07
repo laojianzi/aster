@@ -2,15 +2,18 @@ package uiworkbench
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/laojianzi/aster/internal/eventqueue"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/kubeconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type resourceRow struct {
@@ -89,16 +92,21 @@ func (w *Workbench) View(c *ui.Context) {
 
 func Open() {
 	w := New()
+	ctx, cancel := context.WithCancel(context.Background())
 	win := mygo.NewWindow(mygo.WindowOptions{
-		Title:   "Aster",
-		Width:   1280,
-		Height:  800,
-		Content: ui.View(w.View),
+		Title:    "Aster",
+		Width:    1280,
+		Height:   800,
+		MinWidth: 900,
+		MinHeight: 600,
+		StateKey: "main",
+		Content:  ui.View(w.View),
 	})
-	go w.loadDefaultCluster(win)
+	win.OnClosed(cancel)
+	go w.runClusterSession(ctx, win)
 }
 
-func (w *Workbench) loadDefaultCluster(win *mygo.Window) {
+func (w *Workbench) runClusterSession(ctx context.Context, win *mygo.Window) {
 	conn, err := kubeconfig.LoadDefault()
 	if err != nil {
 		win.Update(func() {
@@ -115,33 +123,80 @@ func (w *Workbench) loadDefaultCluster(win *mygo.Window) {
 		})
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	items, _, err := backend.ListObjects(ctx, schema.GroupVersionResource{Version: "v1", Resource: "pods"}, conn.Namespace, metav1.ListOptions{})
-	if err != nil {
-		win.Update(func() {
-			w.cluster = conn.ContextName
-			w.namespace = conn.Namespace
-			w.status = "Resource query failed"
-			w.errText = err.Error()
-		})
-		return
-	}
-	rows := make([]resourceRow, 0, len(items))
-	for i := range items {
-		item := &items[i]
-		rows = append(rows, resourceRow{
-			UID:       string(item.GetUID()),
-			Name:      item.GetName(),
-			Namespace: item.GetNamespace(),
-			Created:   item.GetCreationTimestamp().UTC().Format(time.RFC3339),
-		})
-	}
 	win.Update(func() {
 		w.cluster = conn.ContextName
 		w.namespace = conn.Namespace
-		w.rows = rows
-		w.status = "Live"
+		w.status = "Synchronizing"
 		w.errText = ""
 	})
+
+	queue := eventqueue.New[string, kube.ResourceEvent](4096)
+	defer queue.Close()
+	batchDone := make(chan struct{})
+	go func() {
+		defer close(batchDone)
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				events := queue.Drain(256)
+				if len(events) == 0 {
+					continue
+				}
+				win.Update(func() {
+					w.apply(events)
+					w.status = "Live"
+				})
+			}
+		}
+	}()
+
+	gvr := schema.GroupVersionResource{Version: "v1", Resource: "pods"}
+	err = backend.WatchResource(ctx, gvr, conn.Namespace, metav1.ListOptions{}, func(event kube.ResourceEvent) error {
+		uid := string(event.Object.GetUID())
+		if uid == "" {
+			uid = event.Object.GetNamespace() + "/" + event.Object.GetName()
+		}
+		return queue.Put(uid, event)
+	})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		win.Update(func() {
+			w.status = "Watch failed"
+			w.errText = err.Error()
+		})
+	}
+	<-batchDone
+}
+
+func (w *Workbench) apply(events []kube.ResourceEvent) {
+	for _, event := range events {
+		uid := string(event.Object.GetUID())
+		index := -1
+		for i := range w.rows {
+			if w.rows[i].UID == uid {
+				index = i
+				break
+			}
+		}
+		if event.Type == watch.Deleted {
+			if index >= 0 {
+				w.rows = append(w.rows[:index], w.rows[index+1:]...)
+			}
+			continue
+		}
+		row := resourceRow{
+			UID:       uid,
+			Name:      event.Object.GetName(),
+			Namespace: event.Object.GetNamespace(),
+			Created:   event.Object.GetCreationTimestamp().UTC().Format(time.RFC3339),
+		}
+		if index >= 0 {
+			w.rows[index] = row
+		} else {
+			w.rows = append(w.rows, row)
+		}
+	}
 }
