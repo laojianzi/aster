@@ -18,8 +18,10 @@ jobs:
         with:
           go-version: '1.27.x'
           cache: true
-      - name: Download modules
-        run: go mod download
+      - name: Verify module graph
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Unit tests
         run: go test ./...
       - name: Race tests
@@ -31,7 +33,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k8s: ["v1.35.0", "v1.36.0", "v1.37.0"]
+        include:
+          - k8s: "v1.35.8"
+            image: "kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0"
+          - k8s: "v1.36.4"
+            image: "kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
+          - k8s: "v1.37.0"
+            image: "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
@@ -40,11 +48,13 @@ jobs:
           cache: true
       - name: Install kind
         run: |
-          go install sigs.k8s.io/kind@v0.30.0
+          go install sigs.k8s.io/kind@v0.33.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Create cluster
-        run: kind create cluster --image "kindest/node:${{ matrix.k8s }}" --wait 120s
+        run: kind create cluster --image "${{ matrix.image }}" --wait 120s
       - name: Cluster diagnostics
         run: kubectl version && kubectl get nodes -o wide
+      - name: Prepare modules
+        run: go mod tidy
       - name: E2E
         run: go test -tags=e2e ./e2e/... -count=1 -timeout=10m
