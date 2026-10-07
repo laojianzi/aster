@@ -31,12 +31,12 @@ jobs:
           path: |
             go.mod
             go.sum
-      - name: Verify module graph
-        run: git diff --exit-code -- go.mod go.sum
       - name: Unit tests
         run: go test ./...
       - name: Race tests
         run: go test -race ./...
+      - name: Verify module graph
+        run: git diff --exit-code -- go.mod go.sum
 
   kind-e2e:
     name: kind e2e / Kubernetes ${{ matrix.k8s }}
