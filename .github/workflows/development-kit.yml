@@ -1,17 +1,14 @@
 name: Development kit
-
 on:
   push:
     branches: [build/development-kit]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   kit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -20,22 +17,17 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
-      - name: Resolve the pinned public dependency graph
-        run: go mod download all
-      - name: Package source and toolchain without runner credentials
+      - name: Download exact upstream streaming test dependency
+        run: go mod download github.com/armon/go-socks5@v0.0.0-20160902184237-e75332964ef5
+      - name: Export public module and its download metadata only
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p kit
-          git archive --format=tar HEAD | gzip -n > kit/source.tar.gz
-          printf '%s\n' "$(git rev-parse HEAD)" > kit/source-commit.txt
-          go version > kit/toolchain.txt
-          tar -C "$(go env GOROOT)" -czf kit/goroot.tar.gz .
-          tar -C "$(go env GOMODCACHE)" -czf kit/modules.tar.gz .
-          (cd kit && sha256sum *.tar.gz > SHA256SUMS)
+          tar -C "$(go env GOMODCACHE)" -czf kit/modules.tar.gz github.com/armon cache/download/github.com/armon
+          (cd kit && sha256sum modules.tar.gz > SHA256SUMS)
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: offline-development-kit
+          name: stream-dependency-supplement
           path: kit/
-          compression-level: 0
           retention-days: 3
