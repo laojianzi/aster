@@ -12,7 +12,7 @@ func TestDetailActionsStayInsideMinimumWindow(t *testing.T) {
 	w.detailKind = catalog()[0]
 	w.activeContext, w.activeNamespace = "production-cluster", "team"
 	tt := ui.NewTester(w.View, 1100, 700)
-	for _, label := range []string{"Close detail", "YAML", "Edit", "Events", "Logs", "Port forward", "Refresh detail", "Replica count", "Preview scale", "Preview restart", "Preview delete"} {
+	for _, label := range []string{"Close detail", "YAML", "Edit", "Events", "Related", "Logs", "Port forward", "Refresh detail", "Replica count", "Preview scale", "Preview restart", "Preview delete"} {
 		r, ok := tt.Find(label)
 		if !ok {
 			t.Errorf("control %q not found", label)
