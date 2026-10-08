@@ -19,8 +19,8 @@ func project(o *unstructured.Unstructured)resourceRow{
 	if values,found,_:=unstructured.NestedSlice(o.Object,"status","containerStatuses");found{for _,value:=range values{m,ok:=value.(map[string]interface{});if !ok{continue};if reason,ok,_:=unstructured.NestedString(m,"state","waiting","reason");ok{status=reason;break}}}
 	if status==""{if ready,ok,_:=unstructured.NestedInt64(o.Object,"status","readyReplicas");ok{if desired,ok,_:=unstructured.NestedInt64(o.Object,"spec","replicas");ok{status=formatReplicas(ready,desired)}}}
 	if status==""{status="—"}
-	if len(status)>160{status=string([]rune(status)[:min(len([]rune(status)),120)])+"…"}
-	created:="—";if !o.GetCreationTimestamp().IsZero(){created=o.GetCreationTimestamp().UTC().Format(time.RFC3339)}
+	if len(status)>160{runes:=[]rune(status);status=string(runes[:min(len(runes),120)])+"…"}
+	created:="—";stamp:=o.GetCreationTimestamp();if !stamp.IsZero(){created=stamp.UTC().Format(time.RFC3339)}
 	return resourceRow{UID:string(o.GetUID()),Name:o.GetName(),Namespace:o.GetNamespace(),Created:created,Status:status,RV:o.GetResourceVersion()}
 }
 
@@ -28,6 +28,7 @@ type resourceSnapshot struct{Rows []resourceRow;Status,Error,Query,Sort string;T
 type rowStore struct{mu sync.Mutex;rows map[string]resourceRow;status,err,query,sortBy string;dirty bool}
 func newRowStore()*rowStore{return &rowStore{rows:map[string]resourceRow{},status:"Synchronizing",sortBy:"Name",dirty:true}}
 func(s *rowStore)event(e kube.ResourceEvent){
+	if e.Object==nil{return}
 	r:=project(e.Object);key:=r.Namespace+"/"+r.Name
 	s.mu.Lock();defer s.mu.Unlock()
 	if e.Type==watch.Deleted{if old,ok:=s.rows[key];ok&&old.UID==r.UID{delete(s.rows,key)}}else{s.rows[key]=r};s.dirty=true
