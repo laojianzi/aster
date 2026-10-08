@@ -7,19 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/laojianzi/aster/internal/testcluster"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func TestNamespaceOnlyRBAC(t *testing.T) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testcluster.Config(t)
 	admin, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -44,15 +41,15 @@ func TestNamespaceOnlyRBAC(t *testing.T) {
 	}
 	_, err = admin.RbacV1().Roles(ns).Create(ctx, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{Name: "pod-reader"},
-		Rules: []rbacv1.PolicyRule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list", "watch"}}},
+		Rules:      []rbacv1.PolicyRule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list", "watch"}}},
 	}, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		t.Fatal(err)
 	}
 	_, err = admin.RbacV1().RoleBindings(ns).Create(ctx, &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{Name: "pod-reader"},
-		Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "viewer", Namespace: ns}},
-		RoleRef: rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: "pod-reader"},
+		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "viewer", Namespace: ns}},
+		RoleRef:    rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: "pod-reader"},
 	}, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		t.Fatal(err)
@@ -73,10 +70,7 @@ func TestNamespaceOnlyRBAC(t *testing.T) {
 }
 
 func TestServerDryRunDoesNotPersist(t *testing.T) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testcluster.Config(t)
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +81,7 @@ func TestServerDryRunDoesNotPersist(t *testing.T) {
 	const name = "aster-dry-run-e2e"
 	obj, err := client.CoreV1().ConfigMaps("default").Create(ctx, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data: map[string]string{"validated": "true"},
+		Data:       map[string]string{"validated": "true"},
 	}, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		t.Fatal(err)

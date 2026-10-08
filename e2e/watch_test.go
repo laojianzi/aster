@@ -9,19 +9,16 @@ import (
 	"time"
 
 	"github.com/laojianzi/aster/internal/kube"
+	"github.com/laojianzi/aster/internal/testcluster"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func TestWatchResourceObservesLifecycle(t *testing.T) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testcluster.Config(t)
 	backend, err := kube.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -38,33 +35,35 @@ func TestWatchResourceObservesLifecycle(t *testing.T) {
 	var mu sync.Mutex
 	seen := map[watch.EventType]bool{}
 	ready := make(chan struct{})
+	var readyOnce sync.Once
 	done := make(chan error, 1)
 	go func() {
-		first := true
-		done <- backend.WatchResource(ctx, schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "default",
+		done <- backend.WatchWithStatus(ctx, schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "default",
 			metav1.ListOptions{FieldSelector: "metadata.name=" + name},
 			func(event kube.ResourceEvent) error {
 				mu.Lock()
 				seen[event.Type] = true
 				mu.Unlock()
-				if first {
-					first = false
-					close(ready)
-				}
 				return nil
+			}, func(status string) {
+				if status == "Live" {
+					readyOnce.Do(func() { close(ready) })
+				}
 			})
 	}()
 
-	// The selected object does not exist, so the initial list emits no event.
-	// Give the LIST->WATCH transition a short bounded interval before mutation.
+	// Wait for the real LIST-to-WATCH handshake; elapsed time is not readiness.
 	select {
 	case <-ready:
-	case <-time.After(300 * time.Millisecond):
+	case err := <-done:
+		t.Fatalf("watch exited before becoming live: %v", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
 	}
 
 	cm, err := typed.CoreV1().ConfigMaps("default").Create(ctx, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data: map[string]string{"version": "1"},
+		Data:       map[string]string{"version": "1"},
 	}, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)

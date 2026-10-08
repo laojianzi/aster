@@ -42,6 +42,10 @@ jobs:
         run: |
           set -o pipefail
           go test -race -shuffle=on -count=1 -timeout=5m -json ./... | tee artifacts/unit/tests.jsonl
+      - name: Validate test evidence
+        run: |
+          python3 -m unittest discover -s scripts -p "test_test_evidence.py"
+          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow
       - name: Coverage
         run: go test -coverprofile=artifacts/unit/coverage.out ./...
       - name: Upload test evidence
@@ -74,6 +78,15 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
+      - name: Native interaction tests on this OS
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          go version > artifacts/environment.txt
+          git rev-parse HEAD >> artifacts/environment.txt
+          go test -count=1 -timeout=5m -json ./internal/ui/... | tee artifacts/tests.jsonl
+          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow
       - name: Build native desktop
         run: go build -trimpath -o dist/${{ matrix.binary }} ./cmd/aster
       - name: Install Linux display dependencies
@@ -106,6 +119,9 @@ jobs:
     timeout-minutes: 20
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/e2e
+      KUBECONFIG: ${{ runner.temp }}/aster-e2e-kubeconfig
+      ASTER_E2E_CONTEXT: kind-aster-e2e
+      ASTER_E2E_ALLOW_DESTRUCTIVE: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -129,7 +145,7 @@ jobs:
           go install sigs.k8s.io/kind@v0.33.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Create isolated cluster
-        run: kind create cluster --image '${{ matrix.image }}' --wait 120s
+        run: kind create cluster --name aster-e2e --kubeconfig "$KUBECONFIG" --image '${{ matrix.image }}' --wait 120s
       - name: E2E including native UI against the real API server
         shell: bash
         run: |
@@ -138,6 +154,8 @@ jobs:
           kubectl version > artifacts/e2e/environment.txt
           git rev-parse HEAD >> artifacts/e2e/environment.txt
           go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
+      - name: Validate real-cluster evidence
+        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness
       - name: Collect cluster diagnostics
         if: always()
         run: |
@@ -146,7 +164,7 @@ jobs:
           kubectl get events -A > artifacts/e2e/events.txt 2>&1 || true
       - name: Delete isolated cluster
         if: always()
-        run: kind delete cluster
+        run: kind delete cluster --name aster-e2e
       - name: Upload E2E evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
