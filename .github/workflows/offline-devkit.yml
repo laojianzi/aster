@@ -1,4 +1,5 @@
 name: Offline development kit
+# Include the client-go remotecommand packages used by native command execution.
 
 on:
   push:
