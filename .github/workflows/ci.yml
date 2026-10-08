@@ -45,7 +45,7 @@ jobs:
       - name: Validate test evidence
         run: |
           python3 -m unittest discover -s scripts -p "test_test_evidence.py"
-          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments
+          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments --require TestCredentialedReadsDoNotFollowRedirects --require TestMutationRetryAfterNeverReplays
       - name: Coverage
         run: go test -coverprofile=artifacts/unit/coverage.out ./...
       - name: Upload test evidence
@@ -159,7 +159,7 @@ jobs:
           git rev-parse HEAD >> artifacts/e2e/environment.txt
           go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
       - name: Validate real-cluster evidence
-        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination
+        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealCommittedMutationsAreUnknownAndNeverReplayed
       - name: Collect cluster diagnostics
         if: always()
         run: |
