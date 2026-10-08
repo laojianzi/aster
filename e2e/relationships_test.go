@@ -47,10 +47,16 @@ func TestRealWorkloadRelationshipsRespectUIDAndSelectors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	strayLabels := map[string]string{"other": "true"}
+	for key, value := range f.Deployment.Spec.Selector.MatchLabels {
+		strayLabels[key] = value
+	}
+	// Match both controllers' selectors so the actual owner will not release
+	// this negative fixture before the ownership assertion.
 	template := f.Deployment.Spec.Template.DeepCopy()
 	template.Labels = map[string]string{"unrelated": "true"}
 	stray, err := f.Client.AppsV1().ReplicaSets(f.Deployment.Namespace).Create(ctx, &appsv1.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "label-match-not-owned", Labels: f.Deployment.Spec.Selector.MatchLabels, OwnerReferences: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: "Deployment", Name: other.Name, UID: other.UID, Controller: &yes}}},
+		ObjectMeta: metav1.ObjectMeta{Name: "label-match-not-owned", Labels: strayLabels, OwnerReferences: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: "Deployment", Name: other.Name, UID: other.UID, Controller: &yes}}},
 		Spec:       appsv1.ReplicaSetSpec{Replicas: &zero, Selector: &metav1.LabelSelector{MatchLabels: template.Labels}, Template: *template},
 	}, metav1.CreateOptions{})
 	if err != nil {
@@ -73,8 +79,13 @@ func TestRealWorkloadRelationshipsRespectUIDAndSelectors(t *testing.T) {
 	if !rs.Navigable() {
 		t.Fatal("owned ReplicaSet missing")
 	}
-	if _, err = f.Client.AppsV1().ReplicaSets(f.Deployment.Namespace).Get(ctx, stray.Name, metav1.GetOptions{}); err != nil {
+	actualStray, err := f.Client.AppsV1().ReplicaSets(f.Deployment.Namespace).Get(ctx, stray.Name, metav1.GetOptions{})
+	if err != nil {
 		t.Fatal("negative fixture disappeared", err)
+	}
+	owner := metav1.GetControllerOf(actualStray)
+	if owner == nil || owner.UID != other.UID {
+		t.Fatal("negative fixture lost its independent controller")
 	}
 	children, err := reader.Read(ctx, rs.Target)
 	if err != nil {
