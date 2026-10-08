@@ -27,7 +27,7 @@ func (w *Workbench) clearDetail() {
  w.stopLogs()
  w.logRows, w.logDropped, w.logStatus = nil, 0, ""
  w.detail, w.plan = nil, nil
- w.diff, w.editor, w.detailText, w.confirmation, w.detailMessage = "", "", "", "", "", ""
+ w.diff, w.editor, w.detailText, w.confirmation, w.detailMessage = "", "", "", "", ""
  w.preparing, w.creating = false, false
 }
 func (w *Workbench) openResource(row resourceRow) {

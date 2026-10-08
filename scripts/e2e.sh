@@ -23,4 +23,4 @@ cd "$root"
 kubectl version > "$ASTER_TEST_ARTIFACTS/environment.txt"
 git rev-parse HEAD >> "$ASTER_TEST_ARTIFACTS/environment.txt"
 go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee "$ASTER_TEST_ARTIFACTS/tests.jsonl"
-python3 scripts/test_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native --require TestNativeScaleTracksActualReadiness --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle
+python3 scripts/test_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native --require TestNativeScaleTracksActualReadiness --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination
