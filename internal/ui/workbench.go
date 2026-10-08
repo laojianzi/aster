@@ -13,6 +13,7 @@ import (
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/operation"
 	"github.com/laojianzi/aster/internal/relationship"
+	"github.com/laojianzi/aster/internal/resourcemetrics"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -85,6 +86,13 @@ type Workbench struct {
 	relatedResult relationship.Snapshot
 	relatedStatus string
 	relatedList   ui.ListState
+
+	metricsEpoch                  uint64
+	metricsCancel                 context.CancelFunc
+	metricsActive, metricsLoading bool
+	metricsResult                 resourcemetrics.Snapshot
+	metricsHistory                resourcemetrics.History
+	metricsList                   ui.ListState
 
 	history []string
 	frames  int

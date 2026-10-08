@@ -11,12 +11,16 @@ import (
 	"github.com/laojianzi/aster/internal/operation"
 	"github.com/laojianzi/aster/internal/relationship"
 	"github.com/laojianzi/aster/internal/resource"
+	"github.com/laojianzi/aster/internal/resourcemetrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func (w *Workbench) clearDetail() {
+	w.stopMetrics()
+	w.metricsResult = resourcemetrics.Snapshot{}
+	w.metricsHistory = resourcemetrics.History{}
 	w.stopRelationships()
 	w.relatedResult, w.relatedStatus = relationship.Snapshot{}, ""
 	w.detailEpoch++

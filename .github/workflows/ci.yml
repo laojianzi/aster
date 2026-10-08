@@ -45,7 +45,7 @@ jobs:
       - name: Validate test evidence
         run: |
           python3 -m unittest discover -s scripts -p "test_test_evidence.py"
-          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments --require TestCredentialedReadsDoNotFollowRedirects --require TestMutationRetryAfterNeverReplays --require TestRelationshipsDependentsUseUIDNotLabels --require TestRelationshipsNeverFetchSecretContents --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsDiscardQueuedResultsAfterDetailChange
+          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments --require TestCredentialedReadsDoNotFollowRedirects --require TestMutationRetryAfterNeverReplays --require TestRelationshipsDependentsUseUIDNotLabels --require TestRelationshipsNeverFetchSecretContents --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsDiscardQueuedResultsAfterDetailChange --require TestMetricsDecodeQuantitiesAndMissingIsNotZero --require TestMetricsTransportNeverRedirectsAndCancels --require TestNativeMetricsQueuedResultsCannotCrossDetails
       - name: Coverage
         run: go test -coverprofile=artifacts/unit/coverage.out ./...
       - name: Upload test evidence
@@ -88,7 +88,7 @@ jobs:
           go version > artifacts/environment.txt
           git rev-parse HEAD >> artifacts/environment.txt
           go test -count=1 -timeout=5m -json ./internal/ui/... | tee artifacts/tests.jsonl
-          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsCloseCancelsOutstandingRead --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell
+          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsCloseCancelsOutstandingRead --require TestNativeMetricsControlsStayInsideMinimumWindow --require TestNativeMetricsReadOnlyAndTabLifecycle --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell
       - name: Build native desktop
         run: go build -trimpath -o dist/${{ matrix.binary }} ./cmd/aster
       - name: Install Linux display dependencies
@@ -150,6 +150,8 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Create isolated cluster
         run: kind create cluster --name aster-e2e --kubeconfig "$KUBECONFIG" --image '${{ matrix.image }}' --wait 120s
+      - name: Install verified metrics-server in disposable kind only
+        run: bash scripts/install-e2e-metrics.sh
       - name: E2E including native UI against the real API server
         shell: bash
         run: |
@@ -159,7 +161,7 @@ jobs:
           git rev-parse HEAD >> artifacts/e2e/environment.txt
           go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
       - name: Validate real-cluster evidence
-        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealCommittedMutationsAreUnknownAndNeverReplayed --require TestRealWorkloadRelationshipsRespectUIDAndSelectors --require TestRealRelationshipsReportRBACPartialResults --require TestNativeRelationshipNavigationToPodForwardAgainstRealCluster
+        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealCommittedMutationsAreUnknownAndNeverReplayed --require TestRealWorkloadRelationshipsRespectUIDAndSelectors --require TestRealRelationshipsReportRBACPartialResults --require TestNativeRelationshipNavigationToPodForwardAgainstRealCluster --require TestRealMetricsPodNodeAndIndependentRBAC --require TestNativeMetricsAgainstRealServerAndTeardown
       - name: Collect cluster diagnostics
         if: always()
         run: |
