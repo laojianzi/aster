@@ -3,7 +3,9 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,7 +33,27 @@ type afterCommitFailure struct {
 }
 
 func (f afterCommitFailure) RoundTrip(req *http.Request) (*http.Response, error) {
-	mutation := req.Method == f.method && req.URL.Query().Get("dryRun") == ""
+	dryRun := req.URL.Query().Get("dryRun") != ""
+	// DELETE options are in the JSON body, unlike create/patch query options.
+	// Inspect a bounded copy and forward exactly the same bytes to the real API.
+	if req.Method == http.MethodDelete && req.Body != nil {
+		body, err := io.ReadAll(io.LimitReader(req.Body, (1<<20)+1))
+		_ = req.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		if len(body) > 1<<20 {
+			return nil, fmt.Errorf("test DeleteOptions exceeds budget")
+		}
+		var options metav1.DeleteOptions
+		if err := json.Unmarshal(body, &options); err != nil {
+			return nil, fmt.Errorf("test DeleteOptions: %w", err)
+		}
+		dryRun = dryRun || len(options.DryRun) != 0
+		req = req.Clone(req.Context())
+		req.Body = io.NopCloser(bytes.NewReader(body))
+	}
+	mutation := req.Method == f.method && !dryRun
 	if mutation {
 		f.writes.Add(1)
 	}
@@ -134,3 +156,33 @@ func TestRealCommittedMutationsAreUnknownAndNeverReplayed(t *testing.T) {
 		})
 	}
 }
+
+// This validates the fault-injection harness, not a Kubernetes E2E behavior.
+func TestFaultInjectionRecognizesDeleteDryRun(t *testing.T) {
+	const body = `{"dryRun":["All"],"preconditions":{"uid":"synthetic-uid"}}`
+	var writes atomic.Int32
+	var injected atomic.Bool
+	req, err := http.NewRequest(http.MethodDelete, "https://cluster.invalid/api/v1/namespaces/team/configmaps/reviewed", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := faultRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		actual, err := io.ReadAll(r.Body)
+		if err != nil || string(actual) != body {
+			t.Fatalf("DeleteOptions changed: %s %v", actual, err)
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"kind":"Status","apiVersion":"v1","status":"Success"}`)), Header: make(http.Header)}, nil
+	})
+	response, err := (afterCommitFailure{base, http.MethodDelete, &writes, &injected}).RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if writes.Load() != 0 || injected.Load() || response.StatusCode != 200 {
+		t.Fatal("dry-run DELETE was mistaken for a persisted mutation")
+	}
+}
+
+type faultRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f faultRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
