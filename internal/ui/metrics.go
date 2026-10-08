@@ -67,6 +67,11 @@ func (w *Workbench) loadMetrics(live bool) {
 	})
 }
 func (w *Workbench) metricsView(c *ui.Context) {
+	// Keep the Metrics panel's compact spacing independent of detail navigation.
+	// A minimum list height prevents platform font metrics from hiding usage rows.
+	ui.Column(c).Grow(1).Gap(4).Children(func() { w.metricsContents(c) })
+}
+func (w *Workbench) metricsContents(c *ui.Context) {
 	ui.Row(c).Gap(6).Children(func() {
 		if ui.Button(c, "Refresh metrics").Disabled(w.metricsLoading || w.metricsActive).Clicked() {
 			w.loadMetrics(false)
@@ -105,7 +110,7 @@ func (w *Workbench) metricsView(c *ui.Context) {
 	ui.List(c, &w.metricsList, len(entries), func(i int) {
 		v := entries[i]
 		ui.Text(c, fmt.Sprintf("%s  ·  %.4g cores  ·  %.4g MiB", v.Name, v.CPUCores, v.MemoryBytes/(1<<20))).Label("Usage " + v.Name).FontSize(12).SingleLine()
-	}).Height(78)
+	}).Height(64).MinHeight(32)
 	if len(entries) > 0 {
 		ui.Text(c, fmt.Sprintf("Reported total: %.4g cores · %.4g MiB", w.metricsResult.Total.CPUCores, w.metricsResult.Total.MemoryBytes/(1<<20))).FontSize(12).SingleLine()
 	}
@@ -136,7 +141,7 @@ func drawMetric(c *ui.Context, label string, points []resourcemetrics.Point, mem
 	if scale <= 0 {
 		scale = 1
 	}
-	ui.Box(c).Height(48).Label(label + " trend").Draw(func(p *ui.Painter, r ui.Rect) {
+	ui.Box(c).Height(36).MinHeight(24).Label(label + " trend").Draw(func(p *ui.Painter, r ui.Rect) {
 		p.Line(r.X, r.Y+r.H-2, r.X+r.W, r.Y+r.H-2, 1, theme.TextMuted)
 		if len(points) == 0 {
 			return

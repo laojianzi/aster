@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/kubeconfig"
 	"github.com/laojianzi/aster/internal/resourcemetrics"
@@ -28,7 +27,7 @@ func TestNativeMetricsAgainstRealServerAndTeardown(t *testing.T) {
 	h.w.currentContext = current
 	h.w.contexts = []string{current}
 	h.w.namespace = f.Pod.Namespace
-	h.tt = ui.NewTester(h.w.View, 1440, 1000)
+	h.tt.Frame()
 	h.click("Connect")
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Pod.UID)) })
 	h.click(f.Pod.Name)
