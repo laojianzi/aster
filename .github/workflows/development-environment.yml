@@ -1,0 +1,40 @@
+name: Development environment snapshot
+
+on:
+  push:
+    branches: ['chore/development-snapshot']
+    paths: ['.github/workflows/development-environment.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Archive public source and pinned development dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p development-snapshot
+          git archive HEAD | gzip > development-snapshot/source.tar.gz
+          go mod download
+          tar -czf development-snapshot/go-linux-amd64.tar.gz -C "$(go env GOROOT)" .
+          tar -czf development-snapshot/modules.tar.gz -C "$(go env GOMODCACHE)" .
+          go version > development-snapshot/environment.txt
+          git rev-parse HEAD >> development-snapshot/environment.txt
+          cd development-snapshot
+          sha256sum *.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: aster-development-snapshot
+          path: development-snapshot
+          retention-days: 3
