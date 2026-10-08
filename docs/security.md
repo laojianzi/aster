@@ -54,3 +54,25 @@ paths; adversarial authorization and failure injection; resource/queue/stream so
 real OS IME/accessibility/DPI scenarios; signed installers and update metadata; upgrade and
 rollback/recovery drills; dependency inventory/SBOM and vulnerability review; support matrix
 and documented operational recovery. Missing items remain blockers, even when CI is green.
+
+
+## Transport boundary (post-PR #3 hardening)
+
+All authenticated Kubernetes transports reject HTTP 3xx responses before a
+second endpoint can receive a request. The redirect Location/body is not exposed
+in the error. Configure and explicitly trust the final API endpoint instead;
+transparent redirect-based login/API routing is not supported. This does not
+prevent a trusted API endpoint or network proxy from forwarding a request itself.
+
+Create, patch and delete now use explicit REST requests with `MaxRetries(0)`.
+The default dynamic client's Retry-After handling can replay mutating requests;
+a single call to Service.Execute alone did not enforce its no-replay contract.
+Read-only LIST/WATCH recovery keeps its existing retry and resynchronization path.
+A network/proxy failure after submission remains Unknown and a Prepared plan is
+consumed even when its result is uncertain. Exactly-once execution across an
+arbitrary intermediary is not claimed.
+
+Regression tests cover authenticated GET/log/discovery redirects and POST/PATCH/
+DELETE after 429/500/503 Retry-After responses. Real-cluster fault injection
+replaces a successfully committed response with a 503 and independently verifies
+the actual persisted effect, the Unknown outcome, and exactly one client write.
