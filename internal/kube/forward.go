@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	streamhttp "k8s.io/streaming/pkg/httpstream"
@@ -36,7 +35,7 @@ func (b *Backend) ForwardPod(ctx context.Context, target resource.Identity, remo
 	if err != nil { return err }
 	if pod.UID != target.UID { return errors.New("pod was replaced; refresh before starting a port forward") }
 	if pod.Status.Phase != corev1.PodRunning { return fmt.Errorf("pod is %s; port forwarding requires a running pod", pod.Status.Phase) }
-	cfg := rest.CopyConfig(b.config)
+	cfg := copyConnectionConfig(b.config)
 	// Upstream streaming dialers create requests with Background context.
 	cfg.Wrap(func(base http.RoundTripper) http.RoundTripper { return sessionHandshake{parent: ctx, base: base} })
 	url := b.typed.CoreV1().RESTClient().Post().Resource("pods").Namespace(target.Namespace).Name(target.Name).SubResource("portforward").URL()

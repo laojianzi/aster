@@ -22,7 +22,7 @@ type Backend struct {
 
 func New(config *rest.Config) (*Backend, error) {
 	if config == nil { return nil, fmt.Errorf("kube: nil config") }
-	cfg := rest.CopyConfig(config)
+	cfg := copyConnectionConfig(config)
 	if cfg.UserAgent == "" { cfg.UserAgent = "aster" }
 	// One request budget and connection pool for all clients in this identity.
 	if cfg.RateLimiter == nil { qps := cfg.QPS; if qps <= 0 { qps = 20 }; burst := cfg.Burst; if burst <= 0 { burst = 40 }; cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(qps,burst) }
@@ -37,4 +37,4 @@ func (b *Backend) List(ctx context.Context,gvr schema.GroupVersionResource,ns st
 	list,err := resourceInterface(b.dynamic,gvr,ns).List(ctx,opts)
 	if err != nil { return 0,"",err }; return len(list.Items),list.GetResourceVersion(),nil
 }
-func (b *Backend) Config() *rest.Config { return rest.CopyConfig(b.config) }
+func (b *Backend) Config() *rest.Config { return copyConnectionConfig(b.config) }
