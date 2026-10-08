@@ -44,6 +44,18 @@ They prove dry-run does not persist, execute a reviewed scale, wait for actual c
 observation and availability, and verify the native UI's readiness result. Separate scenarios
 replace the resource or advance generation and require tracking to stop rather than report success.
 
+## Command regressions
+
+The real-cluster command tests check separate stdout/stderr, exit code 7, literal shell-like
+arguments, output overflow, explicit cancellation and the configured command deadline. A read-only
+identity is denied exec; an independent authorized request verifies that the forbidden command
+did not create its marker file. A native UI scenario runs a real command, observes its exit,
+disconnects a second command and clears the selected resource. Unit protocol tests forbid replay
+when the WebSocket handshake returns an unsupported or missing negotiated protocol.
+
+These tests do not claim PTY/interactive terminal support or that disconnection kills the remote
+process. Every required E2E scenario must pass without skip on each configured cluster image.
+
 ## Evidence rules
 
 CI records `go version` or `kubectl version`, the actual checked-out commit, test JSONL,

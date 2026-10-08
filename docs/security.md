@@ -18,6 +18,10 @@ prevent a user with direct cluster credentials from using another client.
   sensitive fields in custom resources or application log output.
 - Port forwarding binds an ephemeral IPv4 loopback listener and is canceled on resource/session
   lifecycle changes. It does not expose a wildcard listener or silently reconnect/replay actions.
+- Non-interactive commands require explicit container/argv and Pod-name confirmation, have shared
+  stdout/stderr bounds and deadlines, and use no automatic transport fallback or replay. Cancel
+  never implies confirmed remote termination. The UI does not interpret terminal control output.
+  See [the command contract](commands.md) for name-addressed UID limits and sensitive data handling.
 - Health tracking is read-only, pins UID/generation, and has cancellation and deadlines. Ready
   is a point-in-time observation, not an availability guarantee.
 - E2E fixtures require explicit disposable-cluster configuration and never default to the user's
@@ -34,8 +38,8 @@ Gateway/Connector, server-enforced approvals, append-only remote audit, revocati
 terminal recording, or compliant retention is implemented. In-memory operation history is not
 an audit log. Persistent customer resource/log storage is not a supported feature.
 
-Interactive native terminal/exec is not shipped. It requires bounded bidirectional transport,
-real remote exit status, cancellation, terminal escape/clipboard policy and native-library
+Interactive native terminal/TTY is not shipped; the non-interactive Command tab is separate. It requires bounded bidirectional transport,
+TTY resize/input lifecycle, terminal escape/clipboard policy and native-library
 packaging before exposure. Do not equate log viewing with a terminal.
 
 There is no automatic rollback on an unknown mutation result. Re-read the resource and reconcile

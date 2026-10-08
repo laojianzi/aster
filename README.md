@@ -19,6 +19,9 @@ plane or satisfy all release qualifications. See [project status](docs/PROGRESS.
 - Server dry-run and typed confirmation for create-only, edit, scale, restart and delete.
   Reviewed plans are session-bound, immutable, expiring and single-use. Conditional writes
   protect the reviewed UID/resourceVersion; ambiguous outcomes are not retried automatically.
+- Native non-interactive Pod commands with explicit argv, typed confirmation, separate stdout/stderr,
+  bounded output, remote exit status and cancellation. No automatic retry or transport fallback.
+  See [command behavior and security limits](docs/commands.md); this is not a full terminal.
 - Native workload health and read-only rollout tracking for built-in workload types.
   API acceptance is separate from readiness. Tracking pins the original UID and generation,
   stops for replacement/newer changes, supports cancellation and has an overall deadline.
@@ -72,7 +75,8 @@ A green matrix is evidence for these tests and versions, not full production cer
 | Path | Responsibility |
 | --- | --- |
 | `internal/ui` | MyGo widgets, UI-owned state and asynchronous dispatch |
-| `internal/kube` | Kubernetes discovery, queries, watches, logs and forwarding |
+| `internal/kube` | Kubernetes discovery, queries, watches, logs, forwarding and commands |
+| `internal/execsession` | Bounded command arguments, output and explicit outcome model |
 | `internal/operation` | Immutable preview/execute boundary |
 | `internal/health`, `internal/rollout` | Readiness semantics and identity-pinned observation |
 | `internal/cluster`, `internal/eventqueue` | Cancellation and bounded state transport |
