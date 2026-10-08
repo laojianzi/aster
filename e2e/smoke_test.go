@@ -7,16 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/laojianzi/aster/internal/testcluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func TestClusterDiscoverySmoke(t *testing.T) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testcluster.Config(t)
 	cfg.Timeout = 10 * time.Second
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {

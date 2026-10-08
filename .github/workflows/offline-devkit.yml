@@ -1,0 +1,48 @@
+name: Offline development kit
+# Include the client-go remotecommand packages used by native command execution.
+
+on:
+  push:
+    branches: [feat/native-workbench-verified]
+    paths: [.github/workflows/offline-devkit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  devkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Verify and package only the toolchain and public module source
+        shell: bash
+        run: |
+          set -euo pipefail
+          go mod download
+          go mod verify
+          go mod vendor
+          mkdir -p kit/evidence kit/source output
+          cp -a "$(go env GOROOT)" kit/go
+          mv vendor kit/source/vendor
+          cp go.mod go.sum kit/source/
+          go version > kit/evidence/environment.txt
+          git rev-parse HEAD >> kit/evidence/environment.txt
+          go list -m -mod=mod all > kit/evidence/modules.txt
+          git archive --format=tar HEAD | tar -xf - -C kit/source
+          tar -czf output/aster-offline-devkit-linux-amd64.tar.gz -C kit .
+          cd output
+          sha256sum aster-offline-devkit-linux-amd64.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: offline-devkit-linux-amd64
+          path: output/
+          if-no-files-found: error
+          retention-days: 2

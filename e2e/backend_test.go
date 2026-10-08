@@ -8,16 +8,13 @@ import (
 	"time"
 
 	"github.com/laojianzi/aster/internal/kube"
+	"github.com/laojianzi/aster/internal/testcluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func TestBackendAgainstRealAPIServer(t *testing.T) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testcluster.Config(t)
 	b, err := kube.New(cfg)
 	if err != nil {
 		t.Fatal(err)

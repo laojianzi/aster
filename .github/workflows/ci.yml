@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,68 +15,164 @@ concurrency:
 
 jobs:
   test:
-    name: Go test / race
+    name: Unit, race and native interactions
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/unit
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: '1.27.1'
           cache: true
-      - name: Verify module graph
+      - name: Record environment and verify modules
         run: |
+          mkdir -p artifacts/unit
+          go version > artifacts/unit/environment.txt
+          git rev-parse HEAD >> artifacts/unit/environment.txt
           go mod tidy
           git diff --exit-code -- go.mod go.sum
-      - name: Unit tests
-        run: go test ./...
-      - name: Race tests
-        run: go test -race ./...
-
+      - name: Vet
+        run: go vet ./...
+      - name: Unit, native interaction and race tests
+        shell: bash
+        run: |
+          set -o pipefail
+          go test -race -shuffle=on -count=1 -timeout=5m -json ./... | tee artifacts/unit/tests.jsonl
+      - name: Validate test evidence
+        run: |
+          python3 -m unittest discover -s scripts -p "test_test_evidence.py"
+          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments
+      - name: Coverage
+        run: go test -coverprofile=artifacts/unit/coverage.out ./...
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: unit-evidence
+          path: artifacts/unit
+          retention-days: 14
 
   desktop-build:
-    name: Desktop build / ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.27.1'
-          cache: true
-      - name: Build native desktop
-        run: go build ./cmd/aster
-
-  kind-e2e:
-    name: kind e2e / Kubernetes ${{ matrix.k8s }}
-    runs-on: ubuntu-latest
+    name: Native build and window smoke / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - k8s: "v1.35.8"
-            image: "kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0"
-          - k8s: "v1.36.4"
-            image: "kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
-          - k8s: "v1.37.0"
-            image: "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
+          - os: ubuntu-latest
+            binary: aster
+          - os: macos-latest
+            binary: aster
+          - os: windows-latest
+            binary: aster.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: '1.27.1'
           cache: true
+      - name: Native interaction tests on this OS
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          go version > artifacts/environment.txt
+          git rev-parse HEAD >> artifacts/environment.txt
+          go test -count=1 -timeout=5m -json ./internal/ui/... | tee artifacts/tests.jsonl
+          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell
+      - name: Build native desktop
+        run: go build -trimpath -o dist/${{ matrix.binary }} ./cmd/aster
+      - name: Install Linux display dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0t64 libgl1-mesa-dri libegl1 libfontconfig1 fonts-dejavu-core
+      - name: Linux real-window smoke
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s '-screen 0 1600x1000x24' python3 scripts/window_smoke.py dist/aster artifacts/window.log
+      - name: macOS real-window smoke
+        if: runner.os == 'macOS'
+        run: python3 scripts/window_smoke.py dist/aster artifacts/window.log
+      - name: Windows real-window smoke
+        if: runner.os == 'Windows'
+        run: python scripts/window_smoke.py dist/aster.exe artifacts/window.log
+      - name: Upload development binary and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-${{ matrix.os }}
+          path: |
+            dist/
+            artifacts/
+          retention-days: 14
+
+  kind-e2e:
+    name: Real cluster and native E2E / ${{ matrix.k8s }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/e2e
+      ASTER_E2E_CONTEXT: kind-aster-e2e
+      ASTER_E2E_ALLOW_DESTRUCTIVE: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - k8s: 'v1.35.8'
+            image: 'kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0'
+          - k8s: 'v1.36.4'
+            image: 'kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed'
+          - k8s: 'v1.37.0'
+            image: 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Initialize isolated kubeconfig path
+        shell: bash
+        run: echo "KUBECONFIG=$RUNNER_TEMP/aster-e2e-kubeconfig" >> "$GITHUB_ENV"
       - name: Install kind
         run: |
           go install sigs.k8s.io/kind@v0.33.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - name: Create cluster
-        run: kind create cluster --image "${{ matrix.image }}" --wait 120s
-      - name: Cluster diagnostics
-        run: kubectl version && kubectl get nodes -o wide
-      - name: Download modules
-        run: go mod download
-      - name: E2E
-        run: go test -tags=e2e ./e2e/... -count=1 -timeout=10m
+      - name: Create isolated cluster
+        run: kind create cluster --name aster-e2e --kubeconfig "$KUBECONFIG" --image '${{ matrix.image }}' --wait 120s
+      - name: E2E including native UI against the real API server
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/e2e
+          kubectl version > artifacts/e2e/environment.txt
+          git rev-parse HEAD >> artifacts/e2e/environment.txt
+          go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
+      - name: Validate real-cluster evidence
+        run: python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination
+      - name: Collect cluster diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/e2e
+          kubectl get pods -A -o wide > artifacts/e2e/pods.txt 2>&1 || true
+          kubectl get events -A > artifacts/e2e/events.txt 2>&1 || true
+      - name: Delete isolated cluster
+        if: always()
+        run: kind delete cluster --name aster-e2e
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: e2e-${{ matrix.k8s }}
+          path: artifacts/e2e
+          retention-days: 14

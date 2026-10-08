@@ -1,205 +1,143 @@
 package uiworkbench
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"time"
+ "context"
+ "fmt"
+ "os"
+ "strconv"
+ "time"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
-	"github.com/laojianzi/aster/internal/eventqueue"
-	"github.com/laojianzi/aster/internal/kube"
-	"github.com/laojianzi/aster/internal/kubeconfig"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
+ "github.com/egoist/mygo"
+ "github.com/egoist/mygo/ui"
+ "github.com/laojianzi/aster/internal/cluster"
+ "github.com/laojianzi/aster/internal/kube"
+ "github.com/laojianzi/aster/internal/operation"
+ "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-type resourceRow struct {
-	UID       string
-	Name      string
-	Namespace string
-	Created   string
-}
-
+// Workbench state belongs to the UI goroutine. Workers capture immutable inputs
+// and submit changes through emit; they never access live widget state.
 type Workbench struct {
-	cluster   string
-	namespace string
-	status    string
-	errText   string
-	rows      []resourceRow
-	table     ui.ListState
-	selected  int
+ ctx context.Context
+ cancel context.CancelFunc
+ life *cluster.Session
+ dispatch func(func())
+
+ contextEpoch, scopeEpoch, detailEpoch, draftRevision uint64
+ scopeCancel, logCancel, connectionCancel context.CancelFunc
+ connectionCtx context.Context
+ activeContext, activeNamespace string
+ backend *kube.Backend
+ ops *operation.Service
+ sessionID string
+ path, currentContext, namespace, labelSelector string
+ contexts []string
+ trustedFingerprint, pendingTrustFingerprint string
+ trustRequired bool
+
+ kinds []kube.ResourceKind
+ currentKind kube.ResourceKind
+ kindChoice string
+ status, errText, notice string
+ filter, sortBy string
+ rows []resourceRow
+ total int
+ store *rowStore
+ table, logList ui.ListState
+ selected int
+
+ detail *unstructured.Unstructured
+ detailKind kube.ResourceKind
+ detailMode, detailText, editor, diff, confirmation, detailMessage string
+ containers []string
+ container, replicas string
+ plan *operation.Prepared
+ preparing, creating bool
+ pendingWrites int
+ eventsText string
+ eventsRevision uint64
+
+ logEpoch uint64
+ logRows []string
+ logStatus string
+ logDropped uint64
+
+ forwardCancel context.CancelFunc
+ forwardEpoch uint64
+ forwardPort, forwardStatus, forwardAddress string
+ forwardLocal uint16
+ forwardActive bool
+
+ healthEpoch uint64
+ healthCancel context.CancelFunc
+ healthActive bool
+ healthText string
+
+ commandEpoch uint64
+ commandCancel context.CancelFunc
+ commandActive bool
+ commandArgv, commandContainer, commandConfirmation, commandOutput, commandStatus string
+
+ history []string
+ frames int
 }
 
 func New() *Workbench {
-	w := &Workbench{cluster: "No cluster", namespace: "default", status: "Connecting"}
-	w.table.Selected = &w.selected
-	w.table.Key = func(i int) any {
-		if i < 0 || i >= len(w.rows) {
-			return ""
-		}
-		return w.rows[i].UID
-	}
-	return w
+ w := &Workbench{ctx: context.Background(), status: "Not connected", sortBy: "Name", selected: -1, replicas: "1", detailMode: "YAML"}
+ w.kinds = catalog()
+ w.currentKind = w.kinds[0]
+ w.kindChoice = w.currentKind.Label()
+ w.table.Selected = &w.selected
+ w.table.Key = func(i int) any {
+  if i < 0 || i >= len(w.rows) { return "" }
+  return w.rows[i].key()
+ }
+ return w
+}
+func formatReplicas(ready, desired int64) string { return fmt.Sprintf("%d / %d ready", ready, desired) }
+
+func Open(parent context.Context) *Workbench {
+ w := New()
+ win := mygo.NewWindow(mygo.WindowOptions{Title: "Aster", Width: 1440, Height: 900, MinWidth: 1100, MinHeight: 700, StateKey: "main", Content: ui.View(w.View)})
+ w.attach(parent, func(fn func()) { win.Update(fn) })
+ win.OnClosed(func() { w.cancel(); mygo.App.Quit() })
+ if os.Getenv("ASTER_NATIVE_SMOKE") == "1" {
+  w.notice = "Smoke fixture · no kubeconfig is read"
+  w.rows = []resourceRow{{UID: "fixture", Name: "aster-native-smoke", Namespace: "fixture", Status: "Rendered"}}
+  w.total = 1
+  w.status = "Smoke fixture"
+  w.run(func(ctx context.Context) {
+   ticker := time.NewTicker(100 * time.Millisecond)
+   defer ticker.Stop()
+   for {
+    select {
+    case <-ctx.Done(): return
+    case <-ticker.C:
+     w.emit(func() {
+      if w.frames > 0 { fmt.Println("ASTER_NATIVE_SMOKE_OK"); win.Close() }
+     })
+    }
+   }
+  })
+ } else { w.loadContexts() }
+ return w
+}
+func (w *Workbench) attach(parent context.Context, dispatch func(func())) {
+ w.ctx, w.cancel = context.WithCancel(parent)
+ w.life = cluster.NewSession(w.ctx, "desktop")
+ w.dispatch = dispatch
+}
+func (w *Workbench) run(fn func(context.Context)) {
+ if w.life != nil { _ = w.life.Go(fn) }
+}
+func (w *Workbench) emit(fn func()) {
+ if w.dispatch == nil || w.ctx.Err() != nil { return }
+ w.dispatch(func() { if w.ctx.Err() == nil { fn() } })
 }
 
-func (w *Workbench) View(c *ui.Context) {
-	theme := c.Theme()
-	ui.Column(c).Fill().Children(func() {
-		ui.Row(c).Height(48).Padding(12).Gap(12).Children(func() {
-			ui.Text(c, "Aster").Bold().FontSize(18)
-			ui.Text(c, w.cluster).TextColor(theme.TextMuted)
-			ui.Text(c, w.namespace).TextColor(theme.TextMuted)
-		})
-		ui.Row(c).Fill().Children(func() {
-			ui.Column(c).Width(220).Padding(12).Gap(8).Children(func() {
-				ui.Text(c, "WORKSPACE").FontSize(11).TextColor(theme.TextMuted)
-				for _, label := range []string{"Applications", "Workloads", "Network", "Storage", "Configuration", "Access Control", "Custom Resources"} {
-					ui.Button(c, label).Fill()
-				}
-			})
-			ui.Column(c).Fill().Padding(16).Gap(10).Children(func() {
-				ui.Row(c).Gap(8).Children(func() {
-					ui.Text(c, "Pods").Bold().FontSize(20)
-					ui.Text(c, fmt.Sprintf("%d resources", len(w.rows))).TextColor(theme.TextMuted)
-				})
-				if w.errText != "" {
-					ui.Text(c, w.errText).TextColor(theme.TextMuted)
-				}
-				cols := []ui.TableColumn{
-					{ID: "name", Title: "Name", Sortable: true},
-					{ID: "namespace", Title: "Namespace", Width: 180},
-					{ID: "created", Title: "Created", Width: 210},
-				}
-				ui.Table(c, &w.table, cols, len(w.rows), func(row, col int) {
-					item := w.rows[row]
-					switch col {
-					case 0:
-						ui.Text(c, item.Name).SingleLine()
-					case 1:
-						ui.Text(c, item.Namespace).SingleLine()
-					case 2:
-						ui.Text(c, item.Created).SingleLine()
-					}
-				}).Grow(1)
-				ui.Text(c, "Status: "+w.status).FontSize(12).TextColor(theme.TextMuted)
-			})
-		})
-	})
+// Close is called after the event loop, or by the owning UI test goroutine.
+func (w *Workbench) Close() {
+ if w.cancel != nil { w.cancel() }
+ if w.life != nil { w.life.Close() }
 }
-
-func Open() {
-	w := New()
-	ctx, cancel := context.WithCancel(context.Background())
-	win := mygo.NewWindow(mygo.WindowOptions{
-		Title:    "Aster",
-		Width:    1280,
-		Height:   800,
-		MinWidth: 900,
-		MinHeight: 600,
-		StateKey: "main",
-		Content:  ui.View(w.View),
-	})
-	win.OnClosed(cancel)
-	go w.runClusterSession(ctx, win)
-}
-
-func (w *Workbench) runClusterSession(ctx context.Context, win *mygo.Window) {
-	conn, err := kubeconfig.LoadDefault()
-	if err != nil {
-		win.Update(func() {
-			w.status = "No kubeconfig connection"
-			w.errText = err.Error()
-		})
-		return
-	}
-	backend, err := kube.New(conn.Config)
-	if err != nil {
-		win.Update(func() {
-			w.status = "Connection failed"
-			w.errText = err.Error()
-		})
-		return
-	}
-	win.Update(func() {
-		w.cluster = conn.ContextName
-		w.namespace = conn.Namespace
-		w.status = "Synchronizing"
-		w.errText = ""
-	})
-
-	watchCtx, stopWatch := context.WithCancel(ctx)
-	defer stopWatch()
-	queue := eventqueue.New[string, kube.ResourceEvent](4096)
-	defer queue.Close()
-	batchDone := make(chan struct{})
-	go func() {
-		defer close(batchDone)
-		ticker := time.NewTicker(50 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-watchCtx.Done():
-				return
-			case <-ticker.C:
-				events := queue.Drain(256)
-				if len(events) == 0 {
-					continue
-				}
-				win.Update(func() {
-					w.apply(events)
-					w.status = "Live"
-				})
-			}
-		}
-	}()
-
-	gvr := schema.GroupVersionResource{Version: "v1", Resource: "pods"}
-	err = backend.WatchResource(watchCtx, gvr, conn.Namespace, metav1.ListOptions{}, func(event kube.ResourceEvent) error {
-		uid := string(event.Object.GetUID())
-		if uid == "" {
-			uid = event.Object.GetNamespace() + "/" + event.Object.GetName()
-		}
-		return queue.Put(uid, event)
-	})
-	stopWatch()
-	if err != nil && !errors.Is(err, context.Canceled) {
-		win.Update(func() {
-			w.status = "Watch failed"
-			w.errText = err.Error()
-		})
-	}
-	<-batchDone
-}
-
-func (w *Workbench) apply(events []kube.ResourceEvent) {
-	for _, event := range events {
-		uid := string(event.Object.GetUID())
-		index := -1
-		for i := range w.rows {
-			if w.rows[i].UID == uid {
-				index = i
-				break
-			}
-		}
-		if event.Type == watch.Deleted {
-			if index >= 0 {
-				w.rows = append(w.rows[:index], w.rows[index+1:]...)
-			}
-			continue
-		}
-		row := resourceRow{
-			UID:       uid,
-			Name:      event.Object.GetName(),
-			Namespace: event.Object.GetNamespace(),
-			Created:   event.Object.GetCreationTimestamp().UTC().Format(time.RFC3339),
-		}
-		if index >= 0 {
-			w.rows[index] = row
-		} else {
-			w.rows = append(w.rows, row)
-		}
-	}
-}
+func parseReplicaCount(text string) (int64, error) { return strconv.ParseInt(text, 10, 64) }
