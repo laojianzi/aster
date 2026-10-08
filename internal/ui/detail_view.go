@@ -3,6 +3,7 @@ package uiworkbench
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"github.com/laojianzi/aster/internal/resourcemetrics"
 )
 
 func (w *Workbench) detailView(c *ui.Context) {
@@ -45,6 +46,9 @@ func (w *Workbench) detailView(c *ui.Context) {
 			if ui.Button(c, "Related").Disabled(w.creating).Clicked() {
 				w.loadRelationships()
 			}
+			if ui.Button(c, "Metrics").Disabled(w.creating || !resourcemetrics.Supported(w.detailKind.GVR)).Clicked() {
+				w.loadMetrics(false)
+			}
 		})
 		ui.Row(c).Gap(6).Children(func() {
 			if ui.Button(c, "Logs").Disabled(w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods").Clicked() {
@@ -65,6 +69,9 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.openResourceKind(w.detailKind, project(w.detail))
 			}
 		})
+		if w.detailMode != "Metrics" && w.metricsCancel != nil {
+			w.stopMetrics()
+		}
 		if w.detailMessage != "" {
 			ui.Text(c, w.detailMessage).FontSize(12).TextColor(t.TextMuted)
 		}
@@ -92,6 +99,8 @@ func (w *Workbench) detailView(c *ui.Context) {
 			if ui.PrimaryButton(c, "Execute reviewed change").Disabled(w.plan == nil || w.confirmation != w.confirmationName() || w.pendingWrites > 0).Clicked() {
 				w.execute()
 			}
+		case "Metrics":
+			w.metricsView(c)
 		case "Related":
 			w.relationshipView(c)
 		case "Health":

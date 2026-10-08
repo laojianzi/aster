@@ -15,11 +15,12 @@ import (
 )
 
 type Backend struct {
-	config    *rest.Config
-	typed     kubernetes.Interface
-	dynamic   dynamic.Interface
-	discovery discovery.DiscoveryInterface
-	writes    rest.Interface
+	metricsHTTP *http.Client
+	config      *rest.Config
+	typed       kubernetes.Interface
+	dynamic     dynamic.Interface
+	discovery   discovery.DiscoveryInterface
+	writes      rest.Interface
 }
 
 func New(config *rest.Config) (*Backend, error) {
@@ -66,7 +67,7 @@ func New(config *rest.Config) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("write client: %w", err)
 	}
-	return &Backend{config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
+	return &Backend{metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
 }
 func (b *Backend) ServerVersion() (string, error) {
 	v, err := b.discovery.ServerVersion()
