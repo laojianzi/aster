@@ -33,10 +33,10 @@ func TestNativeWorkbenchEditAgainstRealCluster(t *testing.T){
 	w.attach(ctx,func(fn func()){select{case updates<-fn:case<-ctx.Done():}})
 	t.Cleanup(func(){cancel();w.Close()})
 	tt:=ui.NewTester(w.View,1440,1000)
-	pump:=func(predicate func()bool){t.Helper();for{select{case fn:=<-updates:fn();default:};tt.Frame();if predicate(){return};select{case<-ctx.Done():saveNativeScreenshot(t,tt);t.Fatalf("UI timeout: status=%s error=%s detail=%s",w.status,w.errText,w.detailMessage);case<-time.After(20*time.Millisecond):}}}
+	pump:=func(predicate func()bool){t.Helper();for{select{case fn:=<-updates:fn();default:};tt.Frame();if predicate(){return};select{case<-ctx.Done():saveNativeScreenshot(t,tt);t.Fatalf("UI timeout: status=%s namespace=%s kind=%s rows=%v error=%s detail=%s",w.status,w.namespace,w.currentKind.GVR.Resource,w.rows,w.errText,w.detailMessage);case<-time.After(20*time.Millisecond):}}}
 	click:=func(label string){t.Helper();if err:=tt.Click(label);err!=nil{saveNativeScreenshot(t,tt);t.Fatal(err)}}
 	click("Connect");pump(func()bool{return w.status=="Live"})
-	click("ConfigMaps");pump(func()bool{return len(w.rows)==1&&w.rows[0].Name==cm.Name})
+	click("ConfigMaps");pump(func()bool{return containsRowUID(w.rows,string(cm.UID))})
 	click(cm.Name);pump(func()bool{return w.detail!=nil})
 	click("Edit");click("Manifest editor")
 	next:=w.detail.DeepCopy();if err:=unstructured.SetNestedField(next.Object,"after","data","value");err!=nil{t.Fatal(err)}
@@ -55,3 +55,5 @@ func TestNativeWorkbenchEditAgainstRealCluster(t *testing.T){
 	if !strings.Contains(w.history[len(w.history)-1],"Succeeded"){t.Fatal(w.history)}
 	saveNativeScreenshot(t,tt)
 }
+
+func containsRowUID(rows []resourceRow,uid string)bool{for _,row:=range rows{if row.UID==uid{return true}};return false}
