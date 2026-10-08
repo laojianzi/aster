@@ -21,7 +21,11 @@ type Workbench struct{
 	life *cluster.Session
 	dispatch func(func())
 	contextEpoch,scopeEpoch,detailEpoch,draftRevision uint64
-	scopeCancel,logCancel context.CancelFunc
+	scopeCancel,logCancel,connectionCancel context.CancelFunc
+	connectionCtx context.Context
+	activeContext,activeNamespace string
+	eventsText string
+	eventsRevision uint64
 	backend *kube.Backend
 	ops *operation.Service
 	sessionID string
@@ -70,13 +74,13 @@ func(w *Workbench)View(c *ui.Context){
 		ui.Row(c).Height(58).Padding(12).Gap(10).Children(func(){
 			ui.Text(c,"Aster").Bold().FontSize(22)
 			ui.Text(c,"Native Kubernetes Workbench").FontSize(12).TextColor(t.TextMuted)
-			if ui.Select(c,&w.currentContext,w.contexts).Label("Cluster context").Width(250).Changed(){w.trustedContext="";w.trustRequired=false}
+			if ui.Select(c,&w.currentContext,w.contexts).Label("Cluster context").Width(250).Changed(){w.trustedContext="";w.trustRequired=false;w.disconnect()}
 			ui.TextInput(c,&w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
 			if ui.PrimaryButton(c,"Connect").Disabled(w.currentContext=="").Clicked(){w.connect()}
 			if ui.Button(c,"Disconnect").Disabled(w.backend==nil).Clicked(){w.disconnect()}
 		})
 		ui.Row(c).Height(44).Padding(6,12).Gap(8).Children(func(){
-			ui.TextInput(c,&w.path).Label("Kubeconfig path").Placeholder("Kubeconfig path (empty: default)").Width(320)
+			if ui.TextInput(c,&w.path).Label("Kubeconfig path").Placeholder("Kubeconfig path (empty: default)").Width(320).Changed(){w.trustedContext="";w.trustRequired=false;w.disconnect()}
 			if ui.Button(c,"Load contexts").Clicked(){w.loadContexts()}
 			ui.Text(c,w.notice).FontSize(12).TextColor(t.TextMuted)
 		})
@@ -86,7 +90,7 @@ func(w *Workbench)View(c *ui.Context){
 				if ui.Button(c,"Trust this context and connect").Clicked(){w.trustedContext=w.currentContext;w.connect()}
 			})
 		}
-		ui.Row(c).Grow(1).Children(func(){
+		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func(){
 			ui.Column(c).Width(174).Padding(10).Gap(5).Children(func(){
 				ui.Text(c,"RESOURCES").FontSize(11).Bold().TextColor(t.TextMuted)
 				for _,item:=range []struct{Label,Resource string}{{"Pods","pods"},{"Deployments","deployments"},{"StatefulSets","statefulsets"},{"DaemonSets","daemonsets"},{"Jobs","jobs"},{"CronJobs","cronjobs"},{"Services","services"},{"Ingresses","ingresses"},{"ConfigMaps","configmaps"},{"Secrets","secrets"},{"Volume Claims","persistentvolumeclaims"},{"Nodes","nodes"},{"Namespaces","namespaces"}}{
@@ -119,6 +123,7 @@ func(w *Workbench)View(c *ui.Context){
 		})
 		ui.Row(c).Height(34).Padding(6,12).Gap(12).Children(func(){
 			ui.Text(c,"Status: "+w.status).FontSize(12)
+			ui.Text(c,"Connected: "+w.activeContext+" / "+w.activeNamespace).FontSize(11).TextColor(t.TextMuted)
 			ui.Text(c,fmt.Sprintf("%d active write(s)",w.pendingWrites)).FontSize(12).TextColor(t.TextMuted)
 			if len(w.history)>0{ui.Text(c,w.history[len(w.history)-1]).FontSize(11).SingleLine().TextColor(t.TextMuted)}
 		})
@@ -130,7 +135,7 @@ func(w *Workbench)detailView(c *ui.Context){
 	ui.Column(c).Width(510).Padding(12).Gap(8).Children(func(){
 		ui.Row(c).Gap(8).Children(func(){ui.Text(c,w.detail.GetName()).Bold().FontSize(18);if ui.Button(c,"Close detail").Clicked(){w.clearDetail()}})
 		if w.detail==nil{return}
-		ui.Text(c,w.currentContext+" / "+w.detail.GetNamespace()+" / "+w.detailKind.Kind).FontSize(11).TextColor(t.TextMuted)
+		ui.Text(c,w.activeContext+" / "+w.detail.GetNamespace()+" / "+w.detailKind.Kind).FontSize(11).TextColor(t.TextMuted)
 		ui.Row(c).Gap(6).Children(func(){
 			if ui.Button(c,"YAML").Clicked(){w.detailMode="YAML";w.stopLogs()}
 			if ui.Button(c,"Edit").Disabled(w.detail.GetKind()=="Secret").Clicked(){w.detailMode="Edit";w.stopLogs()}
@@ -148,6 +153,8 @@ func(w *Workbench)detailView(c *ui.Context){
 			ui.TextArea(c,&w.diff).Label("Change diff").ReadOnly(true).Grow(1)
 			ui.TextInput(c,&w.confirmation).Label("Confirm resource name").Placeholder("Type the resource name to confirm")
 			if ui.PrimaryButton(c,"Execute reviewed change").Disabled(w.plan==nil||w.confirmation!=w.detail.GetName()||w.pendingWrites>0).Clicked(){w.execute()}
+		case "Events":
+			ui.TextArea(c,&w.eventsText).Label("Resource events").ReadOnly(true).Grow(1)
 		case "Logs":
 			ui.Select(c,&w.container,w.containers).Label("Container")
 			ui.Row(c).Gap(6).Children(func(){if ui.Button(c,"Follow logs").Clicked(){w.startLogs(false,true)};if ui.Button(c,"Previous logs").Clicked(){w.startLogs(true,false)};if ui.Button(c,"Stop logs").Clicked(){w.stopLogs();w.logStatus="Stopped"}})

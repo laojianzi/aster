@@ -28,8 +28,9 @@ func (b *Backend) Discover(ctx context.Context) ([]ResourceKind,[]string,error) 
 	var mu sync.Mutex; var wg sync.WaitGroup
 	sem := make(chan struct{},4)
 	var out []ResourceKind; var warnings []string
+requests:
 	for _,path := range paths {
-		select { case sem<-struct{}{}: case <-ctx.Done(): return nil,nil,ctx.Err() }
+		select { case sem<-struct{}{}: case <-ctx.Done(): break requests }
 		wg.Add(1)
 		go func(path string) {
 			defer wg.Done(); defer func(){<-sem}()

@@ -22,14 +22,15 @@ import (
 )
 
 func(w *Workbench)loadContexts(){
-	path:=w.path;w.contextEpoch++;epoch:=w.contextEpoch
+	path:=w.path;w.disconnect();epoch:=w.contextEpoch
 	w.run(func(ctx context.Context){items,current,err:=kubeconfig.Contexts(path);w.emit(func(){if epoch!=w.contextEpoch{return};if err!=nil{w.errText=err.Error();return};w.contexts=nil;for _,item:=range items{w.contexts=append(w.contexts,item.Name)};w.currentContext=current;w.trustedContext="";w.trustRequired=false;if len(items)==0{w.status="No kubeconfig contexts";return};if w.currentContext==""{w.currentContext=items[0].Name};w.connect()})})
 }
 func(w *Workbench)disconnect(){
-	w.contextEpoch++;w.scopeEpoch++;if w.scopeCancel!=nil{w.scopeCancel();w.scopeCancel=nil};w.clearDetail();w.backend=nil;w.ops=nil;w.rows=nil;w.total=0;w.selected=-1;w.store=nil;w.status="Disconnected";w.errText=""
+	w.contextEpoch++;w.scopeEpoch++;if w.connectionCancel!=nil{w.connectionCancel();w.connectionCancel=nil};w.activeContext="";w.activeNamespace="";w.notice="";w.kinds=catalog();if w.scopeCancel!=nil{w.scopeCancel();w.scopeCancel=nil};w.clearDetail();w.backend=nil;w.ops=nil;w.rows=nil;w.total=0;w.selected=-1;w.store=nil;w.status="Disconnected";w.errText=""
 }
 func(w *Workbench)connect(){
 	w.disconnect();w.status="Connecting";epoch:=w.contextEpoch
+	connectionCtx,connectionCancel:=context.WithCancel(w.ctx);w.connectionCtx=connectionCtx;w.connectionCancel=connectionCancel
 	opts:=kubeconfig.Options{Path:w.path,Context:w.currentContext,Namespace:w.namespace,Trusted:w.trustedContext==w.currentContext&&w.currentContext!=""}
 	w.run(func(ctx context.Context){
 		conn,err:=kubeconfig.Load(opts)
@@ -39,8 +40,8 @@ func(w *Workbench)connect(){
 		w.emit(func(){
 			if epoch!=w.contextEpoch{return}
 			if err!=nil{w.status="Connection failed";w.errText=err.Error();var trust *kubeconfig.TrustRequiredError;w.trustRequired=errors.As(err,&trust);return}
-			w.backend=backend;w.currentContext=conn.ContextName;w.namespace=conn.Namespace;w.sessionID=hex.EncodeToString(sessionBytes[:]);w.ops=operation.NewService(backend,w.sessionID);w.trustRequired=false;w.errText="";w.startScope()
-			w.run(func(ctx context.Context){kinds,warnings,err:=backend.Discover(ctx);w.emit(func(){if epoch!=w.contextEpoch{return};if err!=nil{w.notice="Discovery unavailable; built-in resources remain accessible";return};if len(kinds)>0{w.kinds=kinds};w.notice=fmt.Sprintf("%d resource types · %d unavailable API group(s)",len(kinds),len(warnings))})})
+			w.backend=backend;w.activeContext=conn.ContextName;w.currentContext=conn.ContextName;w.namespace=conn.Namespace;w.sessionID=hex.EncodeToString(sessionBytes[:]);w.ops=operation.NewService(backend,w.sessionID);w.trustRequired=false;w.errText="";w.startScope()
+			w.run(func(ctx context.Context){kinds,warnings,err:=backend.Discover(connectionCtx);w.emit(func(){if epoch!=w.contextEpoch{return};if err!=nil{w.notice="Discovery unavailable; built-in resources remain accessible";return};if len(kinds)>0{w.kinds=kinds};w.notice=fmt.Sprintf("%d resource types · %d unavailable API group(s)",len(kinds),len(warnings))})})
 		})
 	})
 }
@@ -50,9 +51,10 @@ func(w *Workbench)startScope(){
 	w.scopeEpoch++;epoch:=w.scopeEpoch
 	if w.scopeCancel!=nil{w.scopeCancel()};w.clearDetail();w.rows=nil;w.total=0;w.selected=-1;w.errText=""
 	if w.backend==nil{w.status="Not connected";return}
-	ctx,cancel:=context.WithCancel(w.ctx);w.scopeCancel=cancel
+	parent:=w.connectionCtx;if parent==nil{parent=w.ctx};ctx,cancel:=context.WithCancel(parent);w.scopeCancel=cancel
 	kind,backend:=w.currentKind,w.backend
 	ns:=strings.TrimSpace(w.namespace);if !kind.Namespaced||ns=="*"{ns=""}
+	w.activeNamespace=ns;if !kind.Namespaced{w.activeNamespace="cluster-scoped"}else if ns==""{w.activeNamespace="all namespaces"}
 	opts:=metav1.ListOptions{LabelSelector:w.labelSelector}
 	store:=newRowStore();store.setQuery(w.filter,w.sortBy);w.store=store;w.status="Synchronizing"
 	w.run(func(context.Context){err:=backend.WatchWithStatus(ctx,kind.GVR,ns,opts,func(e kube.ResourceEvent)error{store.event(e);return nil},func(status string){store.setStatus(status,"")});if err!=nil&&ctx.Err()==nil{store.setStatus("Unavailable",err.Error())}})
@@ -65,7 +67,7 @@ func(w *Workbench)startScope(){
 		}}
 	})
 }
-func(w *Workbench)clearDetail(){w.detailEpoch++;w.draftRevision++;w.stopLogs();w.detail=nil;w.plan=nil;w.diff="";w.editor="";w.detailText="";w.confirmation="";w.detailMessage="";w.preparing=false}
+func(w *Workbench)clearDetail(){w.detailEpoch++;w.draftRevision++;w.eventsRevision++;w.eventsText="";w.stopLogs();w.detail=nil;w.plan=nil;w.diff="";w.editor="";w.detailText="";w.confirmation="";w.detailMessage="";w.preparing=false}
 func(w *Workbench)openResource(row resourceRow){
 	if w.backend==nil{return}
 	w.clearDetail();epoch:=w.detailEpoch;scope:=w.scopeEpoch;backend,kind:=w.backend,w.currentKind
@@ -91,15 +93,15 @@ func(w *Workbench)prepare(kind string){
 }
 func(w *Workbench)execute(){
 	if w.plan==nil||w.ops==nil||w.pendingWrites>0{return}
-	plan,service,epoch:=w.plan,w.ops,w.detailEpoch;target:=plan.Target();if w.confirmation!=target.Name{return}
+	plan,service,epoch:=w.plan,w.ops,w.detailEpoch;contextName:=w.activeContext;target:=plan.Target();if w.confirmation!=target.Name{return}
 	w.plan=nil;w.pendingWrites++;w.detailMessage="Submitting reviewed change…"
 	w.run(func(ctx context.Context){ctx,cancel:=context.WithTimeout(ctx,30*time.Second);defer cancel();result,err:=service.Execute(ctx,plan)
-		w.emit(func(){w.pendingWrites--;line:=fmt.Sprintf("%s %s %s/%s · %s",plan.ID()[:12],plan.Kind(),target.Namespace,target.Name,result.State);w.history=append(w.history,line);if len(w.history)>100{w.history=append([]string(nil),w.history[len(w.history)-100:]...)};if epoch!=w.detailEpoch{return};if err!=nil{w.detailMessage=result.State+": "+err.Error()}else{w.detailMessage="API accepted the change. Workload readiness is observed separately in the live resource list."};w.confirmation=""})
+		w.emit(func(){w.pendingWrites--;line:=fmt.Sprintf("%s [%s] %s %s/%s · %s",plan.ID()[:12],contextName,plan.Kind(),target.Namespace,target.Name,result.State);w.history=append(w.history,line);if len(w.history)>100{w.history=append([]string(nil),w.history[len(w.history)-100:]...)};if epoch!=w.detailEpoch{return};if err!=nil{w.detailMessage=result.State+": "+err.Error()}else{w.detailMessage="API accepted the change. Workload readiness is observed separately in the live resource list."};w.confirmation=""})
 	})
 }
 func(w *Workbench)loadEvents(){
-	if w.detail==nil||w.backend==nil{return};w.stopLogs();epoch:=w.detailEpoch;backend,target:=w.backend,w.target();w.detailMode="Events";w.detailText="Loading events…"
-	w.run(func(ctx context.Context){ctx,cancel:=context.WithTimeout(ctx,20*time.Second);defer cancel();items,_,err:=backend.ListObjects(ctx,schema.GroupVersionResource{Version:"v1",Resource:"events"},target.Namespace,metav1.ListOptions{FieldSelector:"involvedObject.uid="+string(target.UID),Limit:200});var lines []string;for _,item:=range items{reason,_,_:=unstructured.NestedString(item.Object,"reason");message,_,_:=unstructured.NestedString(item.Object,"message");lines=append(lines,reason+": "+message)};w.emit(func(){if epoch!=w.detailEpoch{return};if err!=nil{w.detailText="Events unavailable: "+err.Error()}else if len(lines)==0{w.detailText="No retained events for this resource UID."}else{w.detailText=strings.Join(lines,"\n\n")}})})
+	if w.detail==nil||w.backend==nil{return};w.stopLogs();epoch:=w.detailEpoch;w.eventsRevision++;revision:=w.eventsRevision;backend,target:=w.backend,w.target();w.detailMode="Events";w.eventsText="Loading events…"
+	w.run(func(ctx context.Context){ctx,cancel:=context.WithTimeout(ctx,20*time.Second);defer cancel();items,_,err:=backend.ListObjects(ctx,schema.GroupVersionResource{Version:"v1",Resource:"events"},target.Namespace,metav1.ListOptions{FieldSelector:"involvedObject.uid="+string(target.UID),Limit:200});var lines []string;for _,item:=range items{reason,_,_:=unstructured.NestedString(item.Object,"reason");message,_,_:=unstructured.NestedString(item.Object,"message");lines=append(lines,reason+": "+message)};w.emit(func(){if epoch!=w.detailEpoch||revision!=w.eventsRevision{return};if err!=nil{w.eventsText="Events unavailable: "+err.Error()}else if len(lines)==0{w.eventsText="No retained events for this resource UID."}else{w.eventsText=strings.Join(lines,"\n\n")}})})
 }
 func(w *Workbench)stopLogs(){if w.logCancel!=nil{w.logCancel();w.logCancel=nil}}
 func(w *Workbench)startLogs(previous,follow bool){
