@@ -20,10 +20,10 @@ func (w *Workbench) View(c *ui.Context) {
 				w.disconnect()
 			}
 			ui.TextInput(c, &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
-			if ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "").Clicked() {
+			if ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending).Clicked() {
 				w.connect()
 			}
-			if ui.Button(c, "Disconnect").Disabled(w.backend == nil).Clicked() {
+			if ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending).Clicked() {
 				w.disconnect()
 			}
 		})
@@ -49,7 +49,7 @@ func (w *Workbench) View(c *ui.Context) {
 		if w.trustRequired {
 			ui.Row(c).Padding(10).Gap(10).Children(func() {
 				ui.Text(c, "This context requests local credentials, executable authentication or unsafe transport. Trust only a configuration you control.").FontSize(12)
-				if ui.Button(c, "Trust this context and connect").Clicked() {
+				if ui.Button(c, "Trust this context and connect").Disabled(w.connectionPending).Clicked() {
 					w.trustedFingerprint = w.pendingTrustFingerprint
 					w.connect()
 				}
@@ -135,7 +135,7 @@ func (w *Workbench) View(c *ui.Context) {
 			}
 		})
 		ui.Row(c).Height(34).Padding(6, 12).Gap(12).Children(func() {
-			ui.Text(c, "Status: "+w.status).FontSize(12)
+			ui.Text(c, "Status: "+w.connectionStatus()).Label("Connection status").FontSize(12).Grow(1).SingleLine()
 			ui.Text(c, "Connected: "+w.activeContext+" / "+w.activeNamespace).FontSize(11).TextColor(t.TextMuted)
 			ui.Text(c, fmt.Sprintf("%d active write(s)", w.pendingWrites)).FontSize(12).TextColor(t.TextMuted)
 			if w.forwardLocal != 0 {

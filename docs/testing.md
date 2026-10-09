@@ -102,3 +102,11 @@ render markers in addition to the existing independent-window markers.
 Generated source is not checked into Git. Source evidence additionally archives the
 generated Go files and their hash manifest/patch hash. Native artifacts include the
 verified platform library and primary licenses; these are not signed release artifacts.
+
+## Bounded exec authentication
+
+The native OS matrix also runs `internal/credentialexec`, using real subprocesses on each OS.
+Required cases include child-group/job reclamation, output limits, deadlines/cancel, native trust and
+expiry. Real Kubernetes coverage requires `TestRealExecCredentialTrustRBACAndExpiry` and
+`TestNativeExecCredentialLiveLogsExpireAgainstRealCluster`. No live cluster is used by unit helpers;
+E2E fixtures still require the existing explicit disposable-cluster guard.

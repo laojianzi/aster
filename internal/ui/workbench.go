@@ -32,6 +32,8 @@ type Workbench struct {
 	contextEpoch, scopeEpoch, detailEpoch, draftRevision uint64
 	scopeCancel, logCancel, connectionCancel             context.CancelFunc
 	connectionCtx                                        context.Context
+	connectionPending                                    bool
+	credentialExpiry                                     time.Time
 	activeContext, activeNamespace                       string
 	backend                                              *kube.Backend
 	ops                                                  *operation.Service

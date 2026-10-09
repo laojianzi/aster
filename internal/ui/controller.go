@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/laojianzi/aster/internal/credentialexec"
+	"time"
 
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/kubeconfig"
@@ -53,6 +55,7 @@ func (w *Workbench) disconnect() {
 		w.connectionCancel = nil
 	}
 	w.activeContext, w.activeNamespace, w.notice = "", "", ""
+	w.credentialExpiry = time.Time{}
 	w.kinds = catalog()
 	if w.scopeCancel != nil {
 		w.scopeCancel()
@@ -65,6 +68,10 @@ func (w *Workbench) disconnect() {
 }
 
 func (w *Workbench) connect() {
+	if w.connectionPending {
+		return
+	}
+	w.connectionPending = true
 	w.disconnect()
 	w.status = "Connecting"
 	epoch := w.contextEpoch
@@ -74,18 +81,37 @@ func (w *Workbench) connect() {
 	w.run(func(ctx context.Context) {
 		conn, err := kubeconfig.Load(opts)
 		var backend *kube.Backend
+		var resolved credentialexec.Resolved
+		sessionCtx := connectionCtx
+		closeConnection := connectionCancel
 		if err == nil {
-			backend, err = kube.New(conn.Config)
+			resolved, err = credentialexec.Resolve(connectionCtx, conn.Config)
+		}
+		if err == nil && !resolved.ExpiresAt.IsZero() {
+			var cancelLease context.CancelFunc
+			sessionCtx, cancelLease = context.WithDeadline(connectionCtx, resolved.ExpiresAt)
+			closeConnection = func() { cancelLease(); connectionCancel() }
+		}
+		if err == nil {
+			backend, err = kube.New(resolved.Config)
 		}
 		var sessionBytes [16]byte
 		if err == nil {
 			_, err = rand.Read(sessionBytes[:])
 		}
 		w.emit(func() {
+			// Admission stays closed until the previous authentication worker
+			// has joined, including when Disconnect invalidated its epoch.
+			w.connectionPending = false
 			if epoch != w.contextEpoch {
+				closeConnection()
 				return
 			}
+			if err == nil {
+				err = sessionCtx.Err()
+			}
 			if err != nil {
+				closeConnection()
 				w.status, w.errText = "Connection failed", err.Error()
 				var trust *kubeconfig.TrustRequiredError
 				w.trustRequired = errors.As(err, &trust)
@@ -95,14 +121,26 @@ func (w *Workbench) connect() {
 				}
 				return
 			}
+			w.connectionCtx, w.connectionCancel = sessionCtx, closeConnection
+			w.credentialExpiry = resolved.ExpiresAt
 			w.backend = backend
 			w.activeContext, w.currentContext, w.namespace = conn.ContextName, conn.ContextName, conn.Namespace
 			w.sessionID = hex.EncodeToString(sessionBytes[:])
 			w.ops = operation.NewService(backend, w.sessionID)
 			w.trustRequired, w.errText = false, ""
 			w.startScope()
+			if !resolved.ExpiresAt.IsZero() {
+				w.run(func(context.Context) {
+					<-sessionCtx.Done()
+					expired := errors.Is(sessionCtx.Err(), context.DeadlineExceeded)
+					closeConnection()
+					if expired {
+						w.emit(func() { w.expireConnection(epoch) })
+					}
+				})
+			}
 			w.run(func(ctx context.Context) {
-				kinds, warnings, err := backend.Discover(connectionCtx)
+				kinds, warnings, err := backend.Discover(sessionCtx)
 				w.emit(func() {
 					if epoch != w.contextEpoch {
 						return
@@ -119,4 +157,22 @@ func (w *Workbench) connect() {
 			})
 		})
 	})
+}
+
+// expireConnection is UI-thread only. A delayed expiry cannot disconnect a
+// later identity. Child contexts already stopped streams before UI dispatch.
+func (w *Workbench) expireConnection(epoch uint64) {
+	if epoch != w.contextEpoch {
+		return
+	}
+	w.disconnect()
+	w.status = "Credentials expired"
+	w.errText = credentialexec.ErrExpired.Error()
+}
+
+func (w *Workbench) connectionStatus() string {
+	if w.backend != nil && !w.credentialExpiry.IsZero() {
+		return w.status + " · Credentials expire " + w.credentialExpiry.Local().Format("15:04:05") + " · Reconnect to renew"
+	}
+	return w.status
 }
