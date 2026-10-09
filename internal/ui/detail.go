@@ -18,6 +18,8 @@ import (
 )
 
 func (w *Workbench) clearDetail() {
+	w.clearSchema()
+	w.schemaPointer = "/spec"
 	w.stopPreview()
 	w.applyDraft, w.ownersText, w.applyAcknowledged = "", "", false
 	w.stopMetrics()

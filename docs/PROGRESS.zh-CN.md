@@ -16,6 +16,7 @@
 | #8 | 已有对象 SSA、字段所有权与并发保护 | ed8a5b594364be2ee372f9f87d3b561d4274dae7；PR CI #68、main #69 |
 | #10 | 加固原生交互式 Terminal/TTY | cf5c8ff5a66da1c6e3a3dd66544310d59a225977；PR CI #74、main #75 |
 | #9 | 经批准的依赖更新配置 | 8d958719d02e45fbecc824d81de1958b54e60e2d；PR CI #78，官方 Renovate strict 校验 |
+| #12 | 受控 exec 认证与凭据到期关闭 | 7c090d3a0fa0fe7f49ee053a1d3531a0023afa16；PR CI #81、main #82 |
 
 #2 已关闭且未合并，其旧可变 Executor 由 #3 的不可变 Prepared 模型替代；不要重新引入。
 #8 在上一轮复核最终 head `fc51a0091c7030f17af25244e26271377622618a` 后按用户授权合并。
@@ -38,11 +39,22 @@ CI 作业并合并。下载校验源码和八份产物，253 个单元/竞态用
 依赖更新 PR、Kubernetes 模块成组、MyGo 耦合补丁人工升级。官方校验器运行在受支持 Node24。
 没有借配置 PR 升级产品依赖。
 
-当前唯一新产品分支 `feat/bounded-exec-authentication` 实现受控连接时 exec 认证：明确
+#12 已完成并合并的 `feat/bounded-exec-authentication` 实现受控连接时 exec 认证：明确
 信任、无 stdin、时间/输出/环境上限、Unix 进程组/Windows Job Object、令牌或证书快照、
 到期关闭连接和全部流、旧回调隔离。无静默刷新，需要重新 Connect；静态凭据保持原行为。
 详见 [认证契约](authentication.md)。这不等于 OIDC、系统密钥库或完整企业身份治理。
 最终 CI/head/合并状态以该功能 PR 的验证记录为准，不用上一次数字代替新提交证据。
+
+## 当前接续：Issue #14 / feat/native-schema-assistance
+
+恢复时 main 为 `7c090d3a0fa0fe7f49ee053a1d3531a0023afa16`，没有开放 PR。
+已有 Schema 分支与 main 完全相同，尚无提交；沿用该分支和 Issue #14，不创建重复任务。
+#13 是未完成产品的单一跟踪单；#11 保持 Renovate 依赖审批面板，不复制依赖更新 PR。
+
+本分支新增当前身份的 OpenAPI v3 字段帮助和有界结构提示，覆盖原生 Edit 的显式读取、
+JSON Pointer、草稿检查、取消和过期回调隔离。读取不修改草稿、不产生变更计划，所有
+写操作仍须已有 dry-run/确认。说明及明确限制见 [Schema assistance](schema-assistance.md)。
+尚不是完整 Schema/CEL 校验、补全插入或增量编辑器；最终 CI/head/合并记录以功能 PR 为准。
 
 ## 当前已有可执行能力及边界
 
@@ -59,7 +71,7 @@ TTY 的升级前 UID 检查不是 API 级原子身份锁定。指标不是完整
 
 | 优先级 | 范围 | 剩余工作 |
 | --- | --- | --- |
-| P1 当前 | 受控 exec 认证 | 原生连接时认证、真实集群期限/权限、三平台进程树回收和最终证据 |
+| P1 当前 | 原生 Schema 辅助（#14） | 有界字段帮助/结构提示、原生交互、真实集群与最终证据；不重复 #12 已完成认证 |
 | P1 后续 | 凭据与身份 | 系统密钥库、OIDC/PKCE、自动续期身份绑定、企业即时撤权 |
 | P1 后续 | 原生编辑和交付工作流 | Schema 补全/诊断、增量文档、Helm、GitOps/PR、复杂批量变更 |
 | P1 后续 | 企业管控 | Gateway/Connector、租户隔离、可信策略/审批、远程审计与撤权 |

@@ -109,6 +109,11 @@ type Workbench struct {
 	applyDraft, ownersText string
 	applyAcknowledged      bool
 
+	schemaEpoch                             uint64
+	schemaCancel                            context.CancelFunc
+	schemaActive                            bool
+	schemaPointer, schemaText, schemaStatus string
+
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
 

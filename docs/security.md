@@ -79,3 +79,15 @@ Regression tests cover authenticated GET/log/discovery redirects and POST/PATCH/
 DELETE after 429/500/503 Retry-After responses. Real-cluster fault injection
 replaces a successfully committed response with a 503 and independently verifies
 the actual persisted effect, the Unknown outcome, and exactly one client write.
+
+
+### Schema assistance boundary
+
+Schema reads share the current connection's guarded transport and request budget.
+Only locally constructed OpenAPI paths and a validated hexadecimal hash are used;
+remote hosts/paths/queries, redirects and external refs never become destinations.
+Decoded byte/depth/work/output budgets cover untrusted OpenAPI and diagnostic text.
+No draft values, schema defaults or examples appear in diagnostic output. Plain-text
+descriptions are not executable markup. Editing, hiding or closing the panel and
+connection expiry invalidate pending results. Structural hints do not replace
+server admission/dry-run or authorize mutations. See `schema-assistance.md`.

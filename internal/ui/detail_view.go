@@ -82,6 +82,9 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.detailMode = "Owners"
 			}
 		})
+		if w.detailMode != "Edit" && (w.schemaActive || w.schemaText != "" || w.schemaStatus != "") {
+			w.clearSchema()
+		}
 		if w.detailMode != "Terminal" && w.terminalCancel != nil {
 			w.stopTerminal()
 		}
@@ -98,12 +101,14 @@ func (w *Workbench) detailView(c *ui.Context) {
 			ui.TextArea(c, &w.ownersText).Label("Field ownership").ReadOnly(true).Grow(1)
 		case "Edit":
 			if ui.TextArea(c, &w.editor).Label("Manifest editor").Grow(1).Changed() {
+				w.clearSchema()
 				w.stopPreview()
 				w.draftRevision++
 				w.plan = nil
 				w.diff = ""
 				w.confirmation = ""
 			}
+			w.schemaView(c)
 			if w.creating {
 				if ui.PrimaryButton(c, "Preview create").Disabled(w.preparing).Clicked() {
 					w.prepare("create")
