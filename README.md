@@ -107,3 +107,11 @@ set and bounded local trends. Missing, partial, stale or unauthorized data is
 explicitly labeled; Aster does not install a metrics service in your cluster.
 See `docs/metrics.md`. The disposable `scripts/e2e.sh` test environment does install
 the checksum-verified test add-on before running the complete E2E suite.
+
+### External authentication
+
+Trusted kubeconfig exec authentication runs once per explicit Connect with a 30-second invocation
+limit and a maximum 15-minute connection lifetime (or earlier returned expiry). It has bounded
+stdout/stderr and an explicit environment policy. Disconnect cancels authentication; expiration
+clears private workbench state and streams. Reconnect explicitly; no silent renewal or legacy
+auth-provider fallback. See [authentication contract](docs/authentication.md) before using a cloud CLI.

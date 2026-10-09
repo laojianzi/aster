@@ -27,6 +27,12 @@ func New(config *rest.Config) (*Backend, error) {
 	if config == nil {
 		return nil, fmt.Errorf("kube: nil config")
 	}
+	if config.AuthProvider != nil {
+		return nil, fmt.Errorf("kube: legacy authentication providers are unsupported; use a reviewed exec credential plugin")
+	}
+	if config.ExecProvider != nil {
+		return nil, fmt.Errorf("kube: exec credentials must be resolved through the bounded connection authenticator")
+	}
 	cfg := copyConnectionConfig(config)
 	cfg.Wrap(func(base http.RoundTripper) http.RoundTripper { return rejectAPIRedirects{base: base} })
 	if cfg.UserAgent == "" {

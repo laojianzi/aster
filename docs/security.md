@@ -27,20 +27,22 @@ prevent a user with direct cluster credentials from using another client.
 - E2E fixtures require explicit disposable-cluster configuration and never default to the user's
   active kubeconfig. CI has read-only repository permissions and pinned action revisions.
 
-## Not yet provided
+## Credential and terminal limits
 
-External kubeconfig exec authentication is trusted local code. It is **not sandboxed**, and its
-process-group lifecycle/output budget is not yet hardened for enterprise use. Do not import
-untrusted kubeconfigs or approve an authentication command without reviewing it.
+External kubeconfig exec authentication has a trusted, non-interactive, connection-time runner
+with deadlines, environment/output limits, process-group/Job Object lifecycle and expiring snapshots.
+It is **not sandboxed**, does not silently renew, and does not qualify arbitrary cloud login tools.
+See [authentication](authentication.md). Legacy auth-provider is rejected. Never approve an
+untrusted kubeconfig or assume process isolation prevents access to the user's files.
 
 No enterprise SSO/PKCE, system-keyring lifecycle, short-lived managed credentials, tenant-isolated
 Gateway/Connector, server-enforced approvals, append-only remote audit, revocation protocol,
 terminal recording, or compliant retention is implemented. In-memory operation history is not
 an audit log. Persistent customer resource/log storage is not a supported feature.
 
-Interactive native terminal/TTY is not shipped; the non-interactive Command tab is separate. It requires bounded bidirectional transport,
-TTY resize/input lifecycle, terminal escape/clipboard policy and native-library
-packaging before exposure. Do not equate log viewing with a terminal.
+The interactive native terminal is separate from Command and uses the hardened, pinned MyGo
+adaptation described in [terminal](terminal.md). Its transport/clipboard/input/library policies are
+implemented; it is not terminal recording, an OS sandbox, or signed-release qualification.
 
 There is no automatic rollback on an unknown mutation result. Re-read the resource and reconcile
 the outcome explicitly. Existing-resource SSA now has a separate reviewed workflow with force disabled and pinned
