@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/ebitengine/purego v0.11.1
 	github.com/egoist/mygo v0.3.6
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.49.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
