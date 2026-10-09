@@ -101,9 +101,19 @@ func TestRealApplyStructuralCRDListOwnershipAndStrictValidation(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-		conditions, _, err := unstructured.NestedSlice(o.Object, "status", "conditions")
+		// A newly created CRD can expose null conditions before the naming and
+		// establishing controllers publish their first status. This is not
+		// Established and must remain in the bounded readiness wait.
+		value, found, err := unstructured.NestedFieldNoCopy(o.Object, "status", "conditions")
 		if err != nil {
 			return false, err
+		}
+		if !found || value == nil {
+			return false, nil
+		}
+		conditions, ok := value.([]interface{})
+		if !ok {
+			return false, fmt.Errorf("malformed CRD status.conditions: %T", value)
 		}
 		for _, item := range conditions {
 			m, ok := item.(map[string]interface{})
