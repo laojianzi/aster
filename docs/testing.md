@@ -1,5 +1,9 @@
 # Testing and evidence
 
+Prepare pinned native source and library first: `python scripts/dev.py prepare`.
+Use `python scripts/dev.py test` for local tests; it sets the test-only library path.
+CI performs the same hash-pinned preparation before loading Go packages.
+
 ## Layers are not interchangeable
 
 | Layer | Runner / command | What it establishes |
@@ -84,3 +88,17 @@ xvfb-run -a -s '-screen 0 1600x1000x24' \
 An offline development-kit workflow can package the pinned toolchain and vendored dependencies
 for restricted environments. Verify its SHA-256 manifest before use. It is a development aid,
 not a substitute for source review or trusted release provenance.
+
+## Interactive terminal regressions
+
+TTY tests are separate from non-interactive Command tests. They cover interactive stdin,
+remote `test -t 0`, terminal size propagation, Unicode, exit status 7, lease/cancellation,
+RBAC denial with an independent no-execution check, and native input/lifecycle.
+Native adapter cases require the actual hash-verified library, never skip for missing
+dependencies, and cover OSC52, bounded input, implicit-shell rejection and cleanup.
+Real OS smoke renders the same emulator in two windows; it requires both terminal
+render markers in addition to the existing independent-window markers.
+
+Generated source is not checked into Git. Source evidence additionally archives the
+generated Go files and their hash manifest/patch hash. Native artifacts include the
+verified platform library and primary licenses; these are not signed release artifacts.

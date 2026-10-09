@@ -1,5 +1,9 @@
 # Aster
 
+构建与测试入口：`python scripts/dev.py build` / `python scripts/dev.py test`。
+原生终端依赖需先校验并准备，运行时不下载；详见 [Terminal](docs/terminal.md) 和
+[分支接续台账](docs/BRANCHES.zh-CN.md)。
+
 A native Kubernetes workbench built with Go and [MyGo Native UI](https://github.com/egoist/mygo).
 No browser UI or embedded web dashboard is used.
 
@@ -22,6 +26,9 @@ plane or satisfy all release qualifications. See [project status](docs/PROGRESS.
 - Native non-interactive Pod commands with explicit argv, typed confirmation, separate stdout/stderr,
   bounded output, remote exit status and cancellation. No automatic retry or transport fallback.
   See [command behavior and security limits](docs/commands.md); this is not a full terminal.
+- Interactive native Pod TTY with explicit argv/container/name confirmation, ordered input/output,
+  resize, protocol exit status, bounded input/scrollback and cancellation. Remote clipboard writes,
+  links and runtime library downloads are blocked. See [terminal contract](docs/terminal.md).
 - Native workload health and read-only rollout tracking for built-in workload types.
   API acceptance is separate from readiness. Tracking pins the original UID and generation,
   stops for replacement/newer changes, supports cancellation and has an overall deadline.
@@ -32,11 +39,11 @@ The editor is a bounded text editor and field-diff reviewer, not a complete Kube
 ## Development
 
 The checked-in module and CI pin **Go 1.27.1**, **MyGo v0.2.15**, and Kubernetes Go libraries
-**v0.37.0**. Install the toolchain in `go.mod`, then:
+**v0.37.0**. Install the toolchain in `go.mod`, Python 3 and Git, then:
 
 ```sh
-go mod download
-go run ./cmd/aster
+python scripts/dev.py build
+./dist/aster # Windows: .\dist\aster.exe
 ```
 
 Use a disposable development cluster first. Connection discovery parses the usual `KUBECONFIG`
@@ -44,9 +51,9 @@ loading chain without running authentication. The Connect action uses the select
 risky configuration requires an explicit trust decision. A trust prompt is not an OS sandbox.
 
 ```sh
+python scripts/dev.py test
+# After preparing source, static analysis may also run directly:
 go vet ./...
-go test -race -shuffle=on -count=1 ./...
-go build -trimpath -o dist/aster ./cmd/aster
 ```
 
 A real desktop session is needed to open the app. CI also exercises the actual window under
@@ -76,6 +83,7 @@ A green matrix is evidence for these tests and versions, not full production cer
 | --- | --- |
 | `internal/ui` | MyGo widgets, UI-owned state and asynchronous dispatch |
 | `internal/kube` | Kubernetes discovery, queries, watches, logs, forwarding and commands |
+| `internal/ttysession`, `internal/nativeterm` | Ordered interactive sessions and hardened native emulator |
 | `internal/execsession` | Bounded command arguments, output and explicit outcome model |
 | `internal/operation` | Immutable preview/execute boundary |
 | `internal/health`, `internal/rollout` | Readiness semantics and identity-pinned observation |

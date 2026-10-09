@@ -3,7 +3,7 @@ name: Offline development kit
 
 on:
   push:
-    branches: [feat/native-workbench-verified]
+    branches: [main, feat/native-terminal]
     paths: [.github/workflows/offline-devkit.yml]
   workflow_dispatch:
 
@@ -22,6 +22,9 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
+      - name: Prepare hash-verified native terminal source and library
+        shell: bash
+        run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
       - name: Verify and package only the toolchain and public module source
         shell: bash
         run: |
@@ -37,6 +40,9 @@ jobs:
           git rev-parse HEAD >> kit/evidence/environment.txt
           go list -m -mod=mod all > kit/evidence/modules.txt
           git archive --format=tar HEAD | tar -xf - -C kit/source
+          mkdir -p kit/source/internal/nativeterm
+          cp -a internal/nativeterm/upstream kit/source/internal/nativeterm/
+          cp -a .aster-native kit/source/
           tar -czf output/aster-offline-devkit-linux-amd64.tar.gz -C kit .
           cd output
           sha256sum aster-offline-devkit-linux-amd64.tar.gz > SHA256SUMS

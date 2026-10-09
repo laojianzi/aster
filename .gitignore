@@ -9,3 +9,6 @@
 
 /artifacts/
 __pycache__/
+
+/internal/nativeterm/upstream/
+/.aster-native/

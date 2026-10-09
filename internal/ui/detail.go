@@ -29,6 +29,8 @@ func (w *Workbench) clearDetail() {
 	w.draftRevision++
 	w.eventsRevision++
 	w.eventsText = ""
+	w.stopTerminal()
+	w.terminalArgv, w.terminalContainer, w.terminalStatus = "", "", ""
 	w.stopCommand()
 	w.commandArgv, w.commandContainer, w.commandOutput, w.commandStatus = "", "", "", ""
 	w.stopHealth()

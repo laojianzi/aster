@@ -1,0 +1,3 @@
+# Keep hash-pinned source patches and build scripts byte-stable on every OS.
+# Binary files are detected automatically and are never newline-converted.
+* text=auto eol=lf

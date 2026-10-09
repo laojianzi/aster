@@ -4,7 +4,11 @@ set -euo pipefail
 command -v kind >/dev/null
 command -v kubectl >/dev/null
 command -v go >/dev/null
+command -v python3 >/dev/null
+command -v git >/dev/null
 root="$(cd "$(dirname "$0")/.." && pwd)"
+python3 "$root/scripts/prepare_terminal.py"
+export ASTER_TEST_LIBRARY="$(python3 -c 'import json, pathlib, sys; p=pathlib.Path(sys.argv[1]); print(p/json.loads((p/"provenance.json").read_text())["library"]["name"])' "$root/.aster-native")"
 name="aster-e2e-$$"
 work="$(mktemp -d)"
 cleanup() {
@@ -24,4 +28,4 @@ cd "$root"
 kubectl version > "$ASTER_TEST_ARTIFACTS/environment.txt"
 git rev-parse HEAD >> "$ASTER_TEST_ARTIFACTS/environment.txt"
 go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee "$ASTER_TEST_ARTIFACTS/tests.jsonl"
-python3 scripts/test_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native --require TestNativeScaleTracksActualReadiness --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealMetricsPodNodeAndIndependentRBAC --require TestNativeMetricsAgainstRealServerAndTeardown
+python3 scripts/test_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native --require TestRealTTYInteractiveInputResizeAndExit --require TestRealTTYCancelAndLeaseDoNotInventExit --require TestRealTTYReadOnlyRBACPreventsExecution --require TestNativeTTYInputAndLifecycleAgainstRealCluster --require TestNativeScaleTracksActualReadiness --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealMetricsPodNodeAndIndependentRBAC --require TestNativeMetricsAgainstRealServerAndTeardown
