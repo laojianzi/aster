@@ -134,6 +134,9 @@ func(s *Service)Execute(ctx context.Context,p *Prepared)(Result,error){
   creator,ok:=s.client.(createClient);if !ok{return result,errors.New("client cannot create resources")}
   obj:=&unstructured.Unstructured{};if err:=obj.UnmarshalJSON(p.patch);err!=nil{return result,err}
   result.Object,err=creator.CreateObject(ctx,p.target.GVR,p.target.Namespace,obj,metav1.CreateOptions{FieldManager:"aster-desktop",FieldValidation:"Strict"})
+ case "apply":
+  force:=false
+  result.Object,err=s.client.PatchObject(ctx,p.target.GVR,p.target.Namespace,p.target.Name,types.ApplyPatchType,p.patch,metav1.PatchOptions{FieldManager:ApplyFieldManager,FieldValidation:"Strict",Force:&force})
  case "delete":
   uid,rv,policy:=p.target.UID,p.rv,metav1.DeletePropagationBackground
   err=s.client.DeleteObject(ctx,p.target.GVR,p.target.Namespace,p.target.Name,metav1.DeleteOptions{Preconditions:&metav1.Preconditions{UID:&uid,ResourceVersion:&rv},PropagationPolicy:&policy})

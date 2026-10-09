@@ -43,8 +43,9 @@ TTY resize/input lifecycle, terminal escape/clipboard policy and native-library
 packaging before exposure. Do not equate log viewing with a terminal.
 
 There is no automatic rollback on an unknown mutation result. Re-read the resource and reconcile
-the outcome explicitly. There is no field-ownership-aware SSA workflow or GitOps policy yet;
-manual edits may conflict with an external reconciler.
+the outcome explicitly. Existing-resource SSA now has a separate reviewed workflow with force disabled and pinned
+UID/resourceVersion. This is not a GitOps policy: ordinary explicit Edit remains an update,
+not SSA, and direct users/controllers can bypass ownership through other update paths.
 
 ## Production release gate
 
