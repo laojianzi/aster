@@ -37,7 +37,7 @@ Terminal 使用 MyGo Native UI 和固定版本 libghostty-vt 自绘，不是 Web
 `python scripts/dev.py test`。首次构建需要下载 go.mod 固定的公共 Go 模块和原生库。
 离线时向这两个命令传入 `--source PATH/terminal --library-source PATH/lib`，仍校验同一组哈希。
 
-`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.2.15 的每个使用文件；
+`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.3.6 的每个使用文件；
 `hardening.patch` 是可审阅的输入、剪贴板、生命周期与库加载补丁。
 `scripts/prepare_terminal.py` 验证文件哈希，严格应用补丁、改写内部导入路径，生成
 `internal/nativeterm/upstream/`。不要直接修改生成目录，也不要仅运行未准备依赖的 go build。

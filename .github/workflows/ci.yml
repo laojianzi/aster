@@ -21,12 +21,12 @@ jobs:
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/unit
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
       - name: Prepare hash-verified native terminal source and library
         shell: bash
@@ -40,6 +40,15 @@ jobs:
           git diff --exit-code -- go.mod go.sum
       - name: Vet
         run: go vet ./...
+      - name: Native UI lifetime analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          mygo_version=$(go list -m -f '{{.Version}}' github.com/egoist/mygo)
+          go run github.com/egoist/mygo/cmd/mygo@"$mygo_version" vet .
+      - name: Build provenance and evidence validator regressions
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
       - name: Unit, native interaction and race tests
         shell: bash
         run: |
@@ -53,7 +62,7 @@ jobs:
         run: go test -coverprofile=artifacts/unit/coverage.out ./...
       - name: Upload test evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unit-evidence
           path: artifacts/unit
@@ -76,12 +85,12 @@ jobs:
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
       - name: Prepare hash-verified native terminal source and library
         shell: bash
@@ -119,7 +128,7 @@ jobs:
         run: python scripts/window_smoke.py dist/aster.exe artifacts/window.log
       - name: Upload development binary and smoke evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-${{ matrix.os }}
           path: |
@@ -146,12 +155,12 @@ jobs:
           - k8s: 'v1.37.0'
             image: 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5'
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
       - name: Prepare hash-verified native terminal source and library
         shell: bash
@@ -188,7 +197,7 @@ jobs:
         run: kind delete cluster --name aster-e2e
       - name: Upload E2E evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-${{ matrix.k8s }}
           path: artifacts/e2e
@@ -202,12 +211,12 @@ jobs:
       ASTER_E2E_ALLOW_DESTRUCTIVE: "1"
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/multicluster
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
       - name: Prepare hash-verified native terminal source and library
         shell: bash
@@ -248,7 +257,7 @@ jobs:
           kind delete cluster --name aster-e2e-west
       - name: Upload multi-cluster evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: two-cluster-evidence
           path: artifacts/multicluster

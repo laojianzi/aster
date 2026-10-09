@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,6 +26,21 @@ MARKER = '.aster-generated'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def validate_module_pin(go_mod, spec):
+    """The generated native adapter must use the framework linked by the app."""
+    module = spec.get('module')
+    version = spec.get('version')
+    if module != 'github.com/egoist/mygo' or not isinstance(version, str):
+        raise ValueError('unexpected terminal module pin')
+    name = re.escape(module)
+    declared = re.findall(r'(?m)^\s*(?:require\s+)?' + name +
+                          r'\s+(v[^\s]+)\s*(?://[^\n]*)?$', go_mod)
+    replaced = re.search(r'(?m)^\s*(?:replace\s+)?' + name +
+                         r'(?:\s+[^\s]+)?\s*=>', go_mod)
+    if declared != [version] or replaced:
+        raise ValueError('MyGo module and terminal source pin differ; review both together')
 
 
 def source_files(source, spec):
@@ -51,6 +67,7 @@ def host_platform():
 
 def prepare(args):
     spec = json.loads((META / 'UPSTREAM.json').read_text())
+    validate_module_pin((ROOT / 'go.mod').read_text(), spec)
     if args.source:
         source = args.source.resolve()
     else:

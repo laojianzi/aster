@@ -14,19 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
           cache: true
       - name: Fetch only pinned public terminal source and checked native libraries
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p kit/evidence kit/lib output
-          go mod download -json github.com/egoist/mygo@v0.2.15 > kit/evidence/module.json
+          go mod download -json github.com/egoist/mygo@v0.3.6 > kit/evidence/module.json
           go mod verify
           module=$(python3 -c 'import json; print(json.load(open("kit/evidence/module.json"))["Dir"])')
           cp -a "$module/plugins/terminal" kit/terminal
@@ -54,7 +54,7 @@ jobs:
           tar -czf output/aster-terminal-devkit.tar.gz -C kit .
           cd output
           sha256sum aster-terminal-devkit.tar.gz > SHA256SUMS
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verified-terminal-devkit
           path: output/
