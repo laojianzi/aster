@@ -5,6 +5,7 @@ package uiworkbench
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,6 +64,14 @@ func TestNativeOSStoredTokenIdentityAndExpiryAgainstRealCluster(t *testing.T) {
 	if h.w.backend != nil {
 		t.Fatal("store automatically connected")
 	}
+	if !strings.Contains(h.w.vaultStatus, "Token stored in OS credentials") {
+		t.Fatal("native store did not report success", h.w.vaultStatus)
+	}
+	saved, err := target.Resolve(h.ctx, store)
+	if err != nil || saved.Config == nil || saved.Config.BearerToken != token {
+		t.Fatal("native Store failed independent OS readback; token contents omitted")
+	}
+	saved.Config.BearerToken = ""
 	// Shorten the local lifetime through the same public storage API for this
 	// fixture. The UI deliberately exposes minutes/hours, not test-only seconds.
 	if e = target.Put(h.ctx, store, token, time.Now().Add(12*time.Second)); e != nil {

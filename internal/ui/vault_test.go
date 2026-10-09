@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/credentialvault"
 	"github.com/laojianzi/aster/internal/kubeconfig"
 	"github.com/laojianzi/aster/internal/testvault"
@@ -188,5 +189,31 @@ func TestNativeVaultCancellationKeepsAdmissionUntilJoined(t *testing.T) {
 	// Changed identity cannot reconstruct the old reviewed slot from UI fields.
 	if _, _, e := kubeconfig.LoadVault(kubeconfig.Options{Path: h.w.path, Context: "missing"}); e == nil {
 		t.Fatal("missing context loaded")
+	}
+}
+
+// Password input has editor-local undo history; clearing the bound string alone
+// must not allow an earlier token to reappear after a completed submission.
+func TestNativeVaultSubmissionCannotUndoTokenHistory(t *testing.T) {
+	h := newRelationshipHarness(t, 6*time.Second)
+	setupVault(t, h, &rest.Config{Host: "https://example.invalid"})
+	h.click("Token to store")
+	h.tt.Type("earlier-secret")
+	h.tt.Key(ui.Cmd, ui.KeyA)
+	h.tt.Type("replacement-secret")
+	h.click("Confirm credential context")
+	h.tt.Type("vault-test")
+	h.click("Store token")
+	h.pump(func() bool { return !h.w.vaultPending })
+	h.click("Token to store")
+	h.tt.Key(ui.Cmd, ui.KeyZ)
+	h.tt.Frame()
+	if h.w.vaultToken != "" {
+		t.Fatal("submitted token recovered from input undo history")
+	}
+	h.tt.Key(ui.Cmd|ui.Shift, ui.KeyZ)
+	h.tt.Frame()
+	if h.w.vaultToken != "" {
+		t.Fatal("submitted token recovered from input redo history")
 	}
 }

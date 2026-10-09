@@ -169,7 +169,10 @@ func (w *Workbench) vaultView(c *ui.Context) {
 			ui.Text(c, "Context: "+w.vaultTarget.Context).Label("Credential target context").SingleLine()
 			ui.Text(c, "Server: "+w.vaultTarget.Server).Label("Credential target server").SingleLine()
 			ui.Text(c, "User alias: "+w.vaultTarget.User).SingleLine()
-			ui.TextInput(c, &w.vaultToken).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
+			ui.TextInput(c.Key(struct {
+				Field string
+				Epoch uint64
+			}{"vault-token", w.vaultEpoch}), &w.vaultToken).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
 			ui.Select(c, &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}).Label("Local token lifetime").Disabled(w.vaultPending)
 			ui.TextInput(c, &w.vaultConfirmation).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
 			enabled := !w.vaultPending && !w.connectionPending && w.backend == nil && w.vaultConfirmation == w.vaultTarget.Context

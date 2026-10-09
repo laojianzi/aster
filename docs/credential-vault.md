@@ -39,7 +39,8 @@ Existing kubeconfig credential flows remain unchanged.
    and performs no OS-store lookup. It does not persist a trust decision.
 2. Enter a token in the masked input, select a local lifetime, type the exact context
    name and choose **Store token**. Input and confirmation are cleared on submission.
-   Storage does not log in or rewrite kubeconfig.
+   The password control receives a new identity, so Undo/Redo cannot restore a
+   token from an earlier input session. Storage does not log in or rewrite kubeconfig.
 3. Confirm the context again and choose **Connect with stored token**. The profile
    is reread and the target digest must still match; no silent load or fallback.
 4. After disconnecting, review and confirm the target to **Forget stored token**.
