@@ -110,3 +110,17 @@ Required cases include child-group/job reclamation, output limits, deadlines/can
 expiry. Real Kubernetes coverage requires `TestRealExecCredentialTrustRBACAndExpiry` and
 `TestNativeExecCredentialLiveLogsExpireAgainstRealCluster`. No live cluster is used by unit helpers;
 E2E fixtures still require the existing explicit disposable-cluster guard.
+
+
+## Native schema assistance (Issue #14)
+
+Required evidence now includes bounded parser/transport/diagnostics unit cases;
+Native Schema Edit, stale-result/expiry, cancellation and minimum-window cases;
+`TestRealSchemaBuiltinsAndReadOnlyAssistance`,
+`TestRealSchemaDiscoveryAuthorizationIsIndependent`,
+`TestRealSchemaStructuralCRDAndPreservedFields`, and
+`TestNativeSchemaAssistanceAgainstRealCluster` on each kind version.
+Synthetic schema/HTTP fixtures remain unit tests. The independent discovery RBAC
+fixture explicitly separates schema reads from object access. Local E2E compilation
+is never counted as execution. Artifact summary and exact checkout identities must
+be revalidated at the final commit; older counts in this document are historical.
