@@ -16,6 +16,9 @@ func (w *Workbench) detailView(c *ui.Context) {
 				title = "New " + w.detailKind.Kind
 			}
 			ui.Text(c, title).Bold().FontSize(18).Grow(1).SingleLine()
+			if ui.Button(c, "Refresh detail").Disabled(w.creating).Clicked() {
+				w.openResourceKind(w.detailKind, project(w.detail))
+			}
 			if ui.Button(c, "Close detail").Clicked() {
 				w.clearDetail()
 			}
@@ -70,9 +73,6 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.stopLogs()
 				w.ownersText = manifest.Ownership(w.detail)
 				w.detailMode = "Owners"
-			}
-			if ui.Button(c, "Refresh detail").Disabled(w.creating).Clicked() {
-				w.openResourceKind(w.detailKind, project(w.detail))
 			}
 		})
 		if w.detailMode != "Metrics" && w.metricsCancel != nil {
