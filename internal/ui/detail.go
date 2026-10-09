@@ -18,6 +18,8 @@ import (
 )
 
 func (w *Workbench) clearDetail() {
+	w.stopPreview()
+	w.applyDraft, w.ownersText, w.applyAcknowledged = "", "", false
 	w.stopMetrics()
 	w.metricsResult = resourcemetrics.Snapshot{}
 	w.metricsHistory = resourcemetrics.History{}

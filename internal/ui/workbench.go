@@ -96,6 +96,12 @@ type Workbench struct {
 	metricsHistory                resourcemetrics.History
 	metricsList                   ui.ListState
 
+	applyDraft, ownersText string
+	applyAcknowledged      bool
+
+	previewCancel context.CancelFunc
+	previewEpoch  uint64
+
 	history []string
 	frames  int
 }

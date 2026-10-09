@@ -3,6 +3,7 @@ package uiworkbench
 import (
 	"fmt"
 	"github.com/egoist/mygo/ui"
+	"github.com/laojianzi/aster/internal/manifest"
 	"github.com/laojianzi/aster/internal/resourcemetrics"
 )
 
@@ -65,6 +66,11 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.detailMode = "Forward"
 				w.stopLogs()
 			}
+			if ui.Button(c, "Owners").Disabled(w.creating).Clicked() {
+				w.stopLogs()
+				w.ownersText = manifest.Ownership(w.detail)
+				w.detailMode = "Owners"
+			}
 			if ui.Button(c, "Refresh detail").Disabled(w.creating).Clicked() {
 				w.openResourceKind(w.detailKind, project(w.detail))
 			}
@@ -76,8 +82,13 @@ func (w *Workbench) detailView(c *ui.Context) {
 			ui.Text(c, w.detailMessage).FontSize(12).TextColor(t.TextMuted)
 		}
 		switch w.detailMode {
+		case "Apply":
+			w.applyView(c)
+		case "Owners":
+			ui.TextArea(c, &w.ownersText).Label("Field ownership").ReadOnly(true).Grow(1)
 		case "Edit":
 			if ui.TextArea(c, &w.editor).Label("Manifest editor").Grow(1).Changed() {
+				w.stopPreview()
 				w.draftRevision++
 				w.plan = nil
 				w.diff = ""
@@ -88,9 +99,14 @@ func (w *Workbench) detailView(c *ui.Context) {
 					w.prepare("create")
 				}
 			} else {
-				if ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing).Clicked() {
-					w.prepare("edit")
-				}
+				ui.Row(c).Gap(6).Children(func() {
+					if ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing).Clicked() {
+						w.prepare("edit")
+					}
+					if ui.Button(c, "Apply").Disabled(w.preparing).Clicked() {
+						w.beginApply()
+					}
+				})
 			}
 		case "Diff":
 			ui.Text(c, "Server dry-run preview · live state is rechecked at execution").FontSize(12)
