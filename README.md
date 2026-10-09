@@ -38,8 +38,8 @@ The editor is a bounded text editor and field-diff reviewer, not a complete Kube
 
 ## Development
 
-The checked-in module and CI pin **Go 1.27.1**, **MyGo v0.2.15**, and Kubernetes Go libraries
-**v0.37.0**. Install the toolchain in `go.mod`, Python 3 and Git, then:
+The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.3.6**, and Kubernetes Go libraries
+**v0.37.1**. Install the toolchain in `go.mod`, Python 3 and Git, then:
 
 ```sh
 python scripts/dev.py build

@@ -1,6 +1,6 @@
 {
   "module": "github.com/egoist/mygo",
-  "version": "v0.2.15",
+  "version": "v0.3.6",
   "ghostty_commit": "befcdfd2c3a1cb24d9ec886e93c95b2b5daa7028",
   "files": {
     "box.go": "e190a0b91a5639729f6b15d20843db1ae3c0d9950781acd10af3f7fe25b91de3",
@@ -28,8 +28,8 @@
     "links.go": "902b32222dd572e98cb562998d8e476c41e7fdabe17d6622c30235a7482bb9a2",
     "mygo-plugin.json": "2d7c464140e016bf4790671bcd4e61af8995c75a86e491f347297b1a637a29a4",
     "paint.go": "856863c97fb923daa0e8013fa361c7672731b472d48fc2682c081f5f5b067342",
-    "terminal.go": "b5013ecb50e4db9df9b75aef0e08518f4f6f600c51c76e0a92d4024100388469",
+    "terminal.go": "e0f31bf8afda7b932b9f9f921baa3d1dae149a64f51ad3fc668e71453eebbbb6",
     "theme.go": "477b7fbaa362d66df0880d959d6dda34e552df09b259413bb14a0f57ab88176e",
-    "view.go": "a867530b977096fa5699df8e3ac410be1bc18275d685821b8f9dbe3060d6c262"
+    "view.go": "ae2f73eeda48a2cf44cb8d8209cb99e44030ce2b75c4d2e267cd86188b92037a"
   }
 }

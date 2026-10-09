@@ -24,7 +24,7 @@ func New(conn io.ReadWriteCloser) (*Terminal, error) {
 	}
 	return &Terminal{inner}, nil
 }
-func View(c *ui.Context, t *Terminal) *ui.Element {
+func View(c *ui.Context, t *Terminal) ui.Element {
 	return upstream.View(c, t.inner).Label("Remote terminal screen")
 }
 func (t *Terminal) Close() error          { return t.inner.Close() }

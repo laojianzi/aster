@@ -1,3 +1,5 @@
+diff --git a/internal/vt/open_windows.go b/internal/vt/open_windows.go
+index 4b24a3e..9fb7f4a 100644
 --- a/internal/vt/open_windows.go
 +++ b/internal/vt/open_windows.go
 @@ -2,13 +2,13 @@
@@ -17,6 +19,8 @@
 -	return syscall.GetProcAddress(syscall.Handle(h), name)
 +	return windows.GetProcAddress(windows.Handle(h), name)
  }
+diff --git a/library.go b/library.go
+index 064604e..503c3c3 100644
 --- a/library.go
 +++ b/library.go
 @@ -1,56 +1,62 @@
@@ -130,9 +134,11 @@
 + if err:=ValidateLibrary(path);err!=nil{return err};if load.loaded{return load.err};return loadFile(path)
 +}
 +func loadFile(path string)error{load.path=path;load.loaded=true;load.err=vt.Load(path);return load.err}
+diff --git a/paint.go b/paint.go
+index 1301a77..d8a81a3 100644
 --- a/paint.go
 +++ b/paint.go
-@@ -82,7 +82,7 @@
+@@ -82,7 +82,7 @@ func (v *view) layout(r ui.Rect, scale float32) {
  	}
  	v.ox, v.oy = int(math.Round(padX*float64(scale))), int(math.Round(padY*float64(scale)))
  	w, h := int(math.Round(float64(r.W*scale)))-2*v.ox, int(math.Round(float64(r.H*scale)))-2*v.oy
@@ -141,9 +147,11 @@
  }
  
  const asciiPrintable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+diff --git a/terminal.go b/terminal.go
+index 5bff84f..cd3cc9b 100644
 --- a/terminal.go
 +++ b/terminal.go
-@@ -142,6 +142,7 @@
+@@ -142,6 +142,7 @@ type Terminal struct {
  
  	draw     atomic.Pointer[func()] // asks for a frame of the view
  	done     chan struct{}
@@ -151,7 +159,7 @@
  	doneOnce sync.Once
  	code     atomic.Int64
  
-@@ -166,30 +167,27 @@
+@@ -166,30 +167,27 @@ type events struct {
  // The program starts once a view shows the terminal, at the size of the
  // view, or half a second later at 80×24 when none does.
  func New(opts Options) (*Terminal, error) {
@@ -193,7 +201,7 @@
  	})
  	if err != nil {
  		return nil, err
-@@ -250,7 +248,11 @@
+@@ -250,7 +248,11 @@ func New(opts Options) (*Terminal, error) {
  // run reads the output and writes the input of the program, or Conn.
  func (t *Terminal) run() {
  	go t.read()
@@ -206,7 +214,7 @@
  }
  
  // start starts the program of launch, which the caller took, in a
-@@ -508,7 +510,7 @@
+@@ -508,7 +510,7 @@ func (t *Terminal) Text() string {
  func (t *Terminal) Resize(cols, rows int) {
  	t.mu.Lock()
  	defer t.mu.Unlock()
@@ -215,7 +223,7 @@
  }
  
  // Snapshot returns what the terminal shows as escape sequences: its
-@@ -527,13 +529,14 @@
+@@ -527,13 +529,14 @@ func (t *Terminal) Snapshot() []byte {
  // Send sends data to the program as if typed.
  func (t *Terminal) Send(data []byte) {
  	if len(data) > 0 {
@@ -231,7 +239,7 @@
  	t.mu.Lock()
  	if t.term == nil {
  		t.mu.Unlock()
-@@ -556,9 +559,11 @@
+@@ -556,9 +559,11 @@ func (t *Terminal) Close() error {
  	t.mu.Lock()
  	if t.closed {
  		t.mu.Unlock()
@@ -243,7 +251,7 @@
  	src, proc, waiting := t.src, t.proc, t.launch != nil
  	t.launch = nil
  	if t.timer != nil {
-@@ -589,6 +594,7 @@
+@@ -589,6 +594,7 @@ func (t *Terminal) Close() error {
  	// free it under the locks.
  	t.mu.Lock()
  	t.rmu.Lock()
@@ -251,18 +259,11 @@
  	t.term.Free()
  	t.term = nil
  	t.rs.Free()
-@@ -719,58 +725,60 @@
+@@ -719,58 +725,60 @@ func unhex(c byte) (byte, bool) {
  // inputQueue writes what is typed to the program in order, from a
  // goroutine of its own: a program that does not read its input must not
  // block the reader, which answers its queries.
-+// Limits count queued AND in-flight bytes/chunks. Failure terminates the
-+// connection; a partial input stream is never silently treated as successful.
-+const MaxInputChunk = 16 << 10
-+const MaxInputBytes = 128 << 10
-+const MaxInputChunks = 256
-+var ErrInputLimit = errors.New("terminal input exceeded its safety budget; session disconnected")
-+
- type inputQueue struct {
+-type inputQueue struct {
 -	mu     sync.Mutex
 -	cond   *sync.Cond
 -	queue  [][]byte
@@ -293,7 +294,13 @@
 -	q.cond.Broadcast()
 -	q.mu.Unlock()
 -}
--
++// Limits count queued AND in-flight bytes/chunks. Failure terminates the
++// connection; a partial input stream is never silently treated as successful.
++const MaxInputChunk = 16 << 10
++const MaxInputBytes = 128 << 10
++const MaxInputChunks = 256
++var ErrInputLimit = errors.New("terminal input exceeded its safety budget; session disconnected")
+ 
 -func (q *inputQueue) run(w io.Writer) {
 -	for {
 -		q.mu.Lock()
@@ -314,6 +321,7 @@
 -		}
 -	}
 -}
++type inputQueue struct {
 + mu sync.Mutex
 + cond *sync.Cond
 + queue [][]byte
@@ -363,9 +371,11 @@
  
  func vtCursor(s CursorStyle) vt.CursorStyle {
  	switch s {
+diff --git a/view.go b/view.go
+index caca538..2b4652a 100644
 --- a/view.go
 +++ b/view.go
-@@ -35,6 +35,7 @@
+@@ -35,6 +35,7 @@ func View(c *ui.Context, t *Terminal) ui.Element {
  // viewOf returns the terminal's view state, made on the first frame
  // showing it.
  func (t *Terminal) viewOf(c *ui.Context) *view {
@@ -373,7 +383,7 @@
  	if t.v == nil {
  		t.v = &view{t: t, blinkStart: time.Now()}
  		t.v.shaped.init(4096)
-@@ -171,7 +172,7 @@
+@@ -171,7 +172,7 @@ func (v *view) release() {
  		v.mouse = nil
  	}
  	if v.gesture != nil {
@@ -382,7 +392,7 @@
  		v.gesture = nil
  	}
  }
-@@ -226,6 +227,7 @@
+@@ -226,6 +227,7 @@ func (v *view) input(ev ui.InputEvent) bool {
  		v.typed(ev.Text)
  		return true
  	case ui.InputCompose:
@@ -390,7 +400,7 @@
  		v.preedit, v.preeditCaret, v.pending = ev.Text, ev.Caret, nil
  		return true
  	case ui.InputCommand:
-@@ -342,6 +344,7 @@
+@@ -342,6 +344,7 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
  
  // typed sends text typed or committed by an input method.
  func (v *view) typed(text string) {
@@ -398,7 +408,7 @@
  	v.preedit = ""
  	p := v.pending
  	v.pending = nil
-@@ -403,7 +406,7 @@
+@@ -403,7 +406,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
  	if len(b) == 0 {
  		return false
  	}
@@ -407,7 +417,7 @@
  	if press {
  		t.term.ScrollToBottom()
  		t.term.SetSelection(nil)
-@@ -494,21 +497,8 @@
+@@ -494,21 +497,7 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
  		if ev.Button != 0 {
  			return false // the context menu
  		}
@@ -422,16 +432,15 @@
 -				url = urlAt(text, cols, col)
 -			}
 -			if url != "" {
--				v.c.OpenURL(url)
+-				v.services.OpenURL(url)
 -				return true
 -			}
 -		}
 +		// Remote hyperlinks never launch local applications. Use explicit copy.
-+
  		ref, ok := t.term.CellAt(col, row)
  		if !ok {
  			return false
-@@ -600,7 +590,7 @@
+@@ -600,7 +589,7 @@ func (v *view) report(ev ui.InputEvent) bool {
  	v.mouse.Sync(t.term, v.ox*2+v.cols*v.cellW, v.oy*2+v.rows*v.cellH, v.cellW, v.cellH, v.ox, v.oy, pressed)
  	out := v.mouse.Encode(action, b, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale)
  	if len(out) > 0 {
@@ -440,7 +449,7 @@
  	}
  	return ev.Kind != ui.InputPointerMove || len(out) > 0
  }
-@@ -643,7 +633,7 @@
+@@ -643,7 +632,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  		}
  		for range abs(rows) {
  			if out := v.mouse.Encode(vt.MousePress, button, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale); len(out) > 0 {
@@ -449,7 +458,7 @@
  			}
  		}
  	case t.term.AltScreen() && t.term.Mode(vt.ModeAltScroll):
-@@ -660,7 +650,7 @@
+@@ -660,7 +649,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  			key = vt.KeyArrowUp
  		}
  		for range abs(rows) {
