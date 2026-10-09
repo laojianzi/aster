@@ -26,7 +26,7 @@ plane or satisfy all release qualifications. See [project status](docs/PROGRESS.
   API acceptance is separate from readiness. Tracking pins the original UID and generation,
   stops for replacement/newer changes, supports cancellation and has an overall deadline.
 
-Context switching is implemented; simultaneous multi-cluster workspaces are not yet implemented.
+Independent multi-cluster workspace windows are implemented; shared tabs and persisted workspace definitions are not.
 The editor is a bounded text editor and field-diff reviewer, not a complete Kubernetes IDE.
 
 ## Development
@@ -55,7 +55,7 @@ Unsigned CI binaries are development artifacts, not signed installable releases.
 
 ## Real-cluster tests
 
-Install Docker (or a supported kind provider), kind v0.33.0, kubectl, Python 3 and the Go toolchain:
+Install Docker (or a supported kind provider), kind v0.33.0, kubectl, Python 3, curl, Bash and the Go toolchain:
 
 ```sh
 bash scripts/e2e.sh
@@ -86,3 +86,16 @@ A green matrix is evidence for these tests and versions, not full production cer
 
 Start with [architecture invariants](docs/architecture.md). Changes should include regression
 coverage at the appropriate boundary; mock coverage cannot replace real-cluster or OS testing.
+
+## Native workspaces and metrics
+
+**New workspace** opens an independent native window (up to four including
+closing sessions). Loading contexts never connects automatically: choose your
+scope and press **Connect** in each window. Closing one does not stop others.
+See `docs/workspaces.md` for lifecycle, isolation and test boundaries.
+
+Existing Pods and Nodes expose a **Metrics** panel with CPU cores, memory working
+set and bounded local trends. Missing, partial, stale or unauthorized data is
+explicitly labeled; Aster does not install a metrics service in your cluster.
+See `docs/metrics.md`. The disposable `scripts/e2e.sh` test environment does install
+the checksum-verified test add-on before running the complete E2E suite.

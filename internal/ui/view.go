@@ -37,6 +37,14 @@ func (w *Workbench) View(c *ui.Context) {
 				w.loadContexts()
 			}
 			ui.Text(c, w.notice).FontSize(12).TextColor(t.TextMuted).Grow(1).SingleLine()
+			if w.workspaceNumber > 0 {
+				ui.Text(c, fmt.Sprintf("Workspace %d", w.workspaceNumber)).Label("Workspace identity").FontSize(12).SingleLine()
+			}
+			if ui.Button(c, "New workspace").Disabled(w.newWorkspace == nil).Clicked() {
+				if err := w.newWorkspace(); err != nil {
+					w.notice = err.Error()
+				}
+			}
 		})
 		if w.trustRequired {
 			ui.Row(c).Padding(10).Gap(10).Children(func() {
