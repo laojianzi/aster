@@ -5,6 +5,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -175,8 +176,17 @@ func TestRealApplyStructuralCRDListOwnershipAndStrictValidation(t *testing.T) {
 		t.Fatalf("CRD ownership conflict not surfaced: %v", err)
 	}
 	for _, spec := range []map[string]interface{}{{"replicas": int64(-1)}, {"unknownField": "do-not-prune"}} {
-		if p, err := s.PrepareApply(f.ctx, target, intent(spec)); p != nil || err == nil || (!apierrors.IsInvalid(err) && !apierrors.IsBadRequest(err)) {
-			t.Fatalf("CRD schema error ignored: %v", err)
+		p, err := s.PrepareApply(f.ctx, target, intent(spec))
+		schemaRejected := apierrors.IsInvalid(err) || apierrors.IsBadRequest(err)
+		if _, unknown := spec["unknownField"]; unknown {
+			// The API server can return HTTP 500 for the SSA typed-patch
+			// converter's undeclared-field error, instead of a 400/422.
+			// Require that exact API error, not just any failed request.
+			var status apierrors.APIStatus
+			schemaRejected = schemaRejected || (errors.As(err, &status) && status.Status().Code == 500 && strings.Contains(err.Error(), ".spec.unknownField: field not declared in schema"))
+		}
+		if p != nil || err == nil || !schemaRejected {
+			t.Fatalf("CRD schema rejection was absent or unrelated: %v", err)
 		}
 	}
 	actual, err := f.b.GetObject(f.ctx, gvr, target.Namespace, target.Name)
