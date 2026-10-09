@@ -1,0 +1,68 @@
+name: Dependency migration kit
+
+on:
+  push:
+    branches: [deps/mygo-latest-verified]
+    paths: [.github/workflows/dependency-kit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.2'
+          cache: true
+      - name: Prepare baseline terminal before resolving imports
+        run: python scripts/prepare_terminal.py
+      - name: Resolve only explicitly approved dependency candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kit/source kit/upstream kit/evidence kit/bin output
+          git rev-parse HEAD > kit/evidence/checkout.txt
+          go version > kit/evidence/go.txt
+          cp go.mod kit/evidence/go.mod.before
+          cp go.sum kit/evidence/go.sum.before
+          go get go@1.27.2 github.com/egoist/mygo@v0.3.6 k8s.io/api@v0.37.1 k8s.io/apimachinery@v0.37.1 k8s.io/client-go@v0.37.1 k8s.io/streaming@v0.37.1 sigs.k8s.io/json@v0.0.0-20260909141634-11ed52e25bc5
+          go mod tidy
+          go mod verify
+          go list -m -u -json all > kit/evidence/module-updates.json
+          git diff -- go.mod go.sum > kit/evidence/modules.patch
+          go mod vendor
+          cp -a vendor kit/source/
+          cp go.mod go.sum kit/source/
+          cp -a "$(go env GOROOT)" kit/go
+          cp -a .aster-native kit/source/
+          cp -a "$(go env GOMODCACHE)/github.com/egoist/mygo@v0.3.6" kit/upstream/mygo
+          cp -a "$(go env GOMODCACHE)/github.com/egoist/mygo@v0.2.15/plugins/terminal" kit/upstream/terminal-old
+          GOBIN="$PWD/kit/bin" go install github.com/egoist/mygo/cmd/mygo@v0.3.6
+          python - <<'PY'
+          import json, urllib.request
+          from pathlib import Path
+          for repo in ['egoist/mygo','actions/checkout','actions/setup-go','actions/upload-artifact','kubernetes-sigs/kind','kubernetes-sigs/metrics-server']:
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+'/releases/latest',headers={'User-Agent':'aster-dependency-review'})
+              with urllib.request.urlopen(req,timeout=30) as r: data=json.load(r)
+              Path('kit/evidence/'+repo.replace('/','-')+'-latest.json').write_text(json.dumps(data,indent=2))
+              tag=data['tag_name']
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+'/git/ref/tags/'+tag,headers={'User-Agent':'aster-dependency-review'})
+              with urllib.request.urlopen(req,timeout=30) as r: ref=json.load(r)
+              Path('kit/evidence/'+repo.replace('/','-')+'-tag.json').write_text(json.dumps(ref,indent=2))
+          PY
+          tar -czf output/aster-dependency-kit.tar.gz -C kit .
+          (cd output && sha256sum aster-dependency-kit.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: dependency-migration-kit
+          path: output/
+          if-no-files-found: error
+          retention-days: 3
