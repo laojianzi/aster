@@ -48,6 +48,7 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+	w.clearVault()
 	w.contextEpoch++
 	w.scopeEpoch++
 	if w.connectionCancel != nil {
@@ -67,8 +68,12 @@ func (w *Workbench) disconnect() {
 	w.status, w.errText = "Disconnected", ""
 }
 
-func (w *Workbench) connect() {
-	if w.connectionPending {
+type connectionResolver func(context.Context, kubeconfig.Options) (kubeconfig.Connection, credentialexec.Resolved, error)
+
+func (w *Workbench) connect() { w.beginConnection(nil) }
+
+func (w *Workbench) beginConnection(resolve connectionResolver) {
+	if w.connectionPending || w.vaultPending {
 		return
 	}
 	w.connectionPending = true
@@ -79,13 +84,19 @@ func (w *Workbench) connect() {
 	w.connectionCtx, w.connectionCancel = connectionCtx, connectionCancel
 	opts := kubeconfig.Options{Path: w.path, Context: w.currentContext, Namespace: w.namespace, TrustToken: w.trustedFingerprint}
 	w.run(func(ctx context.Context) {
-		conn, err := kubeconfig.Load(opts)
+		var conn kubeconfig.Connection
+		var err error
 		var backend *kube.Backend
 		var resolved credentialexec.Resolved
 		sessionCtx := connectionCtx
 		closeConnection := connectionCancel
-		if err == nil {
-			resolved, err = credentialexec.Resolve(connectionCtx, conn.Config)
+		if resolve != nil {
+			conn, resolved, err = resolve(connectionCtx, opts)
+		} else {
+			conn, err = kubeconfig.Load(opts)
+			if err == nil {
+				resolved, err = credentialexec.Resolve(connectionCtx, conn.Config)
+			}
 		}
 		if err == nil && !resolved.ExpiresAt.IsZero() {
 			var cancelLease context.CancelFunc

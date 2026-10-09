@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/cluster"
+	"github.com/laojianzi/aster/internal/credentialvault"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/nativeterm"
 	"github.com/laojianzi/aster/internal/operation"
@@ -117,12 +118,23 @@ type Workbench struct {
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
 
+	vaultMutation, vaultUncertain                             bool
+	vaultOpen, vaultPending                                   bool
+	vaultEpoch                                                uint64
+	vaultCancel                                               context.CancelFunc
+	vaultToken, vaultDuration, vaultConfirmation, vaultStatus string
+	vaultTrust, vaultTrustPending                             string
+	vaultTarget                                               *credentialvault.Target
+	vaultStore                                                credentialvault.Store
+
 	history []string
 	frames  int
 }
 
 func New() *Workbench {
 	w := &Workbench{ctx: context.Background(), status: "Not connected", sortBy: "Name", selected: -1, replicas: "1", detailMode: "YAML"}
+	w.vaultDuration = "1 hour"
+	w.vaultStore = credentialvault.Client{}
 	w.kinds = catalog()
 	w.currentKind = w.kinds[0]
 	w.kindChoice = w.currentKind.Label()
@@ -222,6 +234,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearVault()
 	if w.cancel != nil {
 		w.cancel()
 	}

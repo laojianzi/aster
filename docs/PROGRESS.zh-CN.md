@@ -3,16 +3,19 @@
 更新：2026-10-09。本文件不是生产验收证书。恢复时先读取 GitHub refs、开放 PR、Issues、
 评审与 CI；分支去重见 [BRANCHES](BRANCHES.zh-CN.md)。产品剩余范围统一由 #13 跟踪。
 
-## 当前任务：用户批准的依赖更新
+## 当前任务：显式系统凭据库 #18
 
-恢复基线 `4a627bf9f89d6c8025cd809e87c843d223add053` 已包含 Schema #15，主干 CI #86 通过。
-目前唯一工作分支 `deps/mygo-latest-verified` 对应依赖看板 #11，不同时生成重复 Renovate PR。
+依赖 PR #16 已完成 MyGo v0.3.6、Go 1.27.2、Kubernetes 0.37.1 和精选依赖升级；
+#17 的 x/sys 0.49.0 也已合并。依赖看板 #11 当前没有待更新分支，不重复创建升级 PR。
+本轮从 main `e1cbd416ecbbb3f03a5785e6f659637eebfd241d` 接续既有
+`feat/native-credential-vault`；其中仅有开发环境更新提交，没有已推送的凭据库实现。
+不再新建同范围分支，剩余目标由 #13、当前凭据范围由 #18 唯一跟踪。
 
-MyGo 官方 GitHub latest 核查为 **v0.3.6**。本轮迁移 Native Element 值 API、持久 Services
-和终端加固补丁，新增框架/适配源码版本一致性检查和 MyGo 生命周期分析。
-Go 1.27.2、Kubernetes 四模块 0.37.1、JSON、Actions 及精选同系列补丁一起验证；
-选版理由、固定 SHA 和有意保留的依赖详见 [依赖审查](dependency-review-2026-10.md)。
-最终提交、CI、合并与主干结果必须以该依赖 PR 的验证记录为准。
+新增 Native Review / Store / Connect with stored token / Forget，使用当前 OS 凭据库，
+绑定 HTTPS/TLS/CA/context/user，拒绝混合凭据；同二进制有界 helper、输入清理、显式
+确认与结果隔离，复用现有连接期限和资源/流清理。无明文回退、静默查找或续期，不改写
+kubeconfig。详细限制和测试契约见 [凭据库](credential-vault.md)。
+本地回归通过不等于实际 OS 验证，最终 PR/主干 CI 和产物核验以 #18 的接续记录为准。
 
 ## 已合并里程碑
 
@@ -28,6 +31,8 @@ Go 1.27.2、Kubernetes 四模块 0.37.1、JSON、Actions 及精选同系列补�
 | #10 | 加固原生交互终端/TTY | PR CI #74、main #75 |
 | #9 | 受控 Renovate 配置 | PR CI #78、官方 strict 校验 |
 | #12 | 非交互式有界 exec 认证和凭据到期清理 | PR CI #81、main #82 |
+| #16 | MyGo v0.3.6 及用户批准依赖升级 | 已合并；终端补丁重新核验 |
+| #17 | x/sys v0.49.0 | 已合并；沿用原 Renovate PR |
 | #15 | OpenAPI v3 字段帮助和有界结构提示 | PR CI #85、main #86；#14 已完成 |
 
 #2 已关闭未合并，其旧可变 Executor 已被不可变 Prepared 模型替代，不重新引入。
@@ -56,7 +61,7 @@ Schema 辅助是当前身份的显式只读请求，对 JSON Pointer 和草稿�
 
 | 优先级 | 范围 | 剩余工作 |
 | --- | --- | --- |
-| 本轮明确授权 | 依赖更新 #11 | MyGo 最新稳定版迁移、终端补丁、依赖和全量验证 |
+| P1 当前 | 系统凭据库 #18 | 原生操作、真实 OS/Kubernetes 联动、最终证据和合并 |
 | P1 | 凭据与身份 | 系统凭据库、OIDC/PKCE、身份绑定续期与企业撤权 |
 | P1 | 编辑和交付 | 增量文档、补全插入、诊断位置、Schema 刷新、Helm/GitOps、批量变更 |
 | P1 | 企业管控 | Gateway/Connector、租户隔离、可信策略/审批、远程审计和撤权 |

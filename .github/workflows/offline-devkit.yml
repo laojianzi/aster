@@ -8,8 +8,8 @@ on:
       - .github/workflows/offline-devkit.yml
       - go.mod
       - go.sum
-      - internal/nativeterm/UPSTREAM.json
-      - internal/nativeterm/hardening.patch
+      - third_party/native-terminal/UPSTREAM.json
+      - third_party/native-terminal/hardening.patch
   workflow_dispatch:
 
 permissions:

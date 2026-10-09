@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Run explicit OS credential tests in a disposable provider, never a user's vault.
+
+Linux: private D-Bus plus an ephemeral gnome-keyring data directory.
+macOS: temporary keychain, restored search list/default on all exits.
+Windows: hosted-runner logon store, random per-test keys, mandatory test cleanup.
+Only test passwords (not Kubernetes tokens) are used by setup commands.
+"""
+from __future__ import annotations
+import os
+from pathlib import Path
+import secrets
+import shlex
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+
+def main() -> int:
+    command = sys.argv[1:]
+    if not command:
+        raise SystemExit("a test command is required")
+    if os.environ.get("CI") != "true" and os.environ.get("ASTER_ALLOW_OS_VAULT_TEST") != "1":
+        raise SystemExit("explicit disposable-environment opt-in required")
+    env = dict(os.environ, ASTER_OS_VAULT_TEST="1")
+    if sys.platform.startswith("linux"):
+        if env.get("ASTER_PRIVATE_VAULT_BUS") != "1":
+            env["ASTER_PRIVATE_VAULT_BUS"] = "1"
+            return subprocess.call(["dbus-run-session", "--", sys.executable, __file__, *command], env=env)
+        with tempfile.TemporaryDirectory(prefix="aster-vault-") as tmp:
+            env.update(XDG_DATA_HOME=tmp + "/data", XDG_CONFIG_HOME=tmp + "/config", XDG_RUNTIME_DIR=tmp + "/run")
+            for key in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR"):
+                Path(env[key]).mkdir(mode=0o700)
+            proc = subprocess.Popen(["gnome-keyring-daemon", "--foreground", "--unlock", "--components=secrets"],
+                                    stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    env=env, start_new_session=True)
+            try:
+                assert proc.stdin is not None
+                proc.stdin.write(b"aster-disposable-test-password\n")
+                proc.stdin.close()
+                for _ in range(100):
+                    ready = subprocess.run(["gdbus", "call", "--session", "--dest", "org.freedesktop.secrets",
+                                            "--object-path", "/org/freedesktop/secrets", "--method",
+                                            "org.freedesktop.Secret.Service.ReadAlias", "default"],
+                                           env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=3)
+                    if ready.returncode == 0 and b"/org/freedesktop/secrets/collection/" in ready.stdout:
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError("disposable Secret Service not ready")
+                return subprocess.call(command, env=env)
+            finally:
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                    proc.wait(timeout=3)
+    if sys.platform == "darwin":
+        def security(*args: str) -> str:
+            return subprocess.check_output(["security", *args], text=True).strip()
+        original_default = shlex.split(security("default-keychain", "-d", "user"))
+        original_search = shlex.split(security("list-keychains", "-d", "user"))
+        with tempfile.TemporaryDirectory(prefix="aster-vault-") as tmp:
+            path = tmp + "/test.keychain-db"
+            password = secrets.token_urlsafe(24)
+            try:
+                security("create-keychain", "-p", password, path)
+                security("set-keychain-settings", "-lut", "3600", path)
+                security("unlock-keychain", "-p", password, path)
+                security("list-keychains", "-d", "user", "-s", path)
+                security("default-keychain", "-d", "user", "-s", path)
+                return subprocess.call(command, env=env)
+            finally:
+                if original_default:
+                    security("default-keychain", "-d", "user", "-s", original_default[0])
+                security("list-keychains", "-d", "user", "-s", *original_search)
+                if Path(path).exists():
+                    security("delete-keychain", path)
+    if sys.platform == "win32":
+        return subprocess.call(command, env=env)
+    raise SystemExit("unsupported native credential test platform")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

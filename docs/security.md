@@ -35,7 +35,8 @@ It is **not sandboxed**, does not silently renew, and does not qualify arbitrary
 See [authentication](authentication.md). Legacy auth-provider is rejected. Never approve an
 untrusted kubeconfig or assume process isolation prevents access to the user's files.
 
-No enterprise SSO/PKCE, system-keyring lifecycle, short-lived managed credentials, tenant-isolated
+Explicit OS token storage is implemented as described below. No enterprise SSO/PKCE,
+automatic credential-renewal lifecycle, short-lived managed credentials, tenant-isolated
 Gateway/Connector, server-enforced approvals, append-only remote audit, revocation protocol,
 terminal recording, or compliant retention is implemented. In-memory operation history is not
 an audit log. Persistent customer resource/log storage is not a supported feature.
@@ -91,3 +92,12 @@ No draft values, schema defaults or examples appear in diagnostic output. Plain-
 descriptions are not executable markup. Editing, hiding or closing the panel and
 connection expiry invalidate pending results. Structural hints do not replace
 server admission/dry-run or authorize mutations. See `schema-assistance.md`.
+
+## Explicit OS token storage
+
+See [credential-vault](credential-vault.md). The vault never overrides another
+credential source, rewrites kubeconfig, silently loads a token or falls back to
+plaintext. Its exact-target slot, bounded same-binary helper and transport lease
+are separate from issuer-side validity/revocation. Forget is not global logout.
+System-user compromise, native provider memory and signed Keychain upgrade
+qualification are not solved by this scoped milestone.
