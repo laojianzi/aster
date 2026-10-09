@@ -1,0 +1,62 @@
+name: Verified terminal development kit
+
+on:
+  push:
+    branches: [feat/native-terminal]
+    paths: [.github/workflows/terminal-devkit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-terminal-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Fetch only pinned public terminal source and checked native libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kit/evidence kit/lib output
+          go mod download -json github.com/egoist/mygo@v0.2.15 > kit/evidence/module.json
+          go mod verify
+          module=$(python3 -c 'import json; print(json.load(open("kit/evidence/module.json"))["Dir"])')
+          cp -a "$module/plugins/terminal" kit/terminal
+          cp "$module/LICENSE" kit/LICENSE.mygo
+          go version > kit/evidence/environment.txt
+          git rev-parse HEAD >> kit/evidence/environment.txt
+          grep -R -n 'github.com/egoist/mygo/internal' kit/terminal > kit/evidence/internal-imports.txt || true
+          python3 - <<'PY'
+          import hashlib, json, pathlib, urllib.request
+          root = pathlib.Path('kit')
+          manifest = json.loads((root/'terminal/mygo-plugin.json').read_text())
+          files = manifest['libraries'][0]['files']
+          for platform in ('linux-amd64', 'darwin-arm64', 'windows-amd64'):
+              spec = files[platform]
+              assert spec['url'].startswith('https://github.com/egoist/mygo/releases/download/libghostty-vt-befcdfd2c3a1/')
+              assert pathlib.Path(spec['name']).name == spec['name']
+              with urllib.request.urlopen(spec['url'], timeout=60) as response:
+                  data = response.read((32 << 20) + 1)
+              assert len(data) <= 32 << 20, 'native library size exceeds budget'
+              assert hashlib.sha256(data).hexdigest() == spec['sha256'], 'native library checksum mismatch'
+              target = root/'lib'/platform/spec['name']
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+          PY
+          tar -czf output/aster-terminal-devkit.tar.gz -C kit .
+          cd output
+          sha256sum aster-terminal-devkit.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: verified-terminal-devkit
+          path: output/
+          if-no-files-found: error
+          retention-days: 2
