@@ -33,10 +33,15 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
+      - name: Prepare hash-verified native terminal source and library
+        shell: bash
+        run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
       - name: Resolve module metadata for review, without committing changes
         shell: bash
         run: |
           set -euo pipefail
+          cp .aster-native/provenance.json evidence/terminal-provenance.json
+          tar -czf evidence/generated-terminal.tar.gz internal/nativeterm/upstream
           go mod tidy
           mkdir -p evidence/resolved
           cp go.mod go.sum evidence/resolved/

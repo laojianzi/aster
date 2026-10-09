@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/cluster"
 	"github.com/laojianzi/aster/internal/kube"
+	"github.com/laojianzi/aster/internal/nativeterm"
 	"github.com/laojianzi/aster/internal/operation"
 	"github.com/laojianzi/aster/internal/relationship"
 	"github.com/laojianzi/aster/internal/resourcemetrics"
@@ -82,6 +84,12 @@ type Workbench struct {
 	commandActive                                                                    bool
 	commandArgv, commandContainer, commandConfirmation, commandOutput, commandStatus string
 
+	terminal                                                              *nativeterm.Terminal
+	terminalEpoch                                                         uint64
+	terminalCancel                                                        context.CancelFunc
+	terminalActive, terminalJoining                                       bool
+	terminalArgv, terminalContainer, terminalConfirmation, terminalStatus string
+
 	relatedEpoch  uint64
 	relatedCancel context.CancelFunc
 	relatedActive bool
@@ -148,6 +156,12 @@ func Open(parent context.Context, options WindowOptions) *Workbench {
 		w.rows = []resourceRow{{UID: "fixture", Name: "aster-native-smoke", Namespace: "fixture", Status: "Rendered"}}
 		w.total = 1
 		w.status = "Smoke fixture"
+		if err := w.prepareTerminalSmoke(); err != nil {
+			fmt.Fprintln(os.Stderr, "ASTER_NATIVE_TERMINAL_ERROR:", err)
+			mygo.App.Quit()
+			return w
+		}
+		terminalReported := false
 		w.run(func(ctx context.Context) {
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
@@ -158,7 +172,14 @@ func Open(parent context.Context, options WindowOptions) *Workbench {
 				case <-ticker.C:
 					w.emit(func() {
 						if w.frames > 0 {
-							if options.SmokeFrame != nil {
+							if !terminalReported && w.terminal != nil {
+								cols, rows := w.terminal.Size()
+								if (cols != 80 || rows != 24) && strings.Contains(w.terminal.Text(), "ASTER NATIVE TERMINAL") {
+									fmt.Printf("ASTER_NATIVE_TERMINAL_RENDERED:%d\n", options.Number)
+									terminalReported = true
+								}
+							}
+							if terminalReported && options.SmokeFrame != nil {
 								options.SmokeFrame(w.frames, func() { win.Close() })
 							}
 						}

@@ -58,6 +58,13 @@ func (w *Workbench) detailView(c *ui.Context) {
 			if ui.Button(c, "Logs").Disabled(w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods").Clicked() {
 				w.detailMode = "Logs"
 			}
+			if ui.Button(c, "Terminal").Disabled(w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods").Clicked() {
+				w.detailMode = "Terminal"
+				w.stopLogs()
+				if w.terminalArgv == "" {
+					w.terminalArgv = `["/bin/sh"]`
+				}
+			}
 			if ui.Button(c, "Command").Disabled(w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods").Clicked() {
 				w.detailMode = "Command"
 				w.stopLogs()
@@ -75,6 +82,9 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.detailMode = "Owners"
 			}
 		})
+		if w.detailMode != "Terminal" && w.terminalCancel != nil {
+			w.stopTerminal()
+		}
 		if w.detailMode != "Metrics" && w.metricsCancel != nil {
 			w.stopMetrics()
 		}
@@ -121,6 +131,8 @@ func (w *Workbench) detailView(c *ui.Context) {
 			w.relationshipView(c)
 		case "Health":
 			w.healthView(c)
+		case "Terminal":
+			w.terminalView(c)
 		case "Command":
 			w.commandView(c)
 		case "Forward":

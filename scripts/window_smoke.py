@@ -31,7 +31,8 @@ def main() -> int:
     log.write_text(output, encoding="utf-8")
     print(output)
     required = ("ASTER_NATIVE_WINDOW_RENDERED:1", "ASTER_NATIVE_WINDOW_RENDERED:2",
-                "ASTER_NATIVE_OTHER_WINDOW_LIVE", "ASTER_NATIVE_SMOKE_OK")
+                "ASTER_NATIVE_OTHER_WINDOW_LIVE", "ASTER_NATIVE_TERMINAL_RENDERED:1",
+                "ASTER_NATIVE_TERMINAL_RENDERED:2", "ASTER_NATIVE_SMOKE_OK")
     if result.returncode != 0 or any(marker not in output for marker in required):
         print(f"native window smoke failed: exit={result.returncode}", file=sys.stderr)
         return 1
