@@ -38,6 +38,7 @@ func TestNativeExecCredentialLiveLogsExpireAgainstRealCluster(t *testing.T) {
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
 	h.click("Logs")
+	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
 	if h.w.logCancel == nil {
 		t.Fatal("logs did not establish a cancellable stream")
