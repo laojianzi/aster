@@ -33,8 +33,8 @@ Errors do not echo response bodies or credentialed URLs. Authentication expiry
 uses the existing connection lease; transport copies cannot bypass it.
 
 Budgets: 20-second UI request deadline, 1 MiB decoded index, 16 MiB decoded schema,
-64 JSON nesting levels, 500,000 JSON value nodes, 8,192 definitions, 20,000 draft
-inspection nodes, 100 diagnostics, 128 child-field entries, 1,024-byte pointer,
+64 JSON nesting levels, 500,000 JSON value nodes, 8,192 definitions, 128 keyword
+keys per schema node, 20,000 inspected draft nodes/required entries, 100 diagnostics, 128 child-field entries, 1,024-byte pointer,
 2,048-rune description and 64 KiB rendered help/report. JSON duplicate keys,
 trailing documents and unsupported document versions are rejected. Only local
 `#/components/schemas/...` references are resolved (maximum 32 consecutive refs);

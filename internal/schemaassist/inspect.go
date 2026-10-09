@@ -89,7 +89,13 @@ func (d *Document) Help(ctx context.Context, path string) (Help, error) {
 	sort.Strings(keys)
 	required := map[string]bool{}
 	a, _ := n["required"].([]any)
+	if len(a) > MaxWork {
+		return out, ErrLimit
+	}
 	for _, v := range a {
+		if err := ctx.Err(); err != nil {
+			return Help{}, err
+		}
 		if k, ok := v.(string); ok {
 			required[k] = true
 		}
@@ -280,6 +286,16 @@ func (d *Document) Check(ctx context.Context, obj map[string]any) (Report, error
 				return
 			}
 			for _, item := range required {
+				if ctx.Err() != nil {
+					return
+				}
+				// A hostile required array can repeat present keys, causing no
+				// diagnostics. Charge each entry, not only visited value nodes.
+				if r.Checked >= MaxWork || len(r.Diagnostics) >= MaxDiagnostics {
+					r.Partial = true
+					return
+				}
+				r.Checked++
 				key, ok := item.(string)
 				if !ok {
 					r.Partial = true

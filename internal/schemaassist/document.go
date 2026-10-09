@@ -22,6 +22,7 @@ const (
 	MaxWork          = 20000
 	MaxDiagnostics   = 100
 	MaxFields        = 128
+	MaxSchemaKeys    = 128
 )
 
 var (
@@ -207,6 +208,11 @@ func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string
 	for i := 0; i < 32; i++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		// Properties are nested in their own map; schema-node keywords have a
+		// small independent budget so annotation overlays cannot amplify copies.
+		if len(node) > MaxSchemaKeys {
+			return nil, ErrLimit
 		}
 		value, exists := node["$ref"]
 		ref, valid := value.(string)
