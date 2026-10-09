@@ -1,0 +1,33 @@
+name: Renovate configuration
+on:
+  pull_request:
+    paths: [renovate.json, .github/workflows/renovate-config.yml]
+  push:
+    branches: [main]
+    paths: [renovate.json, .github/workflows/renovate-config.yml]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Validate configuration and upstream presets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          git rev-parse HEAD > artifacts/environment.txt
+          node --version >> artifacts/environment.txt
+          npm --version >> artifacts/environment.txt
+          npx --yes --package=renovate@44.148.3 renovate-config-validator --strict renovate.json 2>&1 | tee artifacts/renovate-validation.log
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: always()
+        with:
+          name: renovate-config-evidence
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
