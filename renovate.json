@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "automerge": false,
+  "dependencyDashboardApproval": true,
+  "prConcurrentLimit": 2,
+  "prHourlyLimit": 1,
+  "packageRules": [
+    {
+      "description": "MyGo upgrades require updating and reviewing the hash-pinned terminal adaptation, library manifest, and OS evidence together. They are manual until this coupling is automated.",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/egoist/mygo"],
+      "enabled": false
+    },
+    {
+      "description": "Keep the Kubernetes API, clients, and streaming protocol modules on one reviewed version series.",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/api", "k8s.io/apimachinery", "k8s.io/client-go", "k8s.io/streaming"],
+      "groupName": "kubernetes client and streaming"
+    }
+  ]
+}
