@@ -44,8 +44,8 @@ jobs:
           go test -race -shuffle=on -count=1 -timeout=5m -json ./... | tee artifacts/unit/tests.jsonl
       - name: Validate test evidence
         run: |
-          python3 -m unittest discover -s scripts -p "test_test_evidence.py"
-          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments --require TestCredentialedReadsDoNotFollowRedirects --require TestMutationRetryAfterNeverReplays --require TestRelationshipsDependentsUseUIDNotLabels --require TestRelationshipsNeverFetchSecretContents --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsDiscardQueuedResultsAfterDetailChange --require TestMetricsDecodeQuantitiesAndMissingIsNotZero --require TestMetricsTransportNeverRedirectsAndCancels --require TestNativeMetricsQueuedResultsCannotCrossDetails
+          python3 -m unittest discover -s scripts -p "test_*.py"
+          python3 scripts/test_evidence.py artifacts/unit/tests.jsonl --suite unit-native --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestRemoteExitIsSeparateFromDisconnection --require TestExecDenialDoesNotFallBackOrExposeCommandArguments --require TestCredentialedReadsDoNotFollowRedirects --require TestMutationRetryAfterNeverReplays --require TestRelationshipsDependentsUseUIDNotLabels --require TestRelationshipsNeverFetchSecretContents --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsDiscardQueuedResultsAfterDetailChange --require TestMetricsDecodeQuantitiesAndMissingIsNotZero --require TestMetricsTransportNeverRedirectsAndCancels --require TestNativeMetricsQueuedResultsCannotCrossDetails --require TestWorkspaceCloseIsIndependentAndChurnIsBounded --require TestWorkspaceSlotReuseRejectsOldCallbacks --require TestNativeLoadingContextsRequiresExplicitConnect --require TestNativeWorkspacesKeepCredentialsDataAndCancellationSeparate
       - name: Coverage
         run: go test -coverprofile=artifacts/unit/coverage.out ./...
       - name: Upload test evidence
@@ -88,7 +88,7 @@ jobs:
           go version > artifacts/environment.txt
           git rev-parse HEAD >> artifacts/environment.txt
           go test -count=1 -timeout=5m -json ./internal/ui/... | tee artifacts/tests.jsonl
-          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsCloseCancelsOutstandingRead --require TestNativeMetricsControlsStayInsideMinimumWindow --require TestNativeMetricsReadOnlyAndTabLifecycle --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell
+          python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeWorkspaceControlsAtMinimumWindow --require TestNativeNewWorkspaceDoesNotCopyIdentityOrPreparedState --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsCloseCancelsOutstandingRead --require TestNativeMetricsControlsStayInsideMinimumWindow --require TestNativeMetricsReadOnlyAndTabLifecycle --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell
       - name: Build native desktop
         run: go build -trimpath -o dist/${{ matrix.binary }} ./cmd/aster
       - name: Install Linux display dependencies
@@ -177,4 +177,61 @@ jobs:
         with:
           name: e2e-${{ matrix.k8s }}
           path: artifacts/e2e
+          retention-days: 14
+
+  multi-cluster-e2e:
+    name: Two independent clusters / native workspace isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ASTER_E2E_ALLOW_DESTRUCTIVE: "1"
+      ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/multicluster
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Initialize two isolated kubeconfig paths
+        run: |
+          echo "ASTER_MULTI_KUBECONFIG_A=$RUNNER_TEMP/aster-east-kubeconfig" >> "$GITHUB_ENV"
+          echo "ASTER_MULTI_KUBECONFIG_B=$RUNNER_TEMP/aster-west-kubeconfig" >> "$GITHUB_ENV"
+      - name: Install kind
+        run: |
+          go install sigs.k8s.io/kind@v0.33.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Create two independent control planes
+        run: |
+          kind create cluster --name aster-e2e-east --kubeconfig "$ASTER_MULTI_KUBECONFIG_A" --image 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5' --wait 120s
+          kind create cluster --name aster-e2e-west --kubeconfig "$ASTER_MULTI_KUBECONFIG_B" --image 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5' --wait 120s
+      - name: Native isolation, reviewed mutation and surviving watch
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/multicluster
+          go version > artifacts/multicluster/environment.txt
+          git rev-parse HEAD >> artifacts/multicluster/environment.txt
+          kubectl --kubeconfig "$ASTER_MULTI_KUBECONFIG_A" version >> artifacts/multicluster/environment.txt
+          kubectl --kubeconfig "$ASTER_MULTI_KUBECONFIG_B" version >> artifacts/multicluster/environment.txt
+          go test -race -tags=e2e,multicluster -run '^TestNativeIndependentWorkspacesAgainstTwoRealClusters$' -count=1 -timeout=8m -json ./internal/ui | tee artifacts/multicluster/tests.jsonl
+          python3 scripts/test_evidence.py artifacts/multicluster/tests.jsonl --suite two-real-clusters --require TestNativeIndependentWorkspacesAgainstTwoRealClusters
+      - name: Collect two-cluster diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/multicluster
+          kubectl --kubeconfig "$ASTER_MULTI_KUBECONFIG_A" get pods -A -o wide > artifacts/multicluster/east-pods.txt 2>&1 || true
+          kubectl --kubeconfig "$ASTER_MULTI_KUBECONFIG_B" get pods -A -o wide > artifacts/multicluster/west-pods.txt 2>&1 || true
+      - name: Delete both isolated clusters
+        if: always()
+        run: |
+          kind delete cluster --name aster-e2e-east
+          kind delete cluster --name aster-e2e-west
+      - name: Upload multi-cluster evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: two-cluster-evidence
+          path: artifacts/multicluster
           retention-days: 14

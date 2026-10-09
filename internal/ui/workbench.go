@@ -20,10 +20,12 @@ import (
 // Workbench state belongs to the UI goroutine. Workers capture immutable inputs
 // and submit changes through emit; they never access live widget state.
 type Workbench struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	life     *cluster.Session
-	dispatch func(func())
+	workspaceNumber int
+	newWorkspace    func() error
+	ctx             context.Context
+	cancel          context.CancelFunc
+	life            *cluster.Session
+	dispatch        func(func())
 
 	contextEpoch, scopeEpoch, detailEpoch, draftRevision uint64
 	scopeCancel, logCancel, connectionCancel             context.CancelFunc
@@ -114,11 +116,27 @@ func New() *Workbench {
 }
 func formatReplicas(ready, desired int64) string { return fmt.Sprintf("%d / %d ready", ready, desired) }
 
-func Open(parent context.Context) *Workbench {
+// WindowOptions are window-local callbacks, always invoked on the UI thread.
+// Every window starts disconnected and does not inherit another window's trust,
+// kubeconfig selection, credentials, prepared operations or streaming sessions.
+type WindowOptions struct {
+	Number       int
+	NewWorkspace func() error
+	Closed       func()
+	SmokeFrame   func(frame int, closeWindow func())
+}
+
+func Open(parent context.Context, options WindowOptions) *Workbench {
 	w := New()
-	win := mygo.NewWindow(mygo.WindowOptions{Title: "Aster", Width: 1440, Height: 900, MinWidth: 1100, MinHeight: 700, StateKey: "main", Content: ui.View(w.View)})
+	w.workspaceNumber, w.newWorkspace = options.Number, options.NewWorkspace
+	win := mygo.NewWindow(mygo.WindowOptions{Title: fmt.Sprintf("Aster · Workspace %d", options.Number), Width: 1440, Height: 900, MinWidth: 1100, MinHeight: 700, StateKey: fmt.Sprintf("workspace-%d", options.Number), Content: ui.View(w.View)})
 	w.attach(parent, func(fn func()) { win.Update(fn) })
-	win.OnClosed(func() { w.cancel(); mygo.App.Quit() })
+	win.OnClosed(func() {
+		w.cancel()
+		if options.Closed != nil {
+			options.Closed()
+		}
+	})
 	if os.Getenv("ASTER_NATIVE_SMOKE") == "1" {
 		w.notice = "Smoke fixture · no kubeconfig is read"
 		w.rows = []resourceRow{{UID: "fixture", Name: "aster-native-smoke", Namespace: "fixture", Status: "Rendered"}}
@@ -134,8 +152,9 @@ func Open(parent context.Context) *Workbench {
 				case <-ticker.C:
 					w.emit(func() {
 						if w.frames > 0 {
-							fmt.Println("ASTER_NATIVE_SMOKE_OK")
-							win.Close()
+							if options.SmokeFrame != nil {
+								options.SmokeFrame(w.frames, func() { win.Close() })
+							}
 						}
 					})
 				}

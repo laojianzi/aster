@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a real native window, require a rendered-frame marker and clean exit.
+"""Run a real native window, require two windows and a surviving-workspace marker and clean exit.
 
 This deliberately does not read kubeconfig, and is not a substitute for IME,
 accessibility, signed-installer or GPU-driver qualification.
@@ -30,7 +30,9 @@ def main() -> int:
         return 1
     log.write_text(output, encoding="utf-8")
     print(output)
-    if result.returncode != 0 or "ASTER_NATIVE_SMOKE_OK" not in output:
+    required = ("ASTER_NATIVE_WINDOW_RENDERED:1", "ASTER_NATIVE_WINDOW_RENDERED:2",
+                "ASTER_NATIVE_OTHER_WINDOW_LIVE", "ASTER_NATIVE_SMOKE_OK")
+    if result.returncode != 0 or any(marker not in output for marker in required):
         print(f"native window smoke failed: exit={result.returncode}", file=sys.stderr)
         return 1
     return 0
