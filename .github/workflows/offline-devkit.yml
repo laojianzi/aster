@@ -1,10 +1,15 @@
 name: Offline development kit
-# Include the client-go remotecommand packages used by native command execution.
+# Refresh public toolchain/module snapshots when pinned dependency inputs change.
 
 on:
   push:
-    branches: [main, feat/native-terminal]
-    paths: [.github/workflows/offline-devkit.yml]
+    branches: [main, 'feat/**']
+    paths:
+      - .github/workflows/offline-devkit.yml
+      - go.mod
+      - go.sum
+      - internal/nativeterm/UPSTREAM.json
+      - internal/nativeterm/hardening.patch
   workflow_dispatch:
 
 permissions:
