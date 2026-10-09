@@ -169,30 +169,83 @@ func Decode(ctx context.Context, data []byte, gvk schema.GroupVersionKind) (*Doc
 	}
 	return &Document{gvk: gvk, root: root, definitions: defs}, nil
 }
+
+// referenceWrapper recognizes the single-ref allOf emitted by Kubernetes
+// WrapRefs. Structural siblings are deliberately not flattened: doing so could
+// silently drop an intersection constraint. Allowed siblings are annotations or
+// list/patch semantics that this advisory inspector explicitly does not validate.
+func referenceWrapper(node map[string]any) (string, bool) {
+	items, ok := node["allOf"].([]any)
+	if !ok || len(items) != 1 {
+		return "", false
+	}
+	child, ok := items[0].(map[string]any)
+	if !ok || len(child) != 1 {
+		return "", false
+	}
+	ref, ok := child["$ref"].(string)
+	if !ok {
+		return "", false
+	}
+	for key := range node {
+		switch key {
+		case "allOf", "description", "title", "default", "example", "externalDocs",
+			"deprecated", "readOnly", "writeOnly", "format",
+			"x-kubernetes-patch-strategy", "x-kubernetes-patch-merge-key",
+			"x-kubernetes-list-type", "x-kubernetes-list-map-keys", "x-kubernetes-map-type":
+		default:
+			return "", false
+		}
+	}
+	return ref, true
+}
 func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string]any, error) {
 	seen := map[string]bool{}
+	// Only display annotations are overlaid; defaults/examples are never applied
+	// or shown. A copy is made only at the end, leaving shared definitions intact.
+	annotations := map[string]any{}
 	for i := 0; i < 32; i++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		value, exists := node["$ref"]
+		ref, valid := value.(string)
 		if !exists {
-			return node, nil
+			ref, valid = referenceWrapper(node)
+			if !valid {
+				if len(annotations) == 0 {
+					return node, nil
+				}
+				resolved := make(map[string]any, len(node)+len(annotations))
+				for key, value := range node {
+					resolved[key] = value
+				}
+				for key, value := range annotations {
+					resolved[key] = value
+				}
+				return resolved, nil
+			}
 		}
-		ref, ok := value.(string)
-		if !ok || len(ref) > 4096 || !strings.HasPrefix(ref, "#/components/schemas/") {
+		if !valid || len(ref) > 4096 || !strings.HasPrefix(ref, "#/components/schemas/") {
 			return nil, ErrUnsupported
 		}
 		if seen[ref] {
 			return nil, ErrUnsupported
 		}
 		seen[ref] = true
+		for _, key := range []string{"description", "title"} {
+			if _, present := annotations[key]; !present {
+				if value, ok := node[key].(string); ok {
+					annotations[key] = value
+				}
+			}
+		}
 		parts, err := pointer(strings.TrimPrefix(ref, "#"))
 		if err != nil || len(parts) != 3 || parts[0] != "components" || parts[1] != "schemas" {
 			return nil, ErrUnsupported
 		}
-		node, ok = d.definitions[parts[2]].(map[string]any)
-		if !ok {
+		node, valid = d.definitions[parts[2]].(map[string]any)
+		if !valid {
 			return nil, ErrUnsupported
 		}
 	}

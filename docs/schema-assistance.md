@@ -38,7 +38,9 @@ inspection nodes, 100 diagnostics, 128 child-field entries, 1,024-byte pointer,
 2,048-rune description and 64 KiB rendered help/report. JSON duplicate keys,
 trailing documents and unsupported document versions are rejected. Only local
 `#/components/schemas/...` references are resolved (maximum 32 consecutive refs);
-cycles and unsupported branches remain visible as incomplete inspection. The
+cycles and unsupported branches remain visible as incomplete inspection. Kubernetes
+single-ref `allOf` wrappers with annotation-only siblings are resolved without
+changing the referenced definition. Structural siblings are not flattened. The
 single-resource editor's existing 256 KiB / 5,000-line limit still applies.
 
 Cancellation/epoch checks bind results to connection, detail, draft and pointer
@@ -50,8 +52,8 @@ UI thread; only the finished bounded text is dispatched to the UI.
 
 This checks structural hints, not full OpenAPI/JSON Schema, CEL, webhook or
 admission behavior. Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except the special
-integer-or-string structure), unresolved references and exhausted budgets make
-results explicitly incomplete. Enums, patterns, format, numeric ranges, list
+integer-or-string structure and annotation-only single-ref wrappers), unresolved
+references and exhausted budgets make results explicitly incomplete. Enums, patterns, format, numeric ranges, list
 semantics and defaults are not validated. A report with zero hints does not
 mean the manifest is valid. `x-kubernetes-preserve-unknown-fields`, typed maps,
 nullable fields and integer-or-string are handled conservatively. An unknown
@@ -76,3 +78,7 @@ Primary references:
 - https://kubernetes.io/docs/concepts/overview/kubernetes-api/#openapi-v3
 - https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 - https://spec.openapis.org/oas/v3.0.3.html
+
+Compatibility reference: `kubernetes/kube-openapi/pkg/builder3/util/util.go` (`WrapRefs`)
+wraps native references with sibling annotations in single-element `allOf`. The
+regression retains the original failed real-cluster Pod path; it is not skipped.

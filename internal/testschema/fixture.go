@@ -9,7 +9,7 @@ const Document = `{
    "properties":{"apiVersion":{"type":"string"},"kind":{"type":"string"},
     "metadata":{"type":"object","additionalProperties":true},
     "spec":{"type":"object","required":["containers"],"properties":{
-     "containers":{"type":"array","items":{"$ref":"#/components/schemas/Container"}},
+     "containers":{"type":"array","items":{"allOf":[{"$ref":"#/components/schemas/Container"}],"description":"A workload container."}},
      "count":{"type":"integer"},"maybe":{"type":"string","nullable":true},
      "opaque":{"type":"object","x-kubernetes-preserve-unknown-fields":true,"properties":{"known":{"type":"integer"}}},
      "labels":{"type":"object","additionalProperties":{"type":"string"}},
