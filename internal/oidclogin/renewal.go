@@ -33,16 +33,19 @@ type claimBinding struct {
 // Its absolute family deadline and bounded hash history do not slide on renewal.
 // Local deletion is not issuer revocation; the issuer must enforce rotation too.
 type Renewal struct {
-	mu        sync.Mutex
-	used      bool
-	cancel    context.CancelFunc
-	opts      Options
-	endpoints Endpoints
-	binding   claimBinding
-	token     string
-	until     time.Time
-	remaining int
-	history   map[[32]byte]struct{}
+	mu          sync.Mutex
+	used        bool
+	cancel      context.CancelFunc
+	leaseCtx    context.Context
+	leaseCancel context.CancelFunc
+	leaseStop   func() bool
+	opts        Options
+	endpoints   Endpoints
+	binding     claimBinding
+	token       string
+	until       time.Time
+	remaining   int
+	history     map[[32]byte]struct{}
 }
 type RenewalInfo struct {
 	Issuer, Subject string
@@ -66,10 +69,28 @@ func (r *Renewal) Close() {
 	r.used = true
 	r.token = ""
 	clear(r.history)
+	if r.leaseStop != nil {
+		r.leaseStop()
+		r.leaseStop = nil
+	}
+	if r.leaseCancel != nil {
+		r.leaseCancel()
+		r.leaseCancel = nil
+	}
 	if r.cancel != nil {
 		r.cancel()
 		r.cancel = nil
 	}
+}
+
+// bindLease is called only by the successful, single-use Identity.Resolve.
+// A capability cannot outlive its originating connection even if a caller later
+// supplies context.Background, or the UI expiry callback has not been pumped.
+func (r *Renewal) bindLease(parent context.Context, expires time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.leaseCtx, r.leaseCancel = context.WithDeadline(parent, expires)
+	r.leaseStop = context.AfterFunc(r.leaseCtx, r.Close)
 }
 
 // TakeRenewal transfers ownership only after Resolve successfully bound the ID
@@ -107,6 +128,7 @@ func (r *Renewal) Renew(ctx context.Context, cfg *rest.Config, contextName, user
 		return nil, ErrUsed
 	}
 	r.used = true
+	defer r.Close() // only the admitted attempt owns cleanup; duplicates must not cancel it
 	token := r.token
 	r.token = ""
 	if ctx == nil || ctx.Err() != nil {
@@ -114,13 +136,15 @@ func (r *Renewal) Renew(ctx context.Context, cfg *rest.Config, contextName, user
 		r.mu.Unlock()
 		return nil, ErrInterrupted
 	}
-	if !time.Now().Before(r.until) || r.remaining <= 0 {
+	if !time.Now().Before(r.until) || r.remaining <= 0 || r.leaseCtx == nil || r.leaseCtx.Err() != nil {
 		clear(r.history)
 		r.mu.Unlock()
 		return nil, ErrExpired
 	}
 	ctx, cancel := context.WithDeadline(ctx, r.until)
 	r.cancel = cancel
+	stopLease := context.AfterFunc(r.leaseCtx, cancel)
+	defer stopLease()
 	history := r.history
 	r.history = nil
 	r.mu.Unlock()
@@ -184,6 +208,9 @@ func (r *Renewal) Renew(ctx context.Context, cfg *rest.Config, contextName, user
 	deadline := time.Now().Add(ReviewLifetime)
 	if deadline.After(r.until) {
 		deadline = r.until
+	}
+	if leaseDeadline, ok := r.leaseCtx.Deadline(); ok && deadline.After(leaseDeadline) {
+		deadline = leaseDeadline
 	}
 	if !time.Now().Before(deadline) {
 		return nil, ErrExpired

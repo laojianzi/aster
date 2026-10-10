@@ -16,6 +16,10 @@ import (
 )
 
 func renewable(t *testing.T, p *testoidc.Provider) (*Identity, *Renewal) {
+	return renewableBound(t, p, context.Background())
+}
+
+func renewableBound(t *testing.T, p *testoidc.Provider, lease context.Context) (*Identity, *Renewal) {
 	t.Helper()
 	p.AllowRenewal = true
 	cfg := &rest.Config{Host: "https://cluster.invalid"}
@@ -36,7 +40,7 @@ func renewable(t *testing.T, p *testoidc.Provider) (*Identity, *Renewal) {
 	if id.TakeRenewal() != nil {
 		t.Fatal("renewal transferred before connection target validated")
 	}
-	if _, e = id.Resolve(context.Background(), cfg, "context", "user"); e != nil {
+	if _, e = id.Resolve(lease, cfg, "context", "user"); e != nil {
 		t.Fatal(e)
 	}
 	cap := id.TakeRenewal()
@@ -297,4 +301,53 @@ func TestOIDCRenewalTargetDeadlineAndBoundedFamily(t *testing.T) {
 	if e != nil || !result.ExpiresAt.Equal(cap.until) {
 		t.Fatal("family deadline not applied", e)
 	}
+}
+
+func TestOIDCRenewalCannotOutliveOriginalConnection(t *testing.T) {
+	t.Run("before-post", func(t *testing.T) {
+		p := testoidc.New(t)
+		lease, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		_, cap := renewableBound(t, p, lease)
+		cancel()
+		id, err := renew(cap) // background caller cannot resurrect a closed lease
+		if id != nil || err == nil || p.RefreshRequests.Load() != 0 {
+			t.Fatal("renewal escaped originating connection", err)
+		}
+	})
+	t.Run("during-post", func(t *testing.T) {
+		p := testoidc.New(t)
+		p.RefreshStarted = make(chan struct{}, 1)
+		release := make(chan struct{})
+		p.RefreshRelease = release
+		lease, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		_, cap := renewableBound(t, p, lease)
+		done := make(chan error, 1)
+		go func() {
+			id, err := renew(cap)
+			if id != nil {
+				id.Close()
+			}
+			done <- err
+		}()
+		select {
+		case <-p.RefreshStarted:
+		case <-time.After(3 * time.Second):
+			t.Fatal("refresh not started")
+		}
+		cancel()
+		close(release)
+		select {
+		case err := <-done:
+			if err == nil {
+				t.Fatal("canceled lease yielded identity")
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("lease cancellation did not bound I/O")
+		}
+		if p.RefreshRequests.Load() != 1 {
+			t.Fatal("refresh replayed")
+		}
+	})
 }

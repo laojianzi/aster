@@ -28,7 +28,8 @@ the system browser. Network cancellation cannot roll back an issuer-side rotatio
 
 ## Protocol and limits
 
-The rotating capability is opaque and pointer-owned. It contains the frozen
+The rotating capability is opaque and pointer-owned. It is bound to the originating
+connection lease, including background callers and an unprocessed UI expiry. It contains the frozen
 issuer, client, HTTPS endpoints, CA trust and cluster target digest, original
 subject/nonce/optional authentication time, and a hash history (never formatted
 token data). Each instance is consumed before validation or network I/O, and one

@@ -238,6 +238,9 @@ func (i *Identity) Resolve(ctx context.Context, cfg *rest.Config, contextName, u
 	if i.renewal != nil && expires.After(i.renewal.until) {
 		expires = i.renewal.until
 	}
+	if i.renewal != nil {
+		i.renewal.bindLease(ctx, expires)
+	}
 	i.resolved = true
 	copy.Wrap(func(base http.RoundTripper) http.RoundTripper { return &leaseGuard{base, ctx, expires} })
 	return credentialexec.Resolved{Config: copy, ExpiresAt: expires}, nil

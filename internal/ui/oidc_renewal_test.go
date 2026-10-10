@@ -256,4 +256,13 @@ func TestNativeOIDCRenewalConfirmationSurvivesUnrelatedFrame(t *testing.T) {
 	if h.w.connectionPending {
 		t.Fatal("wrong confirmation replaced connection")
 	}
+	// A new operation epoch must reset both the text and the native undo history.
+	h.w.oidcEpoch++
+	h.w.oidcConfirmation = ""
+	h.tt.Frame()
+	h.click("Confirm OIDC replacement context")
+	h.tt.Key(ui.Cmd, ui.KeyZ)
+	if h.w.oidcConfirmation != "" {
+		t.Fatal("confirmation history crossed operation epochs")
+	}
 }

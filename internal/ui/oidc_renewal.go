@@ -101,7 +101,7 @@ func (w *Workbench) oidcRenewalView(c *ui.Context) {
 			info := w.oidcIdentity.Info()
 			ui.Text(c, fmt.Sprintf("Verified subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity").SingleLine().FontSize(12)
 			ui.Text(c, "New token expires "+info.ExpiresAt.Local().Format("15:04:05")+"; the old connection has NOT been replaced.").Label("OIDC replacement deadline").FontSize(12)
-			ui.TextInput(c.Key("oidc.renewalConfirm"), &w.oidcConfirmation).Label("Confirm OIDC replacement context").Placeholder("Type exact context to replace; old logs, watches, commands and terminal sessions will stop")
+			ui.TextInput(c.Key(fmt.Sprintf("oidc.renewalConfirm.%d", w.oidcEpoch)), &w.oidcConfirmation).Label("Confirm OIDC replacement context").Placeholder("Type exact context to replace; old logs, watches, commands and terminal sessions will stop")
 			ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.connectOIDC() })
 		}
 		ui.Text(c, w.oidcStatus).Label("OIDC renewal status").FontSize(12).TextColor(t.TextMuted)

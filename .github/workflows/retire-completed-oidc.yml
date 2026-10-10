@@ -24,7 +24,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Retire only the reachable merged PR25 branch after all four gates
+      - name: Retire only the registered reachable completed branch after all four gates
         env:
           GH_TOKEN: ${{ github.token }}
           ASTER_CLEANUP_HEAD: ${{ github.event.workflow_run.head_sha }}
