@@ -1,0 +1,104 @@
+{
+  "repository": "laojianzi/aster",
+  "default_branch": "main",
+  "baseline": "cb6a73c84a708154fd3fd6ddf8ea0884a6c4b915",
+  "merging_branch": "fix/mygo-03-widget-lifetimes",
+  "branches": [
+    {
+      "name": "build/development-kit",
+      "sha": "c515869d0c349b59bf1ae02febb2b912b3019661",
+      "mode": "archive-superseded",
+      "reason": "Old environment-only workflow replaced by maintained offline/terminal devkits"
+    },
+    {
+      "name": "chore/development-snapshot",
+      "sha": "893c1d2a5eca04d0aec63db6baa241a46003ec3d",
+      "mode": "archive-superseded",
+      "reason": "Old snapshot workflow replaced by exact-source evidence workflow"
+    },
+    {
+      "name": "deps/mygo-latest-verified",
+      "sha": "23255f98cede87ecdb3f2eaacfac8b3e8df7b6d7",
+      "mode": "merged",
+      "reason": "PR #16"
+    },
+    {
+      "name": "feat/bootstrap-production-core",
+      "sha": "365e6983a432df96ede79485db0d21815138ac42",
+      "mode": "merged",
+      "reason": "PR #1"
+    },
+    {
+      "name": "feat/bounded-exec-authentication",
+      "sha": "93d6e9cd70f881bc956683d1b9a3bd486fea612f",
+      "mode": "merged",
+      "reason": "PR #12"
+    },
+    {
+      "name": "feat/mygo-0.3.7-upgrade",
+      "sha": "88e09a86c859f34ff9311ec732dc10a3015570d2",
+      "mode": "merged",
+      "reason": "PR #20"
+    },
+    {
+      "name": "feat/native-credential-vault",
+      "sha": "27cae6f7486b36411f0dfa70e6d2c2685bf9a001",
+      "mode": "merged",
+      "reason": "PR #19"
+    },
+    {
+      "name": "feat/native-multi-workspaces",
+      "sha": "d5a62564fb8a271f302f0a1154e2b9188deee372",
+      "mode": "merged",
+      "reason": "PR #7"
+    },
+    {
+      "name": "feat/native-resource-metrics",
+      "sha": "151f973633e561a9aeed5b1f037e5e8b5f0dc722",
+      "mode": "merged",
+      "reason": "PR #6"
+    },
+    {
+      "name": "feat/native-resource-relationships",
+      "sha": "687c217528d4b57b6bc883f8eefecce98dad2b81",
+      "mode": "merged",
+      "reason": "PR #5"
+    },
+    {
+      "name": "feat/native-reviewed-apply",
+      "sha": "fc51a0091c7030f17af25244e26271377622618a",
+      "mode": "merged",
+      "reason": "PR #8"
+    },
+    {
+      "name": "feat/native-schema-assistance",
+      "sha": "10ada5907d8e898e6529531a91eb12b47588db42",
+      "mode": "merged",
+      "reason": "PR #15"
+    },
+    {
+      "name": "feat/native-terminal",
+      "sha": "85e64260bffbdae796654a731c82929505758dec",
+      "mode": "merged",
+      "reason": "PR #10"
+    },
+    {
+      "name": "feat/native-workbench-verified",
+      "sha": "71f16e650cfbae4cd494f64d28c17523a63c2247",
+      "mode": "merged",
+      "reason": "PR #3"
+    },
+    {
+      "name": "feat/resource-operations",
+      "sha": "d824af12602d80a483fb1acfceddfbbaed205066",
+      "mode": "archive-superseded",
+      "reason": "PR #2 closed; mutable Executor superseded by Prepared/SSA, must not reintroduce"
+    },
+    {
+      "name": "fix/no-redirect-or-mutation-replay",
+      "sha": "094cdd904638cd8cc4c13a814764813b076141bf",
+      "mode": "merged",
+      "reason": "PR #4"
+    }
+  ]
+}

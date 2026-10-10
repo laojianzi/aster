@@ -73,15 +73,15 @@ func (w *Workbench) metricsView(c *ui.Context) {
 }
 func (w *Workbench) metricsContents(c *ui.Context) {
 	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, "Refresh metrics").Disabled(w.metricsLoading || w.metricsActive).Clicked() {
+		ui.Button(c, "Refresh metrics").Disabled(w.metricsLoading || w.metricsActive).OnClick(func() {
 			w.loadMetrics(false)
-		}
-		if ui.Button(c, "Start sampling").Disabled(w.metricsActive).Clicked() {
+		})
+		ui.Button(c, "Start sampling").Disabled(w.metricsActive).OnClick(func() {
 			w.loadMetrics(true)
-		}
-		if ui.Button(c, "Pause metrics").Disabled(!w.metricsActive && !w.metricsLoading).Clicked() {
+		})
+		ui.Button(c, "Pause metrics").Disabled(!w.metricsActive && !w.metricsLoading).OnClick(func() {
 			w.stopMetrics()
-		}
+		})
 	})
 	state := string(w.metricsResult.State)
 	if state == "" {
@@ -107,7 +107,7 @@ func (w *Workbench) metricsContents(c *ui.Context) {
 	}
 	ui.Text(c, stamp).FontSize(11).SingleLine()
 	entries := w.metricsResult.Entries
-	ui.List(c, &w.metricsList, len(entries), func(i int) {
+	ui.List(c.Key("field.metricsList"), &w.metricsList, len(entries), func(i int) {
 		v := entries[i]
 		ui.Text(c, fmt.Sprintf("%s  ·  %.4g cores  ·  %.4g MiB", v.Name, v.CPUCores, v.MemoryBytes/(1<<20))).Label("Usage " + v.Name).FontSize(12).SingleLine()
 	}).Height(64).MinHeight(32)

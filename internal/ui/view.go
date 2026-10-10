@@ -13,50 +13,50 @@ func (w *Workbench) View(c *ui.Context) {
 		ui.Row(c).Height(58).Padding(12).Gap(10).Children(func() {
 			ui.Text(c, "Aster").Bold().FontSize(22)
 			ui.Text(c, "Native Kubernetes Workbench").FontSize(12).TextColor(t.TextMuted)
-			if ui.Select(c, &w.currentContext, w.contexts).Label("Cluster context").Width(250).Changed() {
+			if ui.Select(c.Key("field.currentContext"), &w.currentContext, w.contexts).Label("Cluster context").Width(250).Changed() {
 				w.namespace = ""
 				w.trustedFingerprint = ""
 				w.trustRequired = false
 				w.disconnect()
 			}
-			ui.TextInput(c, &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
-			if ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending).Clicked() {
+			ui.TextInput(c.Key("field.namespace"), &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
+			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending).OnClick(func() {
 				w.connect()
-			}
-			if ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending && !w.vaultPending).Clicked() {
+			})
+			ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending && !w.vaultPending).OnClick(func() {
 				w.disconnect()
-			}
+			})
 		})
 		ui.Row(c).Height(44).Padding(6, 12).Gap(8).Children(func() {
-			if ui.TextInput(c, &w.path).Label("Kubeconfig path").Placeholder("Kubeconfig path (empty: default)").Width(320).Changed() {
+			if ui.TextInput(c.Key("field.path"), &w.path).Label("Kubeconfig path").Placeholder("Kubeconfig path (empty: default)").Width(320).Changed() {
 				w.trustedFingerprint = ""
 				w.trustRequired = false
 				w.disconnect()
 			}
-			if ui.Button(c, "Load contexts").Clicked() {
+			ui.Button(c, "Load contexts").OnClick(func() {
 				w.loadContexts()
-			}
-			if ui.Button(c, "Credentials").Clicked() {
+			})
+			ui.Button(c, "Credentials").OnClick(func() {
 				w.vaultOpen = !w.vaultOpen
 				w.clearVault()
-			}
+			})
 			ui.Text(c, w.notice).FontSize(12).TextColor(t.TextMuted).Grow(1).SingleLine()
 			if w.workspaceNumber > 0 {
 				ui.Text(c, fmt.Sprintf("Workspace %d", w.workspaceNumber)).Label("Workspace identity").FontSize(12).SingleLine()
 			}
-			if ui.Button(c, "New workspace").Disabled(w.newWorkspace == nil).Clicked() {
+			ui.Button(c, "New workspace").Disabled(w.newWorkspace == nil).OnClick(func() {
 				if err := w.newWorkspace(); err != nil {
 					w.notice = err.Error()
 				}
-			}
+			})
 		})
 		if w.trustRequired {
 			ui.Row(c).Padding(10).Gap(10).Children(func() {
 				ui.Text(c, "This context requests local credentials, executable authentication or unsafe transport. Trust only a configuration you control.").FontSize(12)
-				if ui.Button(c, "Trust this context and connect").Disabled(w.connectionPending).Clicked() {
+				ui.Button(c, "Trust this context and connect").Disabled(w.connectionPending).OnClick(func() {
 					w.trustedFingerprint = w.pendingTrustFingerprint
 					w.connect()
-				}
+				})
 			})
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
@@ -67,14 +67,14 @@ func (w *Workbench) View(c *ui.Context) {
 			ui.Column(c).Width(174).Padding(10).Gap(5).Children(func() {
 				ui.Text(c, "RESOURCES").FontSize(11).Bold().TextColor(t.TextMuted)
 				for _, item := range []struct{ Label, Resource string }{{"Pods", "pods"}, {"Deployments", "deployments"}, {"StatefulSets", "statefulsets"}, {"DaemonSets", "daemonsets"}, {"Jobs", "jobs"}, {"CronJobs", "cronjobs"}, {"Services", "services"}, {"Ingresses", "ingresses"}, {"ConfigMaps", "configmaps"}, {"Secrets", "secrets"}, {"Volume Claims", "persistentvolumeclaims"}, {"Nodes", "nodes"}, {"Namespaces", "namespaces"}} {
-					if ui.Button(c, item.Label).Width(152).Height(30).Clicked() {
+					ui.Button(c, item.Label).Width(152).Height(30).OnClick(func() {
 						for _, kind := range catalog() {
 							if kind.GVR.Resource == item.Resource {
 								w.chooseKind(kind)
 								break
 							}
 						}
-					}
+					})
 				}
 			})
 			ui.Column(c).Grow(1).Padding(12).Gap(8).Children(func() {
@@ -83,18 +83,18 @@ func (w *Workbench) View(c *ui.Context) {
 					ui.Text(c, fmt.Sprintf("%d / %d resources", len(w.rows), w.total)).FontSize(12).TextColor(t.TextMuted)
 				})
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.Button(c, "Refresh").Disabled(w.backend == nil).Clicked() {
+					ui.Button(c, "Refresh").Disabled(w.backend == nil).OnClick(func() {
 						w.startScope()
-					}
-					if ui.Button(c, "New resource").Disabled(w.backend == nil || w.currentKind.GVR.Resource == "secrets").Clicked() {
+					})
+					ui.Button(c, "New resource").Disabled(w.backend == nil || w.currentKind.GVR.Resource == "secrets").OnClick(func() {
 						w.beginCreate()
-					}
+					})
 				})
 				labels := make([]string, 0, len(w.kinds))
 				for _, k := range w.kinds {
 					labels = append(labels, k.Label())
 				}
-				if ui.Select(c, &w.kindChoice, labels).Label("Resource kind").Changed() {
+				if ui.Select(c.Key("field.kindChoice"), &w.kindChoice, labels).Label("Resource kind").Changed() {
 					for _, k := range w.kinds {
 						if k.Label() == w.kindChoice {
 							w.chooseKind(k)
@@ -103,30 +103,30 @@ func (w *Workbench) View(c *ui.Context) {
 					}
 				}
 				ui.Row(c).Gap(8).Children(func() {
-					if ui.TextInput(c, &w.filter).Label("Filter resources").Placeholder("Filter name, namespace or status").Grow(1).Changed() {
+					if ui.TextInput(c.Key("field.filter"), &w.filter).Label("Filter resources").Placeholder("Filter name, namespace or status").Grow(1).Changed() {
 						w.queryChanged()
 					}
-					if ui.Select(c, &w.sortBy, []string{"Name", "Namespace", "Status"}).Label("Sort resources").Width(115).Changed() {
+					if ui.Select(c.Key("field.sortBy"), &w.sortBy, []string{"Name", "Namespace", "Status"}).Label("Sort resources").Width(115).Changed() {
 						w.queryChanged()
 					}
 				})
 				ui.Row(c).Gap(8).Children(func() {
-					ui.TextInput(c, &w.labelSelector).Label("Label selector").Placeholder("Server label selector, e.g. app=api").Grow(1)
-					if ui.Button(c, "Apply selector").Disabled(w.backend == nil).Clicked() {
+					ui.TextInput(c.Key("field.labelSelector"), &w.labelSelector).Label("Label selector").Placeholder("Server label selector, e.g. app=api").Grow(1)
+					ui.Button(c, "Apply selector").Disabled(w.backend == nil).OnClick(func() {
 						w.startScope()
-					}
+					})
 				})
 				if w.errText != "" {
 					ui.Text(c, w.errText).FontSize(12).TextColor(t.Danger)
 				}
 				cols := []ui.TableColumn{{ID: "name", Title: "Name"}, {ID: "namespace", Title: "Namespace", Width: 130}, {ID: "status", Title: "Status", Width: 150}}
-				ui.Table(c, &w.table, cols, len(w.rows), func(row, col int) {
+				ui.Table(c.Key("field.table"), &w.table, cols, len(w.rows), func(row, col int) {
 					r := w.rows[row]
 					switch col {
 					case 0:
-						if ui.Button(c, r.Name).Clicked() {
+						ui.Button(c, r.Name).OnClick(func() {
 							w.openResource(r)
-						}
+						})
 					case 1:
 						ui.Text(c, r.Namespace).SingleLine()
 					case 2:
