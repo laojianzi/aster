@@ -60,7 +60,7 @@ nullable fields and integer-or-string are handled conservatively. An unknown
 field hint is advisory: the API server decides rejection/pruning/preservation.
 Field explanations are plain text, not executable markup or clickable links.
 
-Full completion insertion, incremental editing, diagnostic source locations,
+Full completion insertion, incremental editing, advanced source diagnostics,
 long-lived schema caches and advanced constraints remain in tracker #13.
 
 ## Verification
@@ -82,3 +82,40 @@ Primary references:
 Compatibility reference: `kubernetes/kube-openapi/pkg/builder3/util/util.go` (`WrapRefs`)
 wraps native references with sibling annotations in single-element `allOf`. The
 regression retains the original failed real-cluster Pod path; it is not skipped.
+
+
+## Source positions and native navigation (#29)
+
+Field help and structural draft diagnostics now resolve against the **original
+single-document draft**, not its re-encoded Kubernetes object. Select a result
+in **Schema location**, then press **Go to location**. The editor focuses and
+reveals its caret at the explicit key or sequence-item start. This never edits
+the draft or creates an operation plan. Existing Undo is retained. Navigation
+is consumed once, not repeated on repaint. Active text composition blocks it
+until a fresh explicit click after composition finishes.
+
+Coordinates are one-based Unicode code-point lines/columns; selection uses
+zero-based rune offsets, not bytes, UTF-16 units, graphemes or display-cell widths.
+Both LF and CRLF and inline JSON are tested. A missing required field points to
+an explicitly labeled enclosing value; it does not invent a nonexistent key.
+Aliases/merges and YAML 1.1-coerced keys are not expanded into guessed locations.
+Unsupported BOM/line-break forms, duplicates, multiple documents or exhausted
+budgets disable navigation but do not bypass or replace server dry-run.
+
+The immutable index stores a digest, field paths and coordinates, not scalar
+values, a draft copy or the parsed AST. It is invalidated with draft/pointer,
+detail, connection, tab, expiry and window lifecycle. A deferred jump rechecks
+all epochs plus the exact draft digest; queued changes are applied before a jump.
+No build-scoped MyGo Context or Element is retained outside the current build.
+
+Additional budgets: existing 256 KiB/5,000-newline input bound; 20,000 charged
+AST nodes/entries, depth 64, pointer 1,024 bytes, 2 MiB cumulative index path/entry
+accounting and 100 navigation results. Combined report/help and source notes stay
+within 64 KiB, with an explicit truncation marker. The YAML AST parser is synchronous
+within the input budget; cancellation is checked around parsing and throughout
+traversal, not advertised as a preemptible parser or a hard process-memory cap.
+
+This is bounded source assistance, not a new incremental text engine, an LSP,
+completion insertion, full schema/admission validation or physical IME acceptance.
+The original Kubernetes manifest decoder still decides local object semantics.
+The pinned `go.yaml.in/yaml/v3` AST reader is only used for presentation locations.

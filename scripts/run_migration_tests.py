@@ -7,6 +7,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeSchemaLocationMenuCannotApplyStaleSelection',
+    'TestNativeSchemaSourceCoordinatesAcrossJSONAndCRLF',
+    'TestNativeSchemaDiagnosticNavigationPreservesDraftAndHistory',
+    'TestNativeSchemaMissingFieldNavigatesToLabeledParent',
+    'TestNativeSchemaQueuedNavigationCannotCrossDraftIdentityOrTab',
+    'TestNativeSchemaNavigationRespectsCompositionAndIsOneShot',
+    'TestNativeSchemaLocationControlsAtMinimumWindow',
+    'TestNativeSchemaLocationsUnavailableDoNotBlockReadOnlyHelp',
+    'TestNativeSchemaLocationLookupIsEpochBoundAndReadOnly',
     'TestNativeEditorUndoCannotCrossResourceIdentity',
     'TestNativeCommandUndoCannotCrossResourceIdentity',
     'TestNativeMigrationTextFieldsDoNotShareHistory',
