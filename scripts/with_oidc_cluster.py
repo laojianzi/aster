@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Run one explicitly disposable real Dex + OIDC-enabled kind qualification.
+"""Run disposable Dex + OIDC-enabled kind; no user kubeconfig is read.
 
-This creates its own kubeconfig and never reads the user's cluster context.
-Dex is a real provider; credentials are disposable fixtures. No provider logs,
-private keys, cookies, kubeconfigs or tokens are uploaded.
+No runtime provider logs, private keys, cookies or credentials are uploaded.
+Only bounded pre-login startup errors and structured phases aid setup failures.
 """
 import json
 import os
@@ -15,7 +14,7 @@ import tempfile
 import time
 import urllib.request
 
-DEX = 'ghcr.io/dexidp/dex:v2.46.0'
+DEX = 'ghcr.io/dexidp/dex:v2.46.0@sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777'
 NODE = 'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5'
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,12 +31,15 @@ def main(args):
     name = 'aster-e2e-oidc-' + str(os.getpid())
     with tempfile.TemporaryDirectory(prefix='aster-oidc-fixture-') as tmp:
         tmp = Path(tmp)
+        stage = 'network'
+        ready = False
         try:
             if not command('docker', 'network', 'ls', '--filter', 'name=^kind$', '--format', '{{.Name}}').strip():
                 command('docker', 'network', 'create', 'kind')
             net = json.loads(command('docker', 'network', 'inspect', 'kind'))[0]
             gateway = next(x['Gateway'] for x in net['IPAM']['Config'] if ':' not in x.get('Gateway', ''))
             issuer = 'https://' + gateway + ':15556/dex'
+            stage = 'certificate'
             command('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=Aster disposable OIDC',
                 '-addext', 'subjectAltName=IP:' + gateway + ',IP:127.0.0.1', '-keyout', str(tmp/'key.pem'), '-out', str(tmp/'cert.pem'))
             config = {'issuer': issuer, 'storage': {'type': 'memory'},
@@ -49,21 +51,26 @@ def main(args):
                 'staticPasswords': [{'email': 'engineer@example.test', 'username': 'engineer', 'userID': 'fixture-engineer', 'emailVerified': True,
                     'hash': '$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W'}]}
             (tmp/'dex.json').write_text(json.dumps(config))
+            stage = 'provider-image'
             command('docker', 'pull', DEX)
             digest = json.loads(command('docker', 'image', 'inspect', DEX))[0]['RepoDigests']
             (output/'provider.json').write_text(json.dumps({'requested_image': DEX, 'resolved_digests': digest, 'node': NODE, 'user_agent': 'bounded HTML form driver; not rendered browser'}, indent=2))
+            stage = 'provider-start'
             command('docker', 'run', '-d', '--name', name, '--network', 'host', '--user', '0:0', '-v', str(tmp)+':/fixture:ro', DEX, 'dex', 'serve', '/fixture/dex.json')
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=str(tmp/'cert.pem'))))
+            stage = 'provider-readiness'
             deadline = time.monotonic()+40
             while True:
                 try:
                     with opener.open(issuer+'/.well-known/openid-configuration', timeout=2) as res:
                         if res.status == 200:
+                            ready = True
                             break
                 except Exception:
                     if time.monotonic() > deadline:
                         raise ValueError('disposable Dex did not become ready')
                     time.sleep(.3)
+            stage = 'cluster-configuration'
             patch = {'apiVersion': 'kubeadm.k8s.io/v1beta4', 'kind': 'ClusterConfiguration', 'apiServer': {
                 'extraArgs': [{'name': k, 'value': v} for k,v in {
                     'oidc-issuer-url': issuer, 'oidc-client-id': 'aster-test', 'oidc-ca-file': '/etc/kubernetes/pki/aster-oidc.pem',
@@ -72,12 +79,27 @@ def main(args):
             kind = {'kind': 'Cluster', 'apiVersion': 'kind.x-k8s.io/v1alpha4', 'nodes': [{'role': 'control-plane',
                 'extraMounts': [{'hostPath': str(tmp/'cert.pem'), 'containerPath': '/aster-oidc.pem', 'readOnly': True}], 'kubeadmConfigPatches': [json.dumps(patch)]}]}
             (tmp/'kind.json').write_text(json.dumps(kind))
+            stage = 'cluster-start'
             command('kind', 'create', 'cluster', '--name', name, '--image', NODE, '--config', str(tmp/'kind.json'), '--kubeconfig', str(tmp/'kubeconfig'), '--wait', '120s')
             env = dict(os.environ, KUBECONFIG=str(tmp/'kubeconfig'), ASTER_E2E_CONTEXT='kind-'+name, ASTER_E2E_ALLOW_DESTRUCTIVE='1',
                 ASTER_OIDC_ISSUER=issuer, ASTER_OIDC_CA=str(tmp/'cert.pem'), ASTER_OIDC_PORT='17111')
+            stage = 'test-execution'
             result = subprocess.run(args, cwd=ROOT, env=env, timeout=300)
             if result.returncode:
                 raise ValueError('OIDC test command failed')
+        except Exception as failure:
+            diagnostic = {'phase': stage, 'error_type': type(failure).__name__,
+                          'returncode': getattr(failure, 'returncode', None)}
+            (output/'setup-failure.json').write_text(json.dumps(diagnostic, indent=2))
+            if not ready:
+                # No login has run; no authorization code or bearer token exists.
+                startup = subprocess.run(['docker', 'logs', '--tail', '20', name],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10).stdout[:8192].decode(errors='replace')
+                markers = ('error', 'unknown', 'invalid', 'failed', 'fatal')
+                safe = [line[:1000] for line in startup.splitlines()
+                        if any(word in line.lower() for word in markers)]
+                (output/'provider-startup-errors.txt').write_text('\n'.join(safe))
+            raise
         finally:
             subprocess.run(['kind','delete','cluster','--name',name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
             subprocess.run(['docker','rm','-f',name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
