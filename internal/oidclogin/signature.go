@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"encoding/json"
 	"github.com/coreos/go-oidc/v3/oidc"
 	jose "github.com/go-jose/go-jose/v4"
 )
@@ -16,12 +17,47 @@ func verifySignedToken(ctx context.Context, issuer, clientID, algorithm, keyID, 
 	if ctx == nil || (algorithm != "RS256" && algorithm != "ES256") || len(keyID) > 256 || len(raw) > MaxTokenBytes {
 		return nil, ErrVerification
 	}
-	var set jose.JSONWebKeySet
+	var set struct {
+		Keys []json.RawMessage `json:"keys"`
+	}
 	if decodeJSON(ctx, data, &set) != nil || len(set.Keys) == 0 || len(set.Keys) > 8 {
 		return nil, ErrVerification
 	}
 	keys := []crypto.PublicKey{}
-	for _, key := range set.Keys {
+	for _, rawKey := range set.Keys {
+		// Bound integer material before the cryptographic parser and never let
+		// private factors or certificate chains select expensive parsing paths.
+		var fields map[string]json.RawMessage
+		if decodeJSON(ctx, rawKey, &fields) != nil {
+			return nil, ErrVerification
+		}
+		for _, name := range []string{"d", "p", "q", "dp", "dq", "qi", "oth", "k"} {
+			if _, exists := fields[name]; exists {
+				return nil, ErrVerification
+			}
+		}
+		var kind string
+		if json.Unmarshal(fields["kty"], &kind) != nil || (kind != "RSA" && kind != "EC") {
+			return nil, ErrVerification
+		}
+		bounded := map[string]string{"kty": kind}
+		for name, limit := range map[string]int{"kid": 256, "alg": 16, "use": 8, "n": 1366, "e": 8, "crv": 8, "x": 43, "y": 43} {
+			if value, exists := fields[name]; exists {
+				var text string
+				if len(value) > limit*6+2 || json.Unmarshal(value, &text) != nil || len(text) > limit {
+					return nil, ErrVerification
+				}
+				bounded[name] = text
+			}
+		}
+		if kind == "EC" && bounded["crv"] != "P-256" {
+			return nil, ErrVerification
+		}
+		projected, _ := json.Marshal(bounded)
+		var key jose.JSONWebKey
+		if json.Unmarshal(projected, &key) != nil {
+			return nil, ErrVerification
+		}
 		if len(key.KeyID) > 256 || !key.IsPublic() {
 			return nil, ErrVerification
 		}

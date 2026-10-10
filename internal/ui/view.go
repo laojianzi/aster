@@ -19,11 +19,13 @@ func (w *Workbench) View(c *ui.Context) {
 				w.trustRequired = false
 				w.disconnect()
 			}
-			ui.TextInput(c.Key("field.namespace"), &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
-			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending).OnClick(func() {
+			if ui.TextInput(c.Key("field.namespace"), &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150).Changed() {
+				w.clearOIDC()
+			}
+			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending || w.oidcPending).OnClick(func() {
 				w.connect()
 			})
-			ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending && !w.vaultPending).OnClick(func() {
+			ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending && !w.vaultPending && !w.oidcPending).OnClick(func() {
 				w.disconnect()
 			})
 		})
@@ -37,9 +39,12 @@ func (w *Workbench) View(c *ui.Context) {
 				w.loadContexts()
 			})
 			ui.Button(c, "Credentials").OnClick(func() {
+				w.clearOIDC()
+				w.oidcOpen = false
 				w.vaultOpen = !w.vaultOpen
 				w.clearVault()
 			})
+			ui.Button(c, "Browser sign-in").OnClick(func() { w.clearVault(); w.vaultOpen = false; w.clearOIDC(); w.oidcOpen = !w.oidcOpen })
 			ui.Text(c, w.notice).FontSize(12).TextColor(t.TextMuted).Grow(1).SingleLine()
 			if w.workspaceNumber > 0 {
 				ui.Text(c, fmt.Sprintf("Workspace %d", w.workspaceNumber)).Label("Workspace identity").FontSize(12).SingleLine()
@@ -60,6 +65,10 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+			if w.oidcOpen {
+				w.oidcView(c)
+				return
+			}
 			if w.vaultOpen {
 				w.vaultView(c)
 				return

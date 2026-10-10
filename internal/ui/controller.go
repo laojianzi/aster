@@ -48,6 +48,7 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+	w.clearOIDC()
 	w.clearVault()
 	w.contextEpoch++
 	w.scopeEpoch++
@@ -73,7 +74,7 @@ type connectionResolver func(context.Context, kubeconfig.Options) (kubeconfig.Co
 func (w *Workbench) connect() { w.beginConnection(nil) }
 
 func (w *Workbench) beginConnection(resolve connectionResolver) {
-	if w.connectionPending || w.vaultPending {
+	if w.connectionPending || w.vaultPending || w.oidcPending {
 		return
 	}
 	w.connectionPending = true

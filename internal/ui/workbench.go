@@ -14,6 +14,7 @@ import (
 	"github.com/laojianzi/aster/internal/credentialvault"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/nativeterm"
+	"github.com/laojianzi/aster/internal/oidclogin"
 	"github.com/laojianzi/aster/internal/operation"
 	"github.com/laojianzi/aster/internal/relationship"
 	"github.com/laojianzi/aster/internal/resourcemetrics"
@@ -127,6 +128,16 @@ type Workbench struct {
 	vaultTarget                                               *credentialvault.Target
 	vaultStore                                                credentialvault.Store
 
+	oidcOpen, oidcPending                                                  bool
+	oidcEpoch                                                              uint64
+	oidcCancel                                                             context.CancelFunc
+	oidcIssuer, oidcClient, oidcCA, oidcPort, oidcConfirmation, oidcStatus string
+	oidcTrust, oidcTrustPending                                            string
+	oidcTarget                                                             *credentialvault.Target
+	oidcReview                                                             *oidclogin.Review
+	oidcIdentity                                                           *oidclogin.Identity
+	oidcBrowser                                                            func(string) error
+
 	history []string
 	frames  int
 }
@@ -134,6 +145,7 @@ type Workbench struct {
 func New() *Workbench {
 	w := &Workbench{ctx: context.Background(), status: "Not connected", sortBy: "Name", selected: -1, replicas: "1", detailMode: "YAML"}
 	w.vaultDuration = "1 hour"
+	w.oidcPort = "0"
 	w.vaultStore = credentialvault.Client{}
 	w.kinds = catalog()
 	w.currentKind = w.kinds[0]
@@ -234,6 +246,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearOIDC()
 	w.clearVault()
 	if w.cancel != nil {
 		w.cancel()
