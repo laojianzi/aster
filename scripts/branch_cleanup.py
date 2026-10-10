@@ -41,7 +41,34 @@ def validate_plan(plan):
     return entries
 
 
-def classify(entries, branches, prs, ancestor):
+
+def merged_pr_number(entry):
+    # The PR number must come from the reviewed manifest, not a discovered tip.
+    match = re.fullmatch(r'(?:completed migration )?PR #(\d+)', entry.get('reason', ''))
+    if not match or int(match[1]) < 1:
+        raise ValueError('missing reviewed PR reference')
+    return int(match[1])
+
+
+def verified_merge(entry, pr, ancestor):
+    """Validate squash/rebase integration without treating it as ancestry.
+
+    The original reviewed head is archived even though the PR's resulting
+    commit is reachable. An open PR, another fork/base/head or a later push
+    cannot authorize retiring this exact branch.
+    """
+    merge = pr.get('merge_commit_sha', '')
+    return (pr.get('number') == merged_pr_number(entry)
+            and pr.get('merged') is True and pr.get('state') == 'closed'
+            and pr.get('head', {}).get('ref') == entry['name']
+            and pr.get('head', {}).get('sha') == entry['sha']
+            and (pr.get('head', {}).get('repo') or {}).get('full_name') == REPO
+            and pr.get('base', {}).get('ref') == 'main'
+            and (pr.get('base', {}).get('repo') or {}).get('full_name') == REPO
+            and isinstance(merge, str) and re.fullmatch(r'[0-9a-f]{40}', merge) is not None
+            and ancestor(merge))
+
+def classify(entries, branches, prs, ancestor, merged_pr=None):
     active = {p[side]['ref'] for p in prs for side in ('head', 'base')
               if (p[side].get('repo') or {}).get('full_name') == REPO}
     ready = []
@@ -52,9 +79,14 @@ def classify(entries, branches, prs, ancestor):
         current = branches[name]
         if current['commit']['sha'] != sha or current['protected'] or name in active:
             raise ValueError('candidate moved, protected or active: ' + name)
+        candidate = dict(entry)
         if entry['mode'] == 'merged' and not ancestor(sha):
-            raise ValueError('candidate is not merged into checked main: ' + name)
-        ready.append(entry)
+            pr = merged_pr(merged_pr_number(entry)) if merged_pr else None
+            if pr is None or not verified_merge(entry, pr, ancestor):
+                raise ValueError('candidate has no verified integration: ' + name)
+            # Preserve non-ancestor history; never merge old product code.
+            candidate.update(archive=True, integration_commit=pr['merge_commit_sha'])
+        ready.append(candidate)
     return ready
 
 
@@ -65,7 +97,7 @@ def push_arguments(entries, head):
         ref = 'refs/heads/' + entry['name']
         args.append('--force-with-lease=' + ref + ':' + entry['sha'])
         specs.append(':' + ref)
-        if entry['mode'] == 'archive-superseded':
+        if entry['mode'] == 'archive-superseded' or entry.get('archive') is True:
             tag = ARCHIVE + entry['name']
             args.append('--force-with-lease=' + tag + ':')
             specs.append(entry['sha'] + ':' + tag)
@@ -78,6 +110,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def main(apply, report):
+    report['stage'] = 'validate-plan'
     plan = json.loads((ROOT / PLAN_PATH).read_text())
     entries = list(validate_plan(plan))
     token = os.environ.get('GH_TOKEN', '')
@@ -122,12 +155,14 @@ def main(apply, report):
                 return result
         raise ValueError('metadata pagination exceeded budget')
 
+    report['stage'] = 'verify-main'
     head = git('rev-parse', 'HEAD')
     if head != expected or api('git/ref/heads/main')['object']['sha'] != expected:
         raise ValueError('main moved since the successful CI checkout')
     if git('merge-base', '--is-ancestor', plan['baseline'], head, allow_false=True) is False:
         raise ValueError('reviewed baseline not in current main')
     report.update(head=head, baseline=plan['baseline'], plan_sha256=hashlib.sha256((ROOT / PLAN_PATH).read_bytes()).hexdigest())
+    report['stage'] = 'check-receipt'
     receipt = git('ls-remote', REMOTE, RECEIPT)
     if receipt:
         sha = receipt.split()[0]
@@ -136,12 +171,14 @@ def main(apply, report):
             raise ValueError('receipt refers to a different plan')
         report['status'] = 'already-applied'
         return
+    report['stage'] = 'verify-workflows'
     runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
     for name in ('CI', 'Source evidence', 'Native migration verification'):
         matching = sorted((r for r in runs if r['name'] == name), key=lambda r: r['id'], reverse=True)
         if not matching or matching[0]['status'] != 'completed' or matching[0]['conclusion'] != 'success':
             report['status'] = 'waiting-for-verification'
             return
+    report['stage'] = 'review-refs'
     prs = pages('pulls?state=open')
     branches = {b['name']: b for b in pages('branches')}
     # Only the just-merged, explicitly named completion branch can be appended.
@@ -156,27 +193,34 @@ def main(apply, report):
                             'mode': 'merged', 'reason': 'completed migration PR #' + str(pr['number'])})
     refs = ['+refs/heads/' + e['name'] + ':refs/cleanup-inputs/' + e['name']
             for e in entries if e['name'] in branches]
+    report['stage'] = 'fetch-reviewed-refs'
     if refs:
         git('fetch', '--no-tags', REMOTE, *refs)
-    ready = classify(entries, branches, prs,
-                     lambda sha: git('merge-base', '--is-ancestor', sha, head, allow_false=True) is not False)
+    report['stage'] = 'classify-reviewed-refs'
+    ancestor = lambda sha: git('merge-base', '--is-ancestor', sha, head, allow_false=True) is not False
+    merged_pr = lambda number: api('pulls/' + str(number))
+    ready = classify(entries, branches, prs, ancestor, merged_pr)
     report['candidates'] = ready
     if not apply:
         report['status'] = 'dry-run'
         return
     # Recheck active PRs/current refs immediately before the atomic lease update.
+    report['stage'] = 'revalidate-reviewed-refs'
     ready = classify(ready, {b['name']: b for b in pages('branches')}, pages('pulls?state=open'),
-                     lambda sha: git('merge-base', '--is-ancestor', sha, head, allow_false=True) is not False)
+                     ancestor, merged_pr)
     if api('git/ref/heads/main')['object']['sha'] != expected:
         raise ValueError('main changed during preflight')
     output = ROOT / 'artifacts/branch-cleanup'
     output.mkdir(parents=True, exist_ok=True)
+    report['stage'] = 'archive-bundle'
     git('bundle', 'create', str(output / 'before-cleanup.bundle'), '--all')
+    report['stage'] = 'atomic-push'
     git(*push_arguments(ready, head))
+    report['stage'] = 'verify-remote-result'
     remaining = {b['name'] for b in pages('branches')}
     if any(e['name'] in remaining for e in ready):
         raise ValueError('post-push ref verification failed')
-    report.update(status='applied', deleted=len(ready), remaining=sorted(remaining), receipt=RECEIPT)
+    report.update(status='applied', stage='complete', deleted=len(ready), remaining=sorted(remaining), receipt=RECEIPT)
 
 
 if __name__ == '__main__':
