@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Run disposable Dex + OIDC-enabled kind; no user kubeconfig is read.
-
-No runtime provider logs, private keys, cookies or credentials are uploaded.
-Only bounded pre-login startup errors and structured phases aid setup failures.
-"""
+"""Disposable TLS Dex + OIDC-enabled kind; never reads a user's kubeconfig."""
 import json
 import os
 from pathlib import Path
@@ -36,8 +32,8 @@ def main(args):
         try:
             if not command('docker', 'network', 'ls', '--filter', 'name=^kind$', '--format', '{{.Name}}').strip():
                 command('docker', 'network', 'create', 'kind')
-            net = json.loads(command('docker', 'network', 'inspect', 'kind'))[0]
-            gateway = next(x['Gateway'] for x in net['IPAM']['Config'] if ':' not in x.get('Gateway', ''))
+            network = json.loads(command('docker', 'network', 'inspect', 'kind'))[0]
+            gateway = next(x['Gateway'] for x in network['IPAM']['Config'] if ':' not in x.get('Gateway', ''))
             issuer = 'https://' + gateway + ':15556/dex'
             stage = 'certificate'
             command('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=Aster disposable OIDC',
@@ -71,16 +67,17 @@ def main(args):
                         raise ValueError('disposable Dex did not become ready')
                     time.sleep(.3)
             stage = 'cluster-configuration'
+            # The extra file is outside kubeadm's read-only PKI directory mount.
             patch = {'apiVersion': 'kubeadm.k8s.io/v1beta4', 'kind': 'ClusterConfiguration', 'apiServer': {
                 'extraArgs': [{'name': k, 'value': v} for k,v in {
-                    'oidc-issuer-url': issuer, 'oidc-client-id': 'aster-test', 'oidc-ca-file': '/etc/kubernetes/pki/aster-oidc.pem',
+                    'oidc-issuer-url': issuer, 'oidc-client-id': 'aster-test', 'oidc-ca-file': '/etc/aster-oidc.pem',
                     'oidc-username-claim': 'email', 'oidc-username-prefix': 'aster:'}.items()],
-                'extraVolumes': [{'name': 'aster-oidc-ca', 'hostPath': '/aster-oidc.pem', 'mountPath': '/etc/kubernetes/pki/aster-oidc.pem', 'readOnly': True, 'pathType': 'File'}]}}
+                'extraVolumes': [{'name': 'aster-oidc-ca', 'hostPath': '/aster-oidc.pem', 'mountPath': '/etc/aster-oidc.pem', 'readOnly': True, 'pathType': 'File'}]}}
             kind = {'kind': 'Cluster', 'apiVersion': 'kind.x-k8s.io/v1alpha4', 'nodes': [{'role': 'control-plane',
                 'extraMounts': [{'hostPath': str(tmp/'cert.pem'), 'containerPath': '/aster-oidc.pem', 'readOnly': True}], 'kubeadmConfigPatches': [json.dumps(patch)]}]}
             (tmp/'kind.json').write_text(json.dumps(kind))
             stage = 'cluster-start'
-            command('kind', 'create', 'cluster', '--name', name, '--image', NODE, '--config', str(tmp/'kind.json'), '--kubeconfig', str(tmp/'kubeconfig'), '--wait', '120s')
+            command('kind', 'create', 'cluster', '--retain', '--name', name, '--image', NODE, '--config', str(tmp/'kind.json'), '--kubeconfig', str(tmp/'kubeconfig'), '--wait', '120s')
             env = dict(os.environ, KUBECONFIG=str(tmp/'kubeconfig'), ASTER_E2E_CONTEXT='kind-'+name, ASTER_E2E_ALLOW_DESTRUCTIVE='1',
                 ASTER_OIDC_ISSUER=issuer, ASTER_OIDC_CA=str(tmp/'cert.pem'), ASTER_OIDC_PORT='17111')
             stage = 'test-execution'
@@ -88,19 +85,18 @@ def main(args):
             if result.returncode:
                 raise ValueError('OIDC test command failed')
         except Exception as failure:
-            diagnostic = {'phase': stage, 'error_type': type(failure).__name__,
-                          'returncode': getattr(failure, 'returncode', None)}
-            (output/'setup-failure.json').write_text(json.dumps(diagnostic, indent=2))
+            (output/'setup-failure.json').write_text(json.dumps({'phase': stage, 'error_type': type(failure).__name__,
+                'returncode': getattr(failure, 'returncode', None)}, indent=2))
             if not ready:
-                # No login has run; no authorization code or bearer token exists.
+                # No login has run, and there are no authorization codes/tokens.
                 startup = subprocess.run(['docker', 'logs', '--tail', '20', name],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10).stdout[:8192].decode(errors='replace')
-                markers = ('error', 'unknown', 'invalid', 'failed', 'fatal')
                 safe = [line[:1000] for line in startup.splitlines()
-                        if any(word in line.lower() for word in markers)]
+                        if any(word in line.lower() for word in ('error', 'unknown', 'invalid', 'failed', 'fatal'))]
                 (output/'provider-startup-errors.txt').write_text('\n'.join(safe))
             raise
         finally:
+            # --retain permits bounded diagnostics only; every path deletes it.
             subprocess.run(['kind','delete','cluster','--name',name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
             subprocess.run(['docker','rm','-f',name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
 
