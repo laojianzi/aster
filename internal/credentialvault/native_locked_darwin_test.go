@@ -24,7 +24,15 @@ func TestOSVaultLockedDefaultKeychainFailsClosed(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	got, err := exec.CommandContext(ctx, "/usr/bin/security", "default-keychain", "-d", "user").Output()
-	if err != nil || strings.Trim(strings.TrimSpace(string(got)), "\"") != path {
+	actual := strings.Trim(strings.TrimSpace(string(got)), "\"")
+	if err != nil || !filepath.IsAbs(actual) {
+		t.Fatal("unable to establish disposable default keychain")
+	}
+	// macOS security may canonicalise /var to /private/var. Compare the
+	// actual filesystem identity, not spelling, without accepting another file.
+	wantInfo, wantErr := os.Stat(path)
+	gotInfo, gotErr := os.Stat(actual)
+	if wantErr != nil || gotErr != nil || !wantInfo.Mode().IsRegular() || !os.SameFile(wantInfo, gotInfo) {
 		t.Fatal("refusing to lock a keychain other than the disposable default")
 	}
 	if err = exec.CommandContext(ctx, "/usr/bin/security", "lock-keychain", path).Run(); err != nil {
