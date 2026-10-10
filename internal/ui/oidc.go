@@ -153,7 +153,7 @@ func (w *Workbench) connectOIDC() {
 	if w.oidcTarget == nil || w.oidcIdentity == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.oidcConfirmation != w.oidcTarget.Context {
 		return
 	}
-	if w.backend != nil && (!w.oidcReplacing || w.oidcReplacementEpoch != w.contextEpoch) {
+	if w.backend != nil && (!w.oidcReplacing || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)) {
 		return
 	}
 	id, trust, target := w.oidcIdentity, w.oidcTrust, w.oidcTarget

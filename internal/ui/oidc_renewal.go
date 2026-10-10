@@ -2,6 +2,7 @@ package uiworkbench
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,7 +20,7 @@ func (w *Workbench) clearOIDCRenewal() {
 	w.oidcRenewalProfile = kubeconfig.Options{}
 }
 func (w *Workbench) renewOIDC() {
-	if w.backend == nil || w.oidcRenewal == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.oidcIdentity != nil {
+	if w.backend == nil || w.oidcRenewal == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.oidcIdentity != nil || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry) {
 		return
 	}
 	w.clearOIDC()
@@ -48,17 +49,21 @@ func (w *Workbench) renewOIDC() {
 		}
 		w.emit(func() {
 			w.oidcPending = false
+			interrupted := ctx.Err() != nil
 			cancel()
 			defer stopCleanup()
-			if epoch != w.oidcEpoch || connectionEpoch != w.contextEpoch {
+			if epoch != w.oidcEpoch || connectionEpoch != w.contextEpoch || interrupted {
 				if id != nil {
 					id.Close()
+				}
+				if epoch == w.oidcEpoch && connectionEpoch == w.contextEpoch {
+					w.oidcStatus = "Renewal interrupted before review. Sign in again; no retry or implicit connection replacement."
 				}
 				return
 			}
 			if err != nil {
 				// The prior credential has been consumed even on preflight failure.
-				w.oidcStatus = "Renewal failed or interrupted; sign in again. No retry. The old connection ends at its original deadline."
+				w.oidcStatus = renewalFailureStatus(err)
 				return
 			}
 			w.oidcIdentity, w.oidcTarget, w.oidcTrust = id, target, profile.TrustToken
@@ -97,8 +102,31 @@ func (w *Workbench) oidcRenewalView(c *ui.Context) {
 			ui.Text(c, fmt.Sprintf("Verified subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity").SingleLine().FontSize(12)
 			ui.Text(c, "New token expires "+info.ExpiresAt.Local().Format("15:04:05")+"; the old connection has NOT been replaced.").Label("OIDC replacement deadline").FontSize(12)
 			ui.TextInput(c.Key("oidc.renewalConfirm"), &w.oidcConfirmation).Label("Confirm OIDC replacement context").Placeholder("Type exact context to replace; old logs, watches, commands and terminal sessions will stop")
-			ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch).OnClick(func() { w.connectOIDC() })
+			ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.connectOIDC() })
 		}
 		ui.Text(c, w.oidcStatus).Label("OIDC renewal status").FontSize(12).TextColor(t.TextMuted)
 	})
+}
+
+// Only static categories are surfaced. A profile/transport/provider error may
+// contain paths, URLs or credentials and must never be interpolated here.
+func renewalFailureStatus(err error) string {
+	category := "target unavailable"
+	switch {
+	case errors.Is(err, oidclogin.ErrRotation):
+		category = "rotation rejected"
+	case errors.Is(err, oidclogin.ErrVerification):
+		category = "identity rejected"
+	case errors.Is(err, oidclogin.ErrResponse):
+		category = "response rejected"
+	case errors.Is(err, oidclogin.ErrTransport):
+		category = "transport unavailable"
+	case errors.Is(err, oidclogin.ErrInterrupted):
+		category = "interrupted"
+	case errors.Is(err, oidclogin.ErrExpired):
+		category = "expired"
+	case errors.Is(err, oidclogin.ErrUsed):
+		category = "already consumed"
+	}
+	return "Renewal failed (" + category + "). Sign in again; no retry. The current connection keeps its original deadline."
 }

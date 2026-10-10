@@ -40,7 +40,7 @@ def main(args):
                 '-addext', 'subjectAltName=IP:' + gateway + ',IP:127.0.0.1', '-keyout', str(tmp/'key.pem'), '-out', str(tmp/'cert.pem'))
             config = {'issuer': issuer, 'storage': {'type': 'memory'},
                 'web': {'https': gateway + ':15556', 'tlsCert': '/fixture/cert.pem', 'tlsKey': '/fixture/key.pem'},
-                'expiry': {'idTokens': '30s'},
+                'expiry': {'idTokens': '30s', 'refreshTokens': {'disableRotation': False, 'reuseInterval': '0s', 'absoluteLifetime': '1h'}},
                 'oauth2': {'responseTypes': ['code'], 'skipApprovalScreen': False, 'pkce': {'enforce': True, 'codeChallengeMethodsSupported': ['S256']}},
                 'staticClients': [{'id': 'aster-test', 'name': 'Aster disposable test', 'public': True, 'redirectURIs': ['http://127.0.0.1:17111/oidc/callback']}],
                 'enablePasswordDB': True,
@@ -50,9 +50,13 @@ def main(args):
             stage = 'provider-image'
             command('docker', 'pull', DEX)
             digest = json.loads(command('docker', 'image', 'inspect', DEX))[0]['RepoDigests']
-            (output/'provider.json').write_text(json.dumps({'requested_image': DEX, 'resolved_digests': digest, 'node': NODE, 'user_agent': 'bounded HTML form driver; not rendered browser'}, indent=2))
+            (output/'provider.json').write_text(json.dumps({'requested_image': DEX, 'resolved_digests': digest, 'node': NODE, 'user_agent': 'bounded HTML form driver; not rendered browser', 'sessions_enabled': True, 'refresh_rotation': True, 'refresh_reuse_interval': '0s'}, indent=2))
             stage = 'provider-start'
-            command('docker', 'run', '-d', '--name', name, '--network', 'host', '--user', '0:0', '-v', str(tmp)+':/fixture:ro', DEX, 'dex', 'serve', '/fixture/dex.json')
+            # In pinned Dex 2.46 the session-disabled memory-store refresh path calls
+            # back into its storage mutex. Enable actual issuer sessions so refresh
+            # reads the cached identity before the rotation transaction. This is a
+            # test IdP configuration, not a relaxation of Aster verification.
+            command('docker', 'run', '-d', '--name', name, '--network', 'host', '--user', '0:0', '-e', 'DEX_SESSIONS_ENABLED=true', '-v', str(tmp)+':/fixture:ro', DEX, 'dex', 'serve', '/fixture/dex.json')
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=str(tmp/'cert.pem'))))
             stage = 'provider-readiness'
             deadline = time.monotonic()+40

@@ -80,3 +80,15 @@ Primary references: OIDC Core 1.0 sections 11 and 12.2
 (https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse),
 OAuth Security BCP RFC 9700 section 4.14
 (https://www.rfc-editor.org/rfc/rfc9700.html#section-4.14).
+
+### Independent provider fixture configuration
+
+Pinned Dex v2.46.0 is run with server sessions enabled, rotation required and
+zero reuse interval. The first CI run exposed a request timeout with its
+session-disabled in-memory store: upstream Rotate invokes freshIdentity inside
+UpdateRefreshToken, while that callback reads OfflineSessions through the same
+non-reentrant storage mutex. Enabling issuer sessions uses the upstream cached
+identity path before the transaction. No issuer source/library is patched and no
+Aster signature, nonce, time, rotation, retry or authorization check is disabled.
+The fixture metadata records this configuration; compatibility with the stalled
+configuration is not claimed. Failed/ambiguous rotation always requires login.
