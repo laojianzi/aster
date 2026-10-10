@@ -25,7 +25,7 @@ func (w *Workbench) clearVault() {
 	w.vaultTarget = nil
 }
 func (w *Workbench) reviewVault() {
-	if w.vaultPending || w.connectionPending || w.backend != nil {
+	if w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil {
 		return
 	}
 	w.vaultPending = true
@@ -67,7 +67,7 @@ func (w *Workbench) reviewVault() {
 	})
 }
 func (w *Workbench) writeVault(forget bool) {
-	if w.vaultTarget == nil || w.vaultPending || w.connectionPending || w.backend != nil || w.vaultConfirmation != w.vaultTarget.Context {
+	if w.vaultTarget == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil || w.vaultConfirmation != w.vaultTarget.Context {
 		return
 	}
 	target, store := w.vaultTarget, w.vaultStore
@@ -121,7 +121,7 @@ func (w *Workbench) writeVault(forget bool) {
 	})
 }
 func (w *Workbench) connectVault() {
-	if w.vaultTarget == nil || w.vaultPending || w.connectionPending || w.backend != nil || w.vaultConfirmation != w.vaultTarget.Context {
+	if w.vaultTarget == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil || w.vaultConfirmation != w.vaultTarget.Context {
 		return
 	}
 	key, trust, store := w.vaultTarget.Key(), w.vaultTrust, w.vaultStore
@@ -148,7 +148,7 @@ func (w *Workbench) vaultView(c *ui.Context) {
 		}
 		ui.Text(c, "Explicit operations only. Use an HTTPS kubeconfig context with an empty user entry; existing credentials are never overridden.").FontSize(12)
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.vaultPending || w.connectionPending || w.backend != nil).OnClick(func() {
+			ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil).OnClick(func() {
 				w.reviewVault()
 			})
 			ui.Button(c, "Back to resources").OnClick(func() {

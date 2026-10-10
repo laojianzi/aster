@@ -1,0 +1,37 @@
+name: Retire completed OIDC branch
+on:
+  workflow_run:
+    workflows: [CI, Source evidence, Native migration verification, OIDC qualification]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: retire-completed-oidc
+  cancel-in-progress: false
+jobs:
+  retire:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Retire only the reachable merged PR25 branch after all four gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASTER_CLEANUP_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: python3 scripts/retire_completed_oidc.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: completed-branch-evidence
+          path: artifacts/completed-branch/
+          retention-days: 90
