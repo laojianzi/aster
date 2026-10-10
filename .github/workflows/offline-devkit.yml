@@ -41,6 +41,10 @@ jobs:
           cp -a "$(go env GOROOT)" kit/go
           mv vendor kit/source/vendor
           cp go.mod go.sum kit/source/
+          # Preserve resolved metadata separately from the exact git archive.
+          # The archive below intentionally restores the tracked source snapshot.
+          mkdir -p kit/evidence/resolved
+          cp go.mod go.sum kit/evidence/resolved/
           go version > kit/evidence/environment.txt
           git rev-parse HEAD >> kit/evidence/environment.txt
           go list -m -mod=mod all > kit/evidence/modules.txt
