@@ -34,7 +34,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go mod download
+          # Resolve full checksums for the pinned graph, including new imports.
+          # This read-only devkit records changes; final test CI requires none.
+          go mod download all
           go mod verify
           go mod vendor
           mkdir -p kit/evidence kit/source output
