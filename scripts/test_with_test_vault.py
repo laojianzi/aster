@@ -39,3 +39,29 @@ class VaultWrapperTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True), patch.object(vault.sys, "argv", ["wrapper", "test-command"]):
             with self.assertRaises(SystemExit):
                 vault.main()
+
+    def test_macos_restores_default_and_search_after_test_failure(self):
+        calls = []
+        test_path = []
+        def security(command, text=True):
+            calls.append(command)
+            if command[1:] == ["default-keychain", "-d", "user"]:
+                return '"/original/login.keychain-db"'
+            if command[1:] == ["list-keychains", "-d", "user"]:
+                return '"/original/login.keychain-db"\n"/original/other.keychain-db"'
+            if command[1] == "create-keychain":
+                test_path.append(Path(command[-1]))
+                test_path[0].touch()
+            return ""
+        def run_test(command, env):
+            self.assertEqual(env["ASTER_TEST_KEYCHAIN_PATH"], str(test_path[0]))
+            self.assertTrue(env["ASTER_TEST_KEYCHAIN_PASSWORD"])
+            self.assertEqual(env["ASTER_OS_VAULT_TEST"], "1")
+            raise RuntimeError("simulated test-process failure")
+        with patch.dict(os.environ, {"CI": "true"}, clear=True), patch.object(vault.sys, "platform", "darwin"), patch.object(vault.sys, "argv", ["wrapper", "test-command"]), patch.object(vault.subprocess, "check_output", side_effect=security), patch.object(vault.subprocess, "call", side_effect=run_test):
+            with self.assertRaises(RuntimeError):
+                vault.main()
+        self.assertEqual(calls[-3][1:], ["default-keychain", "-d", "user", "-s", "/original/login.keychain-db"])
+        self.assertEqual(calls[-2][1:], ["list-keychains", "-d", "user", "-s", "/original/login.keychain-db", "/original/other.keychain-db"])
+        self.assertEqual(calls[-1][1:], ["delete-keychain", str(test_path[0])])
+        self.assertFalse(test_path[0].exists())

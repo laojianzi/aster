@@ -104,6 +104,10 @@ def main() -> int:
                 security("unlock-keychain", "-p", password, path)
                 security("list-keychains", "-d", "user", "-s", path)
                 security("default-keychain", "-d", "user", "-s", path)
+                # Only test processes see this disposable setup identity. Product
+                # credential helpers do not inherit either of these variables.
+                env["ASTER_TEST_KEYCHAIN_PATH"] = path
+                env["ASTER_TEST_KEYCHAIN_PASSWORD"] = password
                 return subprocess.call(command, env=env)
             finally:
                 if original_default:

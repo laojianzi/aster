@@ -1,8 +1,9 @@
 package credentialvault
 
 import (
-	"github.com/ebitengine/purego"
 	"unsafe"
+
+	"github.com/ebitengine/purego"
 )
 
 // The same-binary helper uses the local macOS file-based Keychain. It does not
@@ -42,6 +43,29 @@ func native(r request) ([]byte, error) {
 	if interaction(0) != 0 {
 		return nil, ErrUnavailable
 	}
+	// Fix the store for this operation before querying any item. Searching all
+	// user keychains could otherwise read/update a same-key item in a different
+	// collection while the reviewed default store is locked or unavailable.
+	var copyDefault func(*unsafe.Pointer) int32
+	purego.RegisterLibFunc(&copyDefault, sec, "SecKeychainCopyDefault")
+	var keychainStatus func(unsafe.Pointer, *uint32) int32
+	purego.RegisterLibFunc(&keychainStatus, sec, "SecKeychainGetStatus")
+	var keychain unsafe.Pointer
+	if copyDefault(&keychain) != 0 || keychain == nil {
+		return nil, ErrUnavailable
+	}
+	defer release(keychain)
+	var flags uint32
+	if keychainStatus(keychain, &flags) != 0 || flags&1 == 0 { // kSecUnlockStateStatus
+		return nil, ErrUnavailable
+	}
+	var array func(unsafe.Pointer, *unsafe.Pointer, int64, unsafe.Pointer) unsafe.Pointer
+	purego.RegisterLibFunc(&array, cf, "CFArrayCreate")
+	searchList := array(nil, &keychain, 1, symbol(cf, "kCFTypeArrayCallBacks"))
+	if searchList == nil {
+		return nil, ErrUnavailable
+	}
+	defer release(searchList)
 	var find func(unsafe.Pointer, *unsafe.Pointer) int32
 	purego.RegisterLibFunc(&find, sec, "SecItemCopyMatching")
 	var add func(unsafe.Pointer, *unsafe.Pointer) int32
@@ -75,6 +99,7 @@ func native(r request) ([]byte, error) {
 	set(q, constant(sec, "kSecClass"), constant(sec, "kSecClassGenericPassword"))
 	set(q, constant(sec, "kSecAttrService"), service)
 	set(q, constant(sec, "kSecAttrAccount"), account)
+	set(q, constant(sec, "kSecMatchSearchList"), searchList)
 	status := func(code int32) error {
 		if code == 0 {
 			return nil
@@ -118,12 +143,25 @@ func native(r request) ([]byte, error) {
 		}
 		defer release(value)
 		attrs := newDict()
+		if attrs == nil {
+			return nil, ErrFailed
+		}
 		defer release(attrs)
 		set(attrs, constant(sec, "kSecValueData"), value)
 		code := update(q, attrs)
 		if code == -25300 {
-			set(q, constant(sec, "kSecValueData"), value)
-			code = add(q, nil)
+			// SecItemAdd uses kSecUseKeychain, not the query-only search list.
+			creation := newDict()
+			if creation == nil {
+				return nil, ErrFailed
+			}
+			defer release(creation)
+			set(creation, constant(sec, "kSecClass"), constant(sec, "kSecClassGenericPassword"))
+			set(creation, constant(sec, "kSecAttrService"), service)
+			set(creation, constant(sec, "kSecAttrAccount"), account)
+			set(creation, constant(sec, "kSecUseKeychain"), keychain)
+			set(creation, constant(sec, "kSecValueData"), value)
+			code = add(creation, nil)
 		}
 		return nil, status(code)
 	case "delete":

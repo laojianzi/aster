@@ -3,6 +3,7 @@
 package credentialvault
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -59,6 +60,23 @@ func TestOSCredentialStoreRoundTripAcrossProcesses(t *testing.T) {
 	got, e = store.Get(ctx, other)
 	if e != nil || string(got) != "test-record-other" {
 		t.Fatal("separate key overwritten", e)
+	}
+	// Exercise the native blob boundary with embedded NUL bytes, independently
+	// of the token envelope. APIs must use the explicit length, not C strlen.
+	boundary := bytes.Repeat([]byte{0, 0xff, 'a', 1}, MaxRecordBytes/4)
+	if e := store.Put(ctx, key, boundary); e != nil {
+		t.Fatal("native maximum-size put", e)
+	}
+	got, e = store.Get(ctx, key)
+	if e != nil || !bytes.Equal(got, boundary) {
+		t.Fatal("native maximum-size roundtrip failed", e)
+	}
+	if e := store.Put(ctx, key, append(boundary, 0)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("oversize native write not rejected before helper", e)
+	}
+	got, e = store.Get(ctx, key)
+	if e != nil || !bytes.Equal(got, boundary) {
+		t.Fatal("rejected write changed stored data", e)
 	}
 	if e := store.Delete(ctx, key); e != nil {
 		t.Fatal("native delete", e)
