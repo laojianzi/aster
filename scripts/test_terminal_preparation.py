@@ -12,14 +12,14 @@ spec.loader.exec_module(preparation)
 
 class TerminalSourceVerification(unittest.TestCase):
     def test_framework_and_terminal_versions_must_match(self):
-        spec = {'module': 'github.com/egoist/mygo', 'version': 'v0.3.6'}
-        preparation.validate_module_pin('require (\n github.com/egoist/mygo v0.3.6\n)\n', spec)
-        preparation.validate_module_pin('require github.com/egoist/mygo v0.3.6 // native\n', spec)
+        spec = {'module': 'github.com/egoist/mygo', 'version': 'v0.3.7'}
+        preparation.validate_module_pin('require (\n github.com/egoist/mygo v0.3.7\n)\n', spec)
+        preparation.validate_module_pin('require github.com/egoist/mygo v0.3.7 // native\n', spec)
         for invalid in [
             'require github.com/egoist/mygo v0.2.15\n',
             'module unrelated\n',
-            'require github.com/egoist/mygo v0.3.6\nreplace github.com/egoist/mygo => ./fake\n',
-            'require github.com/egoist/mygo v0.3.6\nreplace (\n github.com/egoist/mygo v0.3.6 => ./fake\n)\n',
+            'require github.com/egoist/mygo v0.3.7\nreplace github.com/egoist/mygo => ./fake\n',
+            'require github.com/egoist/mygo v0.3.7\nreplace (\n github.com/egoist/mygo v0.3.7 => ./fake\n)\n',
         ]:
             with self.subTest(go_mod=invalid):
                 with self.assertRaises(ValueError):
