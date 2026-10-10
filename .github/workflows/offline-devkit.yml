@@ -3,7 +3,7 @@ name: Offline development kit
 
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main, 'feat/**', 'renovate/**']
     paths:
       - .github/workflows/offline-devkit.yml
       - go.mod
