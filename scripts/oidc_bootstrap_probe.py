@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Temporary bounded setup probe; never prints raw commands or login responses."""
+"""Temporary bounded bootstrap probe; no runtime OAuth responses are read."""
 import re
 import subprocess
 import sys
@@ -12,13 +12,13 @@ def checked(*args, **kwargs):
         return original(*args, **kwargs)
     except subprocess.CalledProcessError as failure:
         if args[:3] == ('kind', 'create', 'cluster'):
-            text = (failure.stderr or b'')[:8192].decode(errors='replace')
-            lines = [line for line in text.splitlines() if line.startswith('ERROR:')]
-            # Bootstrap material is disposable but is not diagnostic output.
-            summary = '\n'.join(lines)[:1500]
+            # kind invokes kubeadm with --skip-token-print. Still scrub secret
+            # formats and URL values from this pre-login diagnostic tail.
+            summary = (failure.stderr or b'')[-10000:].decode(errors='replace')
+            summary = re.sub(r'-----BEGIN[^-]*PRIVATE KEY-----.*?-----END[^-]*PRIVATE KEY-----', '[private material removed]', summary, flags=re.S)
             summary = re.sub(r'[a-z0-9]{6}\.[a-z0-9]{16}|[a-fA-F0-9]{64}', '[redacted]', summary)
             summary = re.sub(r'https?://\S+', '[endpoint]', summary)
-            print('OIDC bootstrap summary: ' + summary, file=sys.stderr)
+            print('OIDC bootstrap diagnostic:\n' + summary, file=sys.stderr)
         raise
 
 if __name__ == '__main__':
