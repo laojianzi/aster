@@ -104,14 +104,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 		case "Owners":
 			ui.TextArea(c.Key("field.ownersText"), &w.ownersText).Label("Field ownership").ReadOnly(true).Grow(1)
 		case "Edit":
-			if ui.TextArea(c.Key("field.editor"), &w.editor).Label("Manifest editor").Grow(1).Changed() {
-				w.clearSchema()
-				w.stopPreview()
-				w.draftRevision++
-				w.plan = nil
-				w.diff = ""
-				w.confirmation = ""
-			}
+			w.manifestEditorView(c)
 			w.schemaView(c)
 			if w.creating {
 				ui.PrimaryButton(c, "Preview create").Disabled(w.preparing).OnClick(func() {

@@ -14,6 +14,7 @@ import (
 	"github.com/laojianzi/aster/internal/credentialvault"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/kubeconfig"
+	"github.com/laojianzi/aster/internal/manifest"
 	"github.com/laojianzi/aster/internal/nativeterm"
 	"github.com/laojianzi/aster/internal/oidclogin"
 	"github.com/laojianzi/aster/internal/operation"
@@ -116,6 +117,12 @@ type Workbench struct {
 	schemaCancel                            context.CancelFunc
 	schemaActive                            bool
 	schemaPointer, schemaText, schemaStatus string
+
+	schemaSource          *manifest.SourceIndex
+	schemaLocations       []schemaLocation
+	schemaLocationChoices []string
+	schemaLocationChoice  string
+	schemaJump            *schemaJump
 
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
@@ -253,6 +260,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearSchema()
 	w.clearOIDCRenewal()
 	w.clearOIDC()
 	w.clearVault()

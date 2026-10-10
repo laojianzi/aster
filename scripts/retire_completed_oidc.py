@@ -16,7 +16,7 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal'}
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation'}
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ('CI', 'Source evidence', 'Native migration verification', 'OIDC qualification')

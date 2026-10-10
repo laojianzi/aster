@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/manifest"
+	"github.com/laojianzi/aster/internal/schemaassist"
 )
 
 func (w *Workbench) clearSchema() {
@@ -15,6 +16,9 @@ func (w *Workbench) clearSchema() {
 		w.schemaCancel()
 		w.schemaCancel = nil
 	}
+	w.schemaSource, w.schemaJump = nil, nil
+	w.schemaLocations, w.schemaLocationChoices = nil, nil
+	w.schemaLocationChoice = ""
 	w.schemaActive = false
 	w.schemaText, w.schemaStatus = "", ""
 }
@@ -33,6 +37,8 @@ func (w *Workbench) startSchema(check bool) {
 		defer cancel()
 		output := ""
 		var err error
+		var source *manifest.SourceIndex
+		var locations []schemaLocation
 		var objectData map[string]any
 		if check {
 			obj, e := manifest.Decode([]byte(draft))
@@ -50,20 +56,27 @@ func (w *Workbench) startSchema(check bool) {
 					report, e := document.Check(ctx, objectData)
 					err = e
 					if err == nil {
-						output = report.Text()
+						var note string
+						source, locations, note = schemaLocations(ctx, draft, report.Diagnostics)
+						output = sourceReportText(report, locations) + note
 					}
 				} else {
 					help, e := document.Help(ctx, path)
 					err = e
 					if err == nil {
-						output = help.Text()
+						var note string
+						source, locations, note = schemaLocations(ctx, draft, []schemaassist.Diagnostic{{Pointer: path, Code: "field"}})
+						output = help.Text() + note
 					}
 				}
 			}
 		}
 		requestErr := ctx.Err()
+		if err == nil && requestErr != nil {
+			err = requestErr
+		}
 		w.emit(func() {
-			if epoch != w.schemaEpoch || detail != w.detailEpoch || revision != w.draftRevision || connection != w.contextEpoch || w.detailMode != "Edit" || parent.Err() != nil {
+			if epoch != w.schemaEpoch || detail != w.detailEpoch || revision != w.draftRevision || connection != w.contextEpoch || w.detailMode != "Edit" || parent.Err() != nil || w.editor != draft || w.schemaPointer != path {
 				return
 			}
 			w.schemaCancel, w.schemaActive = nil, false
@@ -76,7 +89,8 @@ func (w *Workbench) startSchema(check bool) {
 				}
 				return
 			}
-			w.schemaText = output
+			w.setSchemaLocations(source, locations)
+			w.schemaText = boundedSchemaOutput(output)
 			w.schemaStatus = "Read-only hints · not server validation"
 		})
 	})
@@ -96,6 +110,7 @@ func (w *Workbench) schemaView(c *ui.Context) {
 			w.clearSchema()
 		})
 	})
+	w.schemaLocationsView(c)
 	if w.schemaStatus != "" {
 		ui.Text(c, w.schemaStatus).FontSize(11).SingleLine()
 	}
