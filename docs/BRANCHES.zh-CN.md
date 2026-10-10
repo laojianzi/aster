@@ -1,6 +1,6 @@
 # 分支与 PR 接续台账
 
-2026-10-09 依赖更新恢复基线：main `4a627bf9f89d6c8025cd809e87c843d223add053`，
+历史恢复快照（2026-10-09；当前接续见文末）：main `4a627bf9f89d6c8025cd809e87c843d223add053`，
 开放 PR 为空。重新核查了全部十四个已有远端分支；下表是接续决策，不替代当前 GitHub refs。
 本轮用户明确授权处理依赖看板并升级 MyGo；唯一新增工作分支为 `deps/mygo-latest-verified`。
 
@@ -20,7 +20,7 @@
 | feat/native-schema-assistance | #14/#15 已完成并合并，不重复创建 Schema 辅助任务 |
 | build/development-kit | 历史环境辅助分支，独有内容只有旧 development-kit 工作流；不当作产品缺失合并 |
 | chore/development-snapshot | 历史环境辅助分支，独有内容只有旧快照工作流；不创建重复 PR |
-| deps/mygo-latest-verified | 当前唯一依赖升级分支，对应 #11；MyGo、终端补丁、Go、Kubernetes 和 Actions 一起验证 |
+| deps/mygo-latest-verified | #16 已完成并合并的历史依赖分支；不要重开该批次 |
 
 Renovate 配置 #9 已合并，自动合并关闭，依赖看板批准机制保持。
 本轮不同时勾选批量批准，避免为已经手工处理的版本生成重复 PR；#11 是持续看板，不关闭。
@@ -44,3 +44,15 @@ Renovate 配置 #9 已合并，自动合并关闭，依赖看板批准机制保�
 唯一接续分支 `feat/native-credential-vault` 对应 #18，基于 main `e1cbd416`，
 原来只包含 offline-devkit 刷新；本轮补充产品实现。没有重复分支、恢复旧 Executor 或删除历史。
 完成范围按最终 expected HEAD 和真实 OS/集群/源码证据合并；其后复核 main CI。
+
+## 2026-10-10 已验证接续
+
+凭据库 #18/#19 已在原分支完成并合并，不再作为开放功能：feature head
+`27cae6f7486b36411f0dfa70e6d2c2685bf9a001`，PR CI #95；合并 main
+`929a27b8b426fdf72def12a6871d976a25f1b7fc`，主干 CI #96 全部八个作业通过。
+#16/#17 的依赖批次已合并；#11 持续保留，不关闭或重复批准已经更新的版本。
+
+官方 MyGo 后续发布 v0.3.7，因此唯一新增依赖分支是 `feat/mygo-0.3.7-upgrade`，
+基于已合并的 #19。这是新 tag 的增量升级，不是重做 `deps/mygo-latest-verified`。
+模块、终端来源版本同步验证，现有加固补丁和库哈希保留；最终状态以该分支 PR 和 #11 为准。
+未新建 OIDC 或其他未来功能空分支；下一实际实现仍先核对开放 refs/Issues/PR 再命名。
