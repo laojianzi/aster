@@ -35,8 +35,9 @@ It is **not sandboxed**, does not silently renew, and does not qualify arbitrary
 See [authentication](authentication.md). Legacy auth-provider is rejected. Never approve an
 untrusted kubeconfig or assume process isolation prevents access to the user's files.
 
-Explicit OS token storage is implemented as described below. No enterprise SSO/PKCE,
-automatic credential-renewal lifecycle, short-lived managed credentials, tenant-isolated
+Explicit OS token storage, public-client browser OIDC/PKCE and opt-in memory-only
+rotation are implemented as described below. No automatic credential renewal,
+short-lived managed credentials, tenant-isolated
 Gateway/Connector, server-enforced approvals, append-only remote audit, revocation protocol,
 terminal recording, or compliant retention is implemented. In-memory operation history is not
 an audit log. Persistent customer resource/log storage is not a supported feature.
@@ -101,3 +102,10 @@ plaintext. Its exact-target slot, bounded same-binary helper and transport lease
 are separate from issuer-side validity/revocation. Forget is not global logout.
 System-user compromise, native provider memory and signed Keychain upgrade
 qualification are not solved by this scoped milestone.
+
+## Explicit OIDC rotation (#27)
+
+See `oidc-renewal.md`: opt-in only, memory-only, consume before a single POST,
+original identity/target/trust binding, fixed family budget, second confirmation
+before replacing a connection. No refresh persistence, automatic retry or issuer
+revocation is claimed. Existing expiry/stream teardown remains authoritative.

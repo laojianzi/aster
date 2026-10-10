@@ -13,6 +13,7 @@ import (
 	"github.com/laojianzi/aster/internal/cluster"
 	"github.com/laojianzi/aster/internal/credentialvault"
 	"github.com/laojianzi/aster/internal/kube"
+	"github.com/laojianzi/aster/internal/kubeconfig"
 	"github.com/laojianzi/aster/internal/nativeterm"
 	"github.com/laojianzi/aster/internal/oidclogin"
 	"github.com/laojianzi/aster/internal/operation"
@@ -137,6 +138,12 @@ type Workbench struct {
 	oidcReview                                                             *oidclogin.Review
 	oidcIdentity                                                           *oidclogin.Identity
 	oidcBrowser                                                            func(string) error
+	oidcAllowRenewal                                                       bool
+	oidcRenewal                                                            *oidclogin.Renewal
+	oidcRenewalProfile                                                     kubeconfig.Options
+	oidcRenewalTarget                                                      *credentialvault.Target
+	oidcReplacing                                                          bool
+	oidcReplacementEpoch                                                   uint64
 
 	history []string
 	frames  int
@@ -246,6 +253,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearOIDCRenewal()
 	w.clearOIDC()
 	w.clearVault()
 	if w.cancel != nil {

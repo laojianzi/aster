@@ -48,6 +48,8 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+	w.clearOIDCRenewal()
+	w.oidcAllowRenewal = false
 	w.clearOIDC()
 	w.clearVault()
 	w.contextEpoch++
@@ -74,7 +76,19 @@ type connectionResolver func(context.Context, kubeconfig.Options) (kubeconfig.Co
 func (w *Workbench) connect() { w.beginConnection(nil) }
 
 func (w *Workbench) beginConnection(resolve connectionResolver) {
+	w.beginConnectionWithCompletion(resolve, nil)
+}
+
+// Completion runs on the UI owner after this exact connection attempt settles.
+// It transfers optional window-local credentials only on successful admission.
+func (w *Workbench) beginConnectionWithCompletion(resolve connectionResolver, completion func(bool)) {
+	complete := func(ok bool) {
+		if completion != nil {
+			completion(ok)
+		}
+	}
 	if w.connectionPending || w.vaultPending || w.oidcPending {
+		complete(false)
 		return
 	}
 	w.connectionPending = true
@@ -117,6 +131,7 @@ func (w *Workbench) beginConnection(resolve connectionResolver) {
 			w.connectionPending = false
 			if epoch != w.contextEpoch {
 				closeConnection()
+				complete(false)
 				return
 			}
 			if err == nil {
@@ -124,6 +139,7 @@ func (w *Workbench) beginConnection(resolve connectionResolver) {
 			}
 			if err != nil {
 				closeConnection()
+				complete(false)
 				w.status, w.errText = "Connection failed", err.Error()
 				var trust *kubeconfig.TrustRequiredError
 				w.trustRequired = errors.As(err, &trust)
@@ -140,6 +156,7 @@ func (w *Workbench) beginConnection(resolve connectionResolver) {
 			w.sessionID = hex.EncodeToString(sessionBytes[:])
 			w.ops = operation.NewService(backend, w.sessionID)
 			w.trustRequired, w.errText = false, ""
+			complete(true)
 			w.startScope()
 			if !resolved.ExpiresAt.IsZero() {
 				w.run(func(context.Context) {
