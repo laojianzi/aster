@@ -65,28 +65,28 @@ func (w *Workbench) openRelated(link relationship.Link) {
 }
 func (w *Workbench) relationshipView(c *ui.Context) {
 	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, "Refresh relationships").Disabled(w.relatedActive).Clicked() {
+		ui.Button(c, "Refresh relationships").Disabled(w.relatedActive).OnClick(func() {
 			w.loadRelationships()
-		}
-		if ui.Button(c, "Stop lookup").Disabled(!w.relatedActive).Clicked() {
+		})
+		ui.Button(c, "Stop lookup").Disabled(!w.relatedActive).OnClick(func() {
 			w.stopRelationships()
 			w.relatedStatus = "Lookup stopped; no cluster mutation was performed."
-		}
+		})
 	})
 	ui.Text(c, w.relatedStatus).FontSize(11).SingleLine()
 	ui.Text(c, "One-hop snapshot · selectors are not ownership or proof of traffic").FontSize(11).SingleLine()
 	if len(w.relatedResult.Warnings) > 0 {
 		warning := strings.Join(w.relatedResult.Warnings, "\n")
-		ui.TextArea(c, &warning).Label("Relationship warnings").ReadOnly(true).Height(64)
+		ui.TextArea(c.Key("relationship-warnings"), &warning).Label("Relationship warnings").ReadOnly(true).Height(64)
 	}
 	links := w.relatedResult.Links
-	ui.List(c, &w.relatedList, len(links), func(i int) {
+	ui.List(c.Key("field.relatedList"), &w.relatedList, len(links), func(i int) {
 		link := links[i]
 		ui.Column(c).Padding(6).Gap(3).Children(func() {
 			ui.Text(c, link.Relation+" · "+string(link.State)).FontSize(11).SingleLine()
-			if ui.Button(c, "Open "+link.Type.Kind+"/"+link.Target.Name).Disabled(!link.Navigable()).Clicked() {
+			ui.Button(c, "Open "+link.Type.Kind+"/"+link.Target.Name).Disabled(!link.Navigable()).OnClick(func() {
 				w.openRelated(link)
-			}
+			})
 			ui.Text(c, link.Note).FontSize(10).SingleLine()
 		})
 	}).Grow(1)

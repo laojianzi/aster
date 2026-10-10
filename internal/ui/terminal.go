@@ -88,7 +88,6 @@ func (w *Workbench) startTerminal() {
 				w.terminalStatus = "Terminal open · remote output and status pending"
 			}
 		})
-
 		// The UI owns pointer publication; background cleanup only touches the
 		// terminal's synchronized API. A dropped/queued UI callback cannot prevent
 		// socket and native-resource cleanup on window/application cancellation.
@@ -120,20 +119,20 @@ func (w *Workbench) terminalView(c *ui.Context) {
 	if w.terminalContainer == "" && len(w.containers) > 0 {
 		w.terminalContainer = w.containers[0]
 	}
-	if ui.Select(c, &w.terminalContainer, w.containers).Label("Terminal container").Disabled(w.terminalActive).Changed() {
+	if ui.Select(c.Key("field.terminalContainer"), &w.terminalContainer, w.containers).Label("Terminal container").Disabled(w.terminalActive).Changed() {
 		w.terminalConfirmation = ""
 	}
-	if ui.TextArea(c, &w.terminalArgv).Label("Terminal argv JSON").Height(48).ReadOnly(w.terminalActive).Changed() {
+	if ui.TextArea(c.Key("field.terminalArgv"), &w.terminalArgv).Label("Terminal argv JSON").Height(48).ReadOnly(w.terminalActive).Changed() {
 		w.terminalConfirmation = ""
 	}
-	ui.TextInput(c, &w.terminalConfirmation).Label("Confirm Pod for terminal").Placeholder("Type the exact Pod name").Disabled(w.terminalActive)
+	ui.TextInput(c.Key("field.terminalConfirmation"), &w.terminalConfirmation).Label("Confirm Pod for terminal").Placeholder("Type the exact Pod name").Disabled(w.terminalActive)
 	ui.Row(c).Gap(8).Children(func() {
-		if ui.PrimaryButton(c, "Open terminal").Disabled(w.terminalActive || w.terminalJoining || w.detail == nil || w.terminalConfirmation != w.detail.GetName() || w.terminalContainer == "").Clicked() {
+		ui.PrimaryButton(c, "Open terminal").Disabled(w.terminalActive || w.terminalJoining || w.detail == nil || w.terminalConfirmation != w.detail.GetName() || w.terminalContainer == "").OnClick(func() {
 			w.startTerminal()
-		}
-		if ui.Button(c, "Close terminal").Disabled(w.terminal == nil && !w.terminalActive).Clicked() {
+		})
+		ui.Button(c, "Close terminal").Disabled(w.terminal == nil && !w.terminalActive).OnClick(func() {
 			w.stopTerminal()
-		}
+		})
 	})
 	ui.Text(c, w.terminalStatus).FontSize(11).SingleLine()
 	if w.terminal != nil {

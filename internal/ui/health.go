@@ -97,19 +97,19 @@ func (w *Workbench) startHealthTracking(obj *unstructured.Unstructured, operatio
 
 func (w *Workbench) healthView(c *ui.Context) {
 	ui.Row(c).Gap(8).Children(func() {
-		if ui.Button(c, "Refresh health").Disabled(w.healthActive).Clicked() {
+		ui.Button(c, "Refresh health").Disabled(w.healthActive).OnClick(func() {
 			w.loadHealth()
-		}
-		if ui.Button(c, "Track readiness").Disabled(w.healthActive || w.detail == nil || !health.Supports(w.detail)).Clicked() {
+		})
+		ui.Button(c, "Track readiness").Disabled(w.healthActive || w.detail == nil || !health.Supports(w.detail)).OnClick(func() {
 			w.startHealthTracking(w.detail.DeepCopy(), "")
-		}
-		if ui.Button(c, "Stop tracking").Disabled(!w.healthActive).Clicked() {
+		})
+		ui.Button(c, "Stop tracking").Disabled(!w.healthActive).OnClick(func() {
 			w.stopHealth()
 			w.healthText += "\n\nObservation stopped. The Kubernetes change was not undone."
-		}
+		})
 	})
 	ui.Text(c, "Read-only observation · no automatic rollback or command replay").FontSize(11)
-	ui.TextArea(c, &w.healthText).Label("Workload health").ReadOnly(true).Grow(1)
+	ui.TextArea(c.Key("field.healthText"), &w.healthText).Label("Workload health").ReadOnly(true).Grow(1)
 }
 
 func (w *Workbench) recordHistory(line string) {

@@ -36,7 +36,7 @@ func (w *Workbench) beginApply() {
 func (w *Workbench) applyView(c *ui.Context) {
 	ui.Text(c, "Existing resource · manager "+operation.ApplyFieldManager+" · never force conflicts").FontSize(11)
 	ui.Text(c, "Omitted fields previously owned by this manager can be deleted or defaulted.").FontSize(11)
-	if ui.TextArea(c, &w.applyDraft).Label("Apply intent YAML").Grow(1).Changed() {
+	if ui.TextArea(c.Key("field.applyDraft"), &w.applyDraft).Label("Apply intent YAML").Grow(1).Changed() {
 		w.stopPreview()
 		w.draftRevision++
 		w.applyAcknowledged = false
@@ -44,14 +44,14 @@ func (w *Workbench) applyView(c *ui.Context) {
 		w.confirmation = ""
 		w.diff = ""
 	}
-	if ui.Checkbox(c, &w.applyAcknowledged, "I understand omitted fields may be removed").Changed() {
+	if ui.Checkbox(c.Key("field.applyAcknowledged"), &w.applyAcknowledged, "I understand omitted fields may be removed").Changed() {
 		w.stopPreview()
 		w.draftRevision++
 		w.plan = nil
 		w.confirmation = ""
 		w.diff = ""
 	}
-	if ui.PrimaryButton(c, "Preview apply").Disabled(w.preparing || !w.applyAcknowledged).Clicked() {
+	ui.PrimaryButton(c, "Preview apply").Disabled(w.preparing || !w.applyAcknowledged).OnClick(func() {
 		w.prepare("apply")
-	}
+	})
 }

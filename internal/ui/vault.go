@@ -148,22 +148,22 @@ func (w *Workbench) vaultView(c *ui.Context) {
 		}
 		ui.Text(c, "Explicit operations only. Use an HTTPS kubeconfig context with an empty user entry; existing credentials are never overridden.").FontSize(12)
 		ui.Row(c).Gap(8).Children(func() {
-			if ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.vaultPending || w.connectionPending || w.backend != nil).Clicked() {
+			ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.vaultPending || w.connectionPending || w.backend != nil).OnClick(func() {
 				w.reviewVault()
-			}
-			if ui.Button(c, "Back to resources").Clicked() {
+			})
+			ui.Button(c, "Back to resources").OnClick(func() {
 				w.clearVault()
 				w.vaultOpen = false
-			}
+			})
 		})
 		if w.backend != nil {
 			ui.Text(c, "Disconnect first to review, store, load or forget a token.").FontSize(12)
 		}
 		if w.vaultTrustPending != "" {
-			if ui.Button(c, "Trust CA file and review").Disabled(w.vaultPending).Clicked() {
+			ui.Button(c, "Trust CA file and review").Disabled(w.vaultPending).OnClick(func() {
 				w.vaultTrust = w.vaultTrustPending
 				w.reviewVault()
-			}
+			})
 		}
 		if w.vaultTarget != nil {
 			ui.Text(c, "Context: "+w.vaultTarget.Context).Label("Credential target context").SingleLine()
@@ -173,19 +173,19 @@ func (w *Workbench) vaultView(c *ui.Context) {
 				Field string
 				Epoch uint64
 			}{"vault-token", w.vaultEpoch}), &w.vaultToken).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
-			ui.Select(c, &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}).Label("Local token lifetime").Disabled(w.vaultPending)
-			ui.TextInput(c, &w.vaultConfirmation).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
+			ui.Select(c.Key("field.vaultDuration"), &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}).Label("Local token lifetime").Disabled(w.vaultPending)
+			ui.TextInput(c.Key("field.vaultConfirmation"), &w.vaultConfirmation).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
 			enabled := !w.vaultPending && !w.connectionPending && w.backend == nil && w.vaultConfirmation == w.vaultTarget.Context
 			ui.Row(c).Gap(8).Children(func() {
-				if ui.Button(c, "Store token").Disabled(!enabled || w.vaultToken == "").Clicked() {
+				ui.Button(c, "Store token").Disabled(!enabled || w.vaultToken == "").OnClick(func() {
 					w.writeVault(false)
-				}
-				if ui.Button(c, "Connect with stored token").Disabled(!enabled).Clicked() {
+				})
+				ui.Button(c, "Connect with stored token").Disabled(!enabled).OnClick(func() {
 					w.connectVault()
-				}
-				if ui.Button(c, "Forget stored token").Disabled(!enabled).Clicked() {
+				})
+				ui.Button(c, "Forget stored token").Disabled(!enabled).OnClick(func() {
 					w.writeVault(true)
-				}
+				})
 			})
 			ui.Text(c, "A connection lasts at most 15 minutes. Forget affects this OS slot only, not other workspaces or server-issued token validity.").FontSize(12)
 		}

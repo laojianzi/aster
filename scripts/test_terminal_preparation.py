@@ -52,6 +52,18 @@ class TerminalSourceVerification(unittest.TestCase):
             subprocess.run(['git', 'checkout-index', '-f', '--', 'hardening.patch'], cwd=root, check=True)
             self.assertEqual(patch.read_bytes(), original)
 
+    def test_generated_format_is_repeatable_after_import_rewrite(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source = root / 'view.go'
+            source.write_text('package terminal\nimport ("z"; "a")\nfunc f(){println(1)}\n')
+            preparation.format_generated_sources(root)
+            first = source.read_bytes()
+            self.assertNotIn(b';', first)
+            self.assertLess(first.index(b'"a"'), first.index(b'"z"'))
+            preparation.format_generated_sources(root)
+            self.assertEqual(source.read_bytes(), first)
+
     def test_source_size_is_bounded(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

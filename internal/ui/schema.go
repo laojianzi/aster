@@ -82,24 +82,24 @@ func (w *Workbench) startSchema(check bool) {
 	})
 }
 func (w *Workbench) schemaView(c *ui.Context) {
-	if ui.TextInput(c, &w.schemaPointer).Label("Schema field pointer").Placeholder("/spec/containers/0/image (empty for root)").Changed() {
+	if ui.TextInput(c.Key("field.schemaPointer"), &w.schemaPointer).Label("Schema field pointer").Placeholder("/spec/containers/0/image (empty for root)").Changed() {
 		w.clearSchema()
 	}
 	ui.Row(c).Gap(6).Children(func() {
-		if ui.Button(c, "Field help").Disabled(w.schemaActive).Clicked() {
+		ui.Button(c, "Field help").Disabled(w.schemaActive).OnClick(func() {
 			w.startSchema(false)
-		}
-		if ui.Button(c, "Check draft").Disabled(w.schemaActive).Clicked() {
+		})
+		ui.Button(c, "Check draft").Disabled(w.schemaActive).OnClick(func() {
 			w.startSchema(true)
-		}
-		if ui.Button(c, "Clear schema").Disabled(!w.schemaActive && w.schemaText == "" && w.schemaStatus == "").Clicked() {
+		})
+		ui.Button(c, "Clear schema").Disabled(!w.schemaActive && w.schemaText == "" && w.schemaStatus == "").OnClick(func() {
 			w.clearSchema()
-		}
+		})
 	})
 	if w.schemaStatus != "" {
 		ui.Text(c, w.schemaStatus).FontSize(11).SingleLine()
 	}
 	if w.schemaText != "" {
-		ui.TextArea(c, &w.schemaText).Label("Schema assistance").ReadOnly(true).Height(145)
+		ui.TextArea(c.Key("field.schemaText"), &w.schemaText).Label("Schema assistance").ReadOnly(true).Height(145)
 	}
 }
