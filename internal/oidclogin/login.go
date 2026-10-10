@@ -129,7 +129,12 @@ func (r *Review) Login(ctx context.Context, open func(string) error) (*Identity,
 	defer func() { cancel(); _ = server.Close(); _ = listener.Close(); <-served; <-stopped }()
 	digest := sha256.Sum256([]byte(verifier))
 	auth, _ := url.Parse(r.endpoints.Authorization)
-	auth.RawQuery = url.Values{"client_id": {r.opts.ClientID}, "response_type": {"code"}, "redirect_uri": {callback}, "scope": {"openid email profile groups"}, "state": {state}, "nonce": {nonce}, "code_challenge_method": {"S256"}, "code_challenge": {base64.RawURLEncoding.EncodeToString(digest[:])}}.Encode()
+	params := url.Values{"client_id": {r.opts.ClientID}, "response_type": {"code"}, "redirect_uri": {callback}, "scope": {"openid email profile groups"}, "state": {state}, "nonce": {nonce}, "code_challenge_method": {"S256"}, "code_challenge": {base64.RawURLEncoding.EncodeToString(digest[:])}}
+	if r.opts.AllowRenewal {
+		params.Set("scope", params.Get("scope")+" offline_access")
+		params.Set("prompt", "consent")
+	}
+	auth.RawQuery = params.Encode()
 	if e = open(auth.String()); e != nil {
 		return nil, ErrBrowser
 	}
@@ -170,18 +175,35 @@ func (r *Review) Login(ctx context.Context, open func(string) error) (*Identity,
 	if e != nil {
 		return nil, e
 	}
-	info, e := validateIdentity(ctx, r.opts.Issuer, r.opts.ClientID, nonce, token, access, keys, start)
+	info, binding, e := validateBoundIdentity(ctx, r.opts.Issuer, r.opts.ClientID, nonce, token, access, keys, start, nil)
 	if e != nil {
 		return nil, e
 	}
 	if ctx.Err() != nil {
 		return nil, ErrInterrupted
 	}
-	return &Identity{info: info, key: r.opts.TargetKey, token: token, deadline: time.Now().Add(ReviewLifetime)}, nil
+	id := &Identity{info: info, key: r.opts.TargetKey, token: token, deadline: time.Now().Add(ReviewLifetime)}
+	if r.opts.AllowRenewal {
+		refresh := text("refresh_token")
+		if !validRefresh(refresh) {
+			id.Close()
+			return nil, ErrRotation
+		}
+		id.renewal = &Renewal{opts: r.opts, endpoints: r.endpoints, binding: binding,
+			token: refresh, until: start.Add(MaxRenewalLifetime), remaining: MaxRenewals,
+			history: map[[32]byte]struct{}{sha256.Sum256([]byte(refresh)): {}}}
+	}
+	return id, nil
 }
 
 func validateIdentity(ctx context.Context, issuer, client, nonce, raw, access string, keys []byte, start time.Time) (IdentityInfo, error) {
-	fail := func() (IdentityInfo, error) { return IdentityInfo{}, ErrVerification }
+	info, _, err := validateBoundIdentity(ctx, issuer, client, nonce, raw, access, keys, start, nil)
+	return info, err
+}
+
+// A refresh may omit nonce, but cannot change the original authentication or identity.
+func validateBoundIdentity(ctx context.Context, issuer, client, nonce, raw, access string, keys []byte, start time.Time, prior *claimBinding) (IdentityInfo, claimBinding, error) {
+	fail := func() (IdentityInfo, claimBinding, error) { return IdentityInfo{}, claimBinding{}, ErrVerification }
 	parts := strings.Split(raw, ".")
 	if len(parts) != 3 || len(raw) > MaxTokenBytes {
 		return fail()
@@ -213,7 +235,14 @@ func validateIdentity(ctx context.Context, issuer, client, nonce, raw, access st
 	if e != nil || decodeJSON(ctx, data, &claims) != nil {
 		return fail()
 	}
-	if str(claims, "iss") != issuer || !safeText(str(claims, "sub"), 255) || subtle.ConstantTimeCompare([]byte(str(claims, "nonce")), []byte(nonce)) != 1 {
+	if str(claims, "iss") != issuer || !safeText(str(claims, "sub"), 255) {
+		return fail()
+	}
+	_, hasNonce := claims["nonce"]
+	if prior != nil {
+		nonce = prior.nonce
+	}
+	if (prior == nil || hasNonce) && subtle.ConstantTimeCompare([]byte(str(claims, "nonce")), []byte(nonce)) != 1 {
 		return fail()
 	}
 	var audiences []string
@@ -261,6 +290,25 @@ func validateIdentity(ctx context.Context, issuer, client, nonce, raw, access st
 			return fail()
 		}
 	}
+	binding := claimBinding{subject: str(claims, "sub"), nonce: nonce}
+	_, binding.hasAuthorizedParty = claims["azp"]
+	if _, present := claims["auth_time"]; present {
+		value, valid := number("auth_time")
+		if !valid || value > iat || value > now.Add(time.Minute).Unix() {
+			return fail()
+		}
+		binding.hasAuthTime, binding.authTime = true, value
+	}
+	if prior != nil {
+		if binding.subject != prior.subject || binding.hasAuthorizedParty != prior.hasAuthorizedParty {
+			return fail()
+		}
+		if binding.hasAuthTime && (!prior.hasAuthTime || binding.authTime != prior.authTime) {
+			return fail()
+		}
+		// Keep the original authentication even when a refresh omits auth_time.
+		binding.hasAuthTime, binding.authTime = prior.hasAuthTime, prior.authTime
+	}
 	verified, e := verifySignedToken(ctx, issuer, client, alg, kid, raw, keys)
 	if e != nil {
 		return fail()
@@ -268,5 +316,5 @@ func validateIdentity(ctx context.Context, issuer, client, nonce, raw, access st
 	if verified.AccessTokenHash != "" && verified.VerifyAccessToken(access) != nil {
 		return fail()
 	}
-	return IdentityInfo{Issuer: issuer, Subject: str(claims, "sub"), ExpiresAt: expires}, nil
+	return IdentityInfo{Issuer: issuer, Subject: str(claims, "sub"), ExpiresAt: expires}, binding, nil
 }

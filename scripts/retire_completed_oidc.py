@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Retire only the completed, verified PR25 branch with an exact atomic lease."""
+"""Retire an explicitly registered completion branch with an exact atomic lease.
+
+One existing workflow handles reviewed scopes; unregistered branches are never
+inferred from names, deleted by age, or accepted from workflow inputs.
+"""
 import base64
 import json
 import os
@@ -12,27 +16,37 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-RECEIPT = 'refs/tags/maintenance/completed-pr-25'
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal'}
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ('CI', 'Source evidence', 'Native migration verification', 'OIDC qualification')
 
 
-def candidate(pr, head, branches, active, ancestor):
+def select_scope(prs, head):
+    matches = [p for p in prs if p.get('number') in APPROVED and p.get('merged')
+               and p.get('state') == 'closed' and p.get('merge_commit_sha') == head]
+    if len(matches) > 1:
+        raise ValueError('ambiguous completion merge')
+    return matches[0]['number'] if matches else None
+
+
+def candidate(pr, head, branches, active, ancestor, *, number=PR, branch=BRANCH):
+    if APPROVED.get(number) != branch:
+        raise ValueError('unregistered retirement scope')
     h, b = pr.get('head', {}), pr.get('base', {})
     sha = h.get('sha', '')
-    if (pr.get('number') != PR or pr.get('state') != 'closed' or not pr.get('merged')
-            or pr.get('merge_commit_sha') != head or h.get('ref') != BRANCH
+    if (pr.get('number') != number or pr.get('state') != 'closed' or not pr.get('merged')
+            or pr.get('merge_commit_sha') != head or h.get('ref') != branch
             or b.get('ref') != 'main' or (h.get('repo') or {}).get('full_name') != REPO
             or (b.get('repo') or {}).get('full_name') != REPO
             or re.fullmatch('[a-f0-9]{40}', sha) is None):
         raise ValueError('not the exact reviewed completion merge')
-    current = branches.get(BRANCH)
+    current = branches.get(branch)
     if current is None:
         return None
     if current.get('protected') or current.get('commit', {}).get('sha') != sha:
         raise ValueError('branch moved or is protected')
-    if any(p[s].get('ref') == BRANCH and (p[s].get('repo') or {}).get('full_name') == REPO
+    if any(p[s].get('ref') == branch and (p[s].get('repo') or {}).get('full_name') == REPO
            for p in active for s in ('head', 'base')):
         raise ValueError('branch has an active PR')
     if not ancestor(sha):
@@ -84,7 +98,14 @@ def run(report):
     if git('rev-parse', 'HEAD') != head or api('git/ref/heads/main')['object']['sha'] != head:
         raise ValueError('main moved')
     report['head'] = head
-    if git('ls-remote', REMOTE, RECEIPT):
+    number = select_scope([api('pulls/' + str(n)) for n in APPROVED], head)
+    if number is None:
+        report['status'] = 'no-registered-completion'
+        return
+    branch = APPROVED[number]
+    receipt = 'refs/tags/maintenance/completed-pr-' + str(number)
+    report['pr'] = number
+    if git('ls-remote', REMOTE, receipt):
         report['status'] = 'already-recorded'
         return
     runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
@@ -92,28 +113,29 @@ def run(report):
         report['status'] = 'waiting-for-verification'
         return
     def preflight():
-        return candidate(api('pulls/' + str(PR)), head,
+        return candidate(api('pulls/' + str(number)), head,
              {b['name']: b for b in collection('branches')}, collection('pulls?state=open'),
-             lambda sha: git('merge-base', '--is-ancestor', sha, head, predicate=True))
+             lambda sha: git('merge-base', '--is-ancestor', sha, head, predicate=True),
+             number=number, branch=branch)
     sha = preflight()
     if sha is None:
         report['status'] = 'already-absent'
         return
-    report['branch'], report['expected_head'] = BRANCH, sha
+    report['branch'], report['expected_head'] = branch, sha
     git('bundle', 'create', str(ROOT/'artifacts/completed-branch/before.bundle'), '--all')
     if preflight() != sha or api('git/ref/heads/main')['object']['sha'] != head:
         raise ValueError('preflight changed')
-    ref = 'refs/heads/' + BRANCH
+    ref = 'refs/heads/' + branch
     git('push', '--atomic', '--porcelain', '--force-with-lease=' + ref + ':' + sha,
-        '--force-with-lease=' + RECEIPT + ':', REMOTE, ':' + ref, head + ':' + RECEIPT)
+        '--force-with-lease=' + receipt + ':', REMOTE, ':' + ref, head + ':' + receipt)
     remaining = [b['name'] for b in collection('branches')]
-    if BRANCH in remaining:
+    if branch in remaining:
         raise ValueError('deletion was not observed')
-    report.update(status='applied', remaining=remaining, receipt=RECEIPT)
+    report.update(status='applied', remaining=remaining, receipt=receipt)
 
 
 if __name__ == '__main__':
-    report = {'status': 'not-applied', 'pr': PR}
+    report = {'status': 'not-applied'}
     target = ROOT/'artifacts/completed-branch/report.json'
     target.parent.mkdir(parents=True, exist_ok=True)
     try:

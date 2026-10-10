@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/credentialexec"
@@ -13,6 +14,7 @@ import (
 )
 
 func (w *Workbench) clearOIDC() {
+	w.oidcReplacing = false
 	w.oidcEpoch++
 	if w.oidcCancel != nil {
 		w.oidcCancel()
@@ -45,7 +47,7 @@ func (w *Workbench) reviewOIDC() {
 		w.oidcStatus = oidclogin.ErrConfiguration.Error()
 		return
 	}
-	options := oidclogin.Options{Issuer: w.oidcIssuer, ClientID: w.oidcClient, CAPEM: []byte(w.oidcCA), Port: uint16(port)}
+	options := oidclogin.Options{Issuer: w.oidcIssuer, ClientID: w.oidcClient, CAPEM: []byte(w.oidcCA), Port: uint16(port), AllowRenewal: w.oidcAllowRenewal}
 	profile := kubeconfig.Options{Path: w.path, Context: w.currentContext, Namespace: w.namespace, TrustToken: trust}
 	w.oidcPending = true
 	epoch := w.oidcEpoch
@@ -124,9 +126,14 @@ func (w *Workbench) loginOIDC(services ui.Services) {
 			id = nil
 			err = oidclogin.ErrInterrupted
 		}
+		stopCleanup := func() bool { return true }
+		if id != nil {
+			stopCleanup = context.AfterFunc(w.ctx, id.Close)
+		}
 		w.emit(func() {
 			w.oidcPending = false
 			cancel()
+			defer stopCleanup()
 			if epoch != w.oidcEpoch {
 				if id != nil {
 					id.Close()
@@ -143,25 +150,57 @@ func (w *Workbench) loginOIDC(services ui.Services) {
 	})
 }
 func (w *Workbench) connectOIDC() {
-	if w.oidcTarget == nil || w.oidcIdentity == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil || w.oidcConfirmation != w.oidcTarget.Context {
+	if w.oidcTarget == nil || w.oidcIdentity == nil || w.oidcPending || w.vaultPending || w.connectionPending || w.oidcConfirmation != w.oidcTarget.Context {
 		return
 	}
-	id, trust := w.oidcIdentity, w.oidcTrust
-	// Detach before beginConnection invalidates all other pending UI identities.
+	if w.backend != nil && (!w.oidcReplacing || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)) {
+		return
+	}
+	id, trust, target := w.oidcIdentity, w.oidcTrust, w.oidcTarget
+	// Detach before beginConnection cancels the old connection and pending UI state.
 	w.oidcIdentity = nil
 	w.oidcOpen = false
-	w.beginConnection(func(ctx context.Context, opts kubeconfig.Options) (kubeconfig.Connection, credentialexec.Resolved, error) {
+	var next *oidclogin.Renewal
+	stopCleanup := func() bool { return true }
+	var profile kubeconfig.Options
+	w.beginConnectionWithCompletion(func(ctx context.Context, opts kubeconfig.Options) (kubeconfig.Connection, credentialexec.Resolved, error) {
 		defer id.Close()
 		opts.TrustToken = trust
-		conn, target, err := kubeconfig.LoadVault(opts)
+		profile = opts
+		conn, freshTarget, err := kubeconfig.LoadVault(opts)
 		if err != nil {
 			return conn, credentialexec.Resolved{}, oidclogin.ErrConfiguration
 		}
-		resolved, err := id.Resolve(ctx, conn.Config, conn.ContextName, target.User)
+		resolved, err := id.Resolve(ctx, conn.Config, conn.ContextName, freshTarget.User)
+		if err == nil {
+			next = id.TakeRenewal()
+		}
+		if ctx.Err() != nil && next != nil {
+			next.Close()
+			next = nil
+			err = oidclogin.ErrInterrupted
+		}
+		if next != nil {
+			stopCleanup = context.AfterFunc(ctx, next.Close)
+		}
 		return conn, resolved, err
+	}, func(ok bool) {
+		defer stopCleanup()
+		// A stopped/replaced connection cannot inherit the rotating credential.
+		if !ok || next == nil || !time.Now().Before(next.Info().FamilyExpiresAt) || next.Info().Remaining <= 0 {
+			if next != nil {
+				next.Close()
+			}
+			return
+		}
+		w.oidcRenewal, w.oidcRenewalProfile, w.oidcRenewalTarget = next, profile, target
 	})
 }
 func (w *Workbench) oidcView(c *ui.Context) {
+	if w.backend != nil {
+		w.oidcRenewalView(c)
+		return
+	}
 	t := c.Theme()
 	services := c.Services()
 	ui.Column(c).Grow(1).Padding(12).Gap(6).Children(func() {
@@ -179,6 +218,9 @@ func (w *Workbench) oidcView(c *ui.Context) {
 			}
 		})
 		if ui.TextArea(c.Key("oidc.ca"), &w.oidcCA).Label("OIDC issuer CA PEM").Placeholder("Optional issuer CA PEM (empty: system trust). Independent of the cluster CA.").Height(60).Changed() {
+			w.clearOIDC()
+		}
+		if ui.Checkbox(c.Key("oidc.allowRenewal"), &w.oidcAllowRenewal, "Allow memory-only renewal (requests offline access and consent)").Disabled(w.oidcPending).Changed() {
 			w.clearOIDC()
 		}
 		ui.Row(c).Gap(8).Children(func() {
@@ -215,6 +257,6 @@ func (w *Workbench) oidcView(c *ui.Context) {
 			})
 		}
 		ui.Text(c, w.oidcStatus).Label("OIDC sign-in status").FontSize(12).TextColor(t.TextMuted)
-		ui.Text(c, "Public client + S256 PKCE · same-origin HTTPS endpoints · single-use code exchange · no refresh, persistence or issuer logout").FontSize(11).TextColor(t.TextMuted)
+		ui.Text(c, "Public client + S256 PKCE · same-origin HTTPS endpoints · single-use exchange · opt-in rotation only · no persistence, automatic refresh or issuer logout").FontSize(11).TextColor(t.TextMuted)
 	})
 }

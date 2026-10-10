@@ -21,7 +21,7 @@ kubeconfigs continue working through their existing connection workflows.
 Open **Browser sign-in**, fill in HTTPS issuer and public client ID. Optional
 issuer CA PEM is independent of the cluster CA; empty uses OS system roots.
 Review target/endpoints, type the exact context name, and open the system browser.
-Requested scopes are `openid email profile groups` (no offline access). The
+Default scopes are `openid email profile groups` (no offline access). Explicit memory-only renewal opt-in additionally requests `offline_access` and `prompt=consent`; see [renewal](oidc-renewal.md). The
 issuer must advertise code, S256, and RS256 or ES256. This milestone accepts
 same-origin HTTPS authorization/token/JWKS endpoints only; providers with split
 origins need a future explicit endpoint allowlist, not weakened URL validation.
@@ -51,7 +51,7 @@ go-jose implement cryptographic validation. We additionally require exact
 issuer/nonce/subject, one reviewed audience, matching azp when present, numeric
 iat/exp/nbf and fresh bounded times. Unreviewed extra audiences, JOSE network
 headers, critical extensions and MAC/unsigned tokens are refused. Access-token
-hashes are checked when included. Access and refresh tokens are not retained. A successful code response must
+hashes are checked when included. Access tokens are not retained. Refresh tokens are discarded by default; only explicit pre-login opt-in may retain a bounded, window-local rotating capability. A successful code response must
 include nonempty string ID/access tokens and Bearer type; any `error` member
 is refused before key retrieval. If a JWK supplies `key_ops`, it must be a
 bounded unique list authorizing `verify`; encryption-only keys are not used.
@@ -89,7 +89,7 @@ exact checkout and mandatory test records are recorded separately. The existing
 three Kubernetes versions, actual OS vaults, two-cluster isolation and both MyGo
 build-mode regression gates remain unchanged.
 
-Refresh/rotation, issuer logout/revocation, complete enterprise governance and
+Cross-launch refresh persistence, automatic renewal, issuer logout/revocation, complete enterprise governance and
 physical browser/IME/accessibility/release qualification remain in #13.
 
 Primary references:

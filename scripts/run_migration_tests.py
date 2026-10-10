@@ -17,6 +17,14 @@ REQUIRED = [
     'TestNativeMigrationActionsRunAfterConstructionOnce',
     'TestNativeMigrationTransientMessagePreservesEditorHistory',
     'TestNativeMigrationConstructorsAreKeyed',
+    'TestNativeOIDCRenewalReviewReplacementAndMinimumWindow',
+    'TestNativeOIDCRenewalCancellationDisconnectAndWindowIsolation',
+    'TestNativeOIDCRenewalChangedTargetFailsBeforePost',
+    'TestNativeOIDCRenewalExpiryClearsPendingAndCapability',
+    'TestNativeOIDCRenewalRetargetBeforeConfirmationCannotConnect',
+    'TestNativeOIDCRenewalConfirmationSurvivesUnrelatedFrame',
+    'TestNativeOIDCRenewalCannotReplaceAfterUnpumpedExpiry',
+    'TestNativeOIDCRenewalFailuresNeverExposeUntrustedErrors',
 ]
 
 if __name__ == '__main__':

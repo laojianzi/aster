@@ -1,6 +1,6 @@
 // Package oidclogin implements explicit, ephemeral native OIDC code login.
-// Discovery is a separate review step; no refresh or credential persistence is
-// performed. All network endpoints are HTTPS on the reviewed issuer's origin.
+// Discovery is a separate review step; renewal is explicit and memory-only.
+// No credential persistence is performed. All network endpoints are HTTPS on the reviewed issuer's origin.
 package oidclogin
 
 import (
@@ -34,8 +34,10 @@ import (
 // optional for providers which require pre-registration; zero chooses a port.
 type Options struct {
 	Issuer, ClientID, TargetKey string
-	CAPEM                      []byte
-	Port                       uint16
+	CAPEM                       []byte
+	Port                        uint16
+	// AllowRenewal requests offline_access and consent. False discards refresh tokens.
+	AllowRenewal bool
 }
 type Endpoints struct{ Issuer, ClientID, Authorization, Token, Keys, TrustSHA256 string }
 type Review struct {
@@ -48,7 +50,7 @@ type Review struct {
 }
 
 func (r *Review) Endpoints() Endpoints { return r.endpoints }
-func (r *Review) Close()              { r.mu.Lock(); r.used = true; r.mu.Unlock(); r.client.CloseIdleConnections() }
+func (r *Review) Close()               { r.mu.Lock(); r.used = true; r.mu.Unlock(); r.client.CloseIdleConnections() }
 func safeText(s string, max int) bool {
 	if s == "" || len(s) > max || !utf8.ValidString(s) {
 		return false
@@ -150,6 +152,9 @@ func Discover(ctx context.Context, opts Options) (*Review, error) {
 	if text("issuer") != opts.Issuer || !slices.Contains(array("response_types_supported"), "code") || !slices.Contains(array("code_challenge_methods_supported"), "S256") || !slices.Contains(array("id_token_signing_alg_values_supported"), "RS256") && !slices.Contains(array("id_token_signing_alg_values_supported"), "ES256") {
 		return nil, ErrDiscovery
 	}
+	if opts.AllowRenewal && (!slices.Contains(array("grant_types_supported"), "refresh_token") || !slices.Contains(array("scopes_supported"), "offline_access")) {
+		return nil, ErrDiscovery
+	}
 	for _, field := range []string{"authorization_endpoint", "token_endpoint", "jwks_uri"} {
 		x, e := endpoint(text(field))
 		if e != nil || x.Host != u.Host {
@@ -179,10 +184,12 @@ type Identity struct {
 	key, token string
 	deadline   time.Time
 	used       bool
+	resolved   bool
+	renewal    *Renewal
 }
 
-func (*Identity) String() string      { return "OIDC identity (credentials redacted)" }
-func (*Identity) GoString() string    { return "OIDC identity (credentials redacted)" }
+func (*Identity) String() string       { return "OIDC identity (credentials redacted)" }
+func (*Identity) GoString() string     { return "OIDC identity (credentials redacted)" }
 func (i *Identity) Info() IdentityInfo { i.mu.Lock(); defer i.mu.Unlock(); return i.info }
 func (i *Identity) Close() {
 	if i == nil {
@@ -191,6 +198,10 @@ func (i *Identity) Close() {
 	i.mu.Lock()
 	i.used = true
 	i.token = ""
+	if i.renewal != nil {
+		i.renewal.Close()
+		i.renewal = nil
+	}
 	i.mu.Unlock()
 }
 
@@ -224,6 +235,13 @@ func (i *Identity) Resolve(ctx context.Context, cfg *rest.Config, contextName, u
 	if limit := time.Now().Add(credentialexec.MaxConnectionLifetime); expires.After(limit) {
 		expires = limit
 	}
+	if i.renewal != nil && expires.After(i.renewal.until) {
+		expires = i.renewal.until
+	}
+	if i.renewal != nil {
+		i.renewal.bindLease(ctx, expires)
+	}
+	i.resolved = true
 	copy.Wrap(func(base http.RoundTripper) http.RoundTripper { return &leaseGuard{base, ctx, expires} })
 	return credentialexec.Resolved{Config: copy, ExpiresAt: expires}, nil
 }
