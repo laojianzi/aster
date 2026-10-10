@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/json"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	jose "github.com/go-jose/go-jose/v4"
 )
@@ -34,6 +35,25 @@ func verifySignedToken(ctx context.Context, issuer, clientID, algorithm, keyID, 
 		for _, name := range []string{"d", "p", "q", "dp", "dq", "qi", "oth", "k"} {
 			if _, exists := fields[name]; exists {
 				return nil, ErrVerification
+			}
+		}
+		// RFC 7517 key_ops restricts the uses of this key even when use is
+		// absent. Do not discard it when projecting into the crypto parser.
+		if value, exists := fields["key_ops"]; exists {
+			var operations []string
+			if json.Unmarshal(value, &operations) != nil || len(operations) == 0 || len(operations) > 8 {
+				return nil, ErrVerification
+			}
+			seen, canVerify := map[string]bool{}, false
+			for _, op := range operations {
+				if !safeText(op, 32) || seen[op] {
+					return nil, ErrVerification
+				}
+				seen[op] = true
+				canVerify = canVerify || op == "verify"
+			}
+			if !canVerify {
+				continue
 			}
 		}
 		var kind string

@@ -159,7 +159,11 @@ func (r *Review) Login(ctx context.Context, open func(string) error) (*Identity,
 	}
 	text := func(k string) string { var s string; _ = json.Unmarshal(response[k], &s); return s }
 	token, access := text("id_token"), text("access_token")
-	if text("error") != "" || strings.ToLower(text("token_type")) != "bearer" || len(token) > MaxTokenBytes || len(access) > MaxTokenBytes {
+	// A successful code response requires both tokens. Treat any error
+	// member as an error envelope, even if its value has the wrong type.
+	// Reject it before fetching keys; an invalid response never grants identity.
+	_, hasError := response["error"]
+	if hasError || !strings.EqualFold(text("token_type"), "Bearer") || !safeText(token, MaxTokenBytes) || !safeText(access, MaxTokenBytes) {
 		return nil, ErrResponse
 	}
 	keys, e := request(ctx, r.client, "GET", r.endpoints.Keys, nil)

@@ -51,7 +51,10 @@ go-jose implement cryptographic validation. We additionally require exact
 issuer/nonce/subject, one reviewed audience, matching azp when present, numeric
 iat/exp/nbf and fresh bounded times. Unreviewed extra audiences, JOSE network
 headers, critical extensions and MAC/unsigned tokens are refused. Access-token
-hashes are checked when included. Access and refresh tokens are not retained.
+hashes are checked when included. Access and refresh tokens are not retained. A successful code response must
+include nonempty string ID/access tokens and Bearer type; any `error` member
+is refused before key retrieval. If a JWK supplies `key_ops`, it must be a
+bounded unique list authorizing `verify`; encryption-only keys are not used.
 
 Review and login each expire after five minutes. Verified pending identities
 expire after at most five minutes; connected identities after the earlier of
@@ -76,7 +79,7 @@ expiry, persistent-service URL handoff and minimum-window layout. Fixtures are
 not real providers or desktop-system browser qualification.
 
 The separate `OIDC qualification` workflow provisions **upstream Dex v2.46.0**
-with verified TLS, disposable static users, S256 enforcement and a dedicated
+pinned by digest, with verified TLS, disposable static users, S256 enforcement and a dedicated
 OIDC-enabled Kubernetes 1.37 control plane. A bounded HTML-form user-agent drives
 real Dex authorization/login/consent; Native controls then connect, prove
 namespace-only RBAC, follow live logs and clean up on token expiry. The HTML

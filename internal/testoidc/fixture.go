@@ -32,6 +32,7 @@ type Provider struct {
 	grants                                        map[string]grant
 	EditClaims                                    func(map[string]any)
 	EditDiscovery                                 func(map[string]any)
+	EditTokenResponse                             func(map[string]any)
 	TokenStatus                                   int
 	BrokenExchange                                bool
 	TokenRequests, KeyRequests, DiscoveryRequests atomic.Int32
@@ -119,7 +120,11 @@ func (p *Provider) serve(w http.ResponseWriter, r *http.Request) {
 		if p.EditClaims != nil {
 			p.EditClaims(claims)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"token_type": "Bearer", "access_token": "unused-access-token", "id_token": p.Sign(claims, nil)})
+		response := map[string]any{"token_type": "Bearer", "access_token": "unused-access-token", "id_token": p.Sign(claims, nil)}
+		if p.EditTokenResponse != nil {
+			p.EditTokenResponse(response)
+		}
+		_ = json.NewEncoder(w).Encode(response)
 	default:
 		w.WriteHeader(404)
 	}
