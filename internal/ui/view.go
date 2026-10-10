@@ -20,10 +20,10 @@ func (w *Workbench) View(c *ui.Context) {
 				w.disconnect()
 			}
 			ui.TextInput(c, &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150)
-			if ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending).Clicked() {
+			if ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending).Clicked() {
 				w.connect()
 			}
-			if ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending).Clicked() {
+			if ui.Button(c, "Disconnect").Disabled(w.backend == nil && !w.connectionPending && !w.vaultPending).Clicked() {
 				w.disconnect()
 			}
 		})
@@ -35,6 +35,10 @@ func (w *Workbench) View(c *ui.Context) {
 			}
 			if ui.Button(c, "Load contexts").Clicked() {
 				w.loadContexts()
+			}
+			if ui.Button(c, "Credentials").Clicked() {
+				w.vaultOpen = !w.vaultOpen
+				w.clearVault()
 			}
 			ui.Text(c, w.notice).FontSize(12).TextColor(t.TextMuted).Grow(1).SingleLine()
 			if w.workspaceNumber > 0 {
@@ -56,6 +60,10 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+			if w.vaultOpen {
+				w.vaultView(c)
+				return
+			}
 			ui.Column(c).Width(174).Padding(10).Gap(5).Children(func() {
 				ui.Text(c, "RESOURCES").FontSize(11).Bold().TextColor(t.TextMuted)
 				for _, item := range []struct{ Label, Resource string }{{"Pods", "pods"}, {"Deployments", "deployments"}, {"StatefulSets", "statefulsets"}, {"DaemonSets", "daemonsets"}, {"Jobs", "jobs"}, {"CronJobs", "cronjobs"}, {"Services", "services"}, {"Ingresses", "ingresses"}, {"ConfigMaps", "configmaps"}, {"Secrets", "secrets"}, {"Volume Claims", "persistentvolumeclaims"}, {"Nodes", "nodes"}, {"Namespaces", "namespaces"}} {

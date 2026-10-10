@@ -37,3 +37,10 @@ Renovate 配置 #9 已合并，自动合并关闭，依赖看板批准机制保�
 依赖任务完成后按照 #13：凭据库/OIDC/身份续期与撤权；原生完整编辑和 Helm/GitOps；
 企业 Gateway/Connector/可信策略与审计；持久化和应用总预算；签名更新与生产资格验收。
 完成的历史测试数字和源码身份保存在对应 PR/Issue，不用旧报告代替新代码验证。
+
+## 2026-10-09 凭据库恢复
+
+#16（MyGo/latest 依赖批次）与 #17（原 Renovate x/sys 更新）已经合并；#11 无待处理更新。
+唯一接续分支 `feat/native-credential-vault` 对应 #18，基于 main `e1cbd416`，
+原来只包含 offline-devkit 刷新；本轮补充产品实现。没有重复分支、恢复旧 Executor 或删除历史。
+完成范围按最终 expected HEAD 和真实 OS/集群/源码证据合并；其后复核 main CI。
