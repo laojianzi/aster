@@ -41,7 +41,7 @@
     }
   ],
   "dependencyDashboard": true,
-  "dependencyDashboardAutoclose": false,
+  "dependencyDashboardAutoclose": true,
   "dependencyDashboardHeader": "Dependency updates require review and exact-head CI. MyGo module and native source versions are grouped; source hashes, terminal patches and libraries still require manual provenance review. An empty queue is not a vulnerability or release certificate.",
   "customManagers": [
     {

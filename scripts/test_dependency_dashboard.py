@@ -13,7 +13,7 @@ class DashboardTests(unittest.TestCase):
     def test_tracking_group_and_approval(self):
         cfg = json.loads((ROOT/'renovate.json').read_text())
         self.assertIs(cfg['dependencyDashboard'], True)
-        self.assertIs(cfg['dependencyDashboardAutoclose'], False)
+        self.assertIs(cfg['dependencyDashboardAutoclose'], True)
         self.assertIs(cfg['dependencyDashboardApproval'], True)
         self.assertIs(cfg['automerge'], False)
         rules = [r for r in cfg['packageRules'] if MODULE in r.get('matchPackageNames', [])]
@@ -21,6 +21,24 @@ class DashboardTests(unittest.TestCase):
         self.assertNotEqual(rules[0].get('enabled'), False)
         self.assertEqual(set(rules[0]['matchManagers']), {'gomod','custom.regex'})
         self.assertEqual(rules[0]['groupSlug'], 'mygo-native-framework')
+
+    def test_autoclose_does_not_relax_approval_or_hide_dependencies(self):
+        cfg = json.loads((ROOT/'renovate.json').read_text())
+        self.assertEqual(cfg['extends'], ['config:recommended', 'helpers:pinGitHubActionDigests'])
+        self.assertNotIn('enabledManagers', cfg)
+        self.assertNotIn('ignoreDeps', cfg)
+        self.assertNotIn('mode', cfg)
+        for rule in cfg['packageRules']:
+            self.assertIsNot(rule.get('enabled'), False)
+            self.assertIsNot(rule.get('dependencyDashboardApproval'), False)
+            self.assertIsNot(rule.get('automerge'), True)
+        mygo, = [r for r in cfg['packageRules'] if MODULE in r.get('matchPackageNames', [])]
+        self.assertIs(mygo['dependencyDashboardApproval'], True)
+        self.assertIs(mygo['automerge'], False)
+        k8s, = [r for r in cfg['packageRules'] if 'k8s.io/client-go' in r.get('matchPackageNames', [])]
+        self.assertEqual(set(k8s['matchPackageNames']),
+                         {'k8s.io/api', 'k8s.io/apimachinery', 'k8s.io/client-go', 'k8s.io/streaming'})
+        self.assertEqual(k8s['groupName'], 'kubernetes client and streaming')
 
     def test_version_only_replacement_cannot_rewrite_trust(self):
         cfg = json.loads((ROOT/'renovate.json').read_text())

@@ -1,10 +1,10 @@
 name: Renovate configuration
 on:
   pull_request:
-    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, third_party/native-terminal/UPSTREAM.json, go.mod]
+    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, scripts/test_renovate_dashboard_lifecycle.mjs, third_party/native-terminal/UPSTREAM.json, go.mod]
   push:
     branches: [main]
-    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, third_party/native-terminal/UPSTREAM.json, go.mod]
+    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, scripts/test_renovate_dashboard_lifecycle.mjs, third_party/native-terminal/UPSTREAM.json, go.mod]
 permissions:
   contents: read
 jobs:
@@ -30,6 +30,16 @@ jobs:
           npx --yes --package=renovate@44.148.3 renovate-config-validator --strict renovate.json 2>&1 | tee artifacts/renovate-validation.log
       - name: Dashboard contract regressions
         run: python -m unittest discover -s scripts -p 'test_dependency_dashboard.py'
+      - name: Pinned upstream dashboard lifecycle with memory-only platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 --max-time 30 --max-filesize 131072 \
+            https://raw.githubusercontent.com/renovatebot/renovate/44.148.3/lib/workers/repository/dependency-dashboard.ts \
+            -o artifacts/renovate-dashboard.ts
+          node --experimental-vm-modules scripts/test_renovate_dashboard_lifecycle.mjs \
+            artifacts/renovate-dashboard.ts artifacts/dashboard-lifecycle.json \
+            2>&1 | tee artifacts/dashboard-lifecycle.log
       - name: Real Renovate extraction without repository writes
         shell: bash
         env:
