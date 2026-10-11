@@ -17,7 +17,9 @@ retain their existing server-side validation and confirmation requirements.
 Matching is exact, case-sensitive, non-overlapping and unnormalized. Punctuation
 is literal, not a regular expression. Coordinates count Unicode code points,
 not bytes, grapheme clusters or terminal cells. LF starts a new line; CR and BOM
-are preserved as source characters. The search core can inspect invalid YAML
+are preserved by the search core as source characters. MyGo normalizes CRLF to
+LF when inserting text through a native input event; Find uses the resulting
+current draft, not the pre-input bytes. The search core can inspect invalid YAML
 as text without changing Kubernetes decoding or admission semantics. The native
 query control is a single-line text field.
 

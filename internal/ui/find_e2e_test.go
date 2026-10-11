@@ -33,10 +33,17 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
 	h.click("Edit")
-	text := "# 中文 🚢 é — local search only\r\n" + strings.ReplaceAll(h.w.editor, "\n", "\r\n")
+	input := "# 中文 🚢 é — local search only\r\n" + strings.ReplaceAll(h.w.editor, "\n", "\r\n")
 	h.click("Manifest editor")
 	h.tt.Key(ui.Cmd, ui.KeyA)
-	h.tt.Type(text)
+	h.tt.Type(input)
+	// MyGo normalizes CRLF at the native text-input boundary. Verify that
+	// contract before taking the search baseline; Find itself must not change
+	// either the draft text or its Undo history. Core tests retain raw CRLF.
+	text := strings.ReplaceAll(input, "\r\n", "\n")
+	if h.w.editor != text {
+		t.Fatal("native input did not produce the expected LF-normalized draft")
+	}
 	h.click("Find")
 	h.click("Find text")
 	h.tt.Type(testcluster.Image)
