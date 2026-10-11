@@ -148,10 +148,10 @@ index 1301a77..d8a81a3 100644
  
  const asciiPrintable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 diff --git a/terminal.go b/terminal.go
-index 5bff84f..cd3cc9b 100644
+index 9b8ebed..34c534e 100644
 --- a/terminal.go
 +++ b/terminal.go
-@@ -142,6 +142,7 @@ type Terminal struct {
+@@ -169,6 +169,7 @@ type Terminal struct {
  
  	draw     atomic.Pointer[func()] // asks for a frame of the view
  	done     chan struct{}
@@ -159,7 +159,7 @@ index 5bff84f..cd3cc9b 100644
  	doneOnce sync.Once
  	code     atomic.Int64
  
-@@ -166,30 +167,27 @@ type events struct {
+@@ -193,30 +194,27 @@ type events struct {
  // The program starts once a view shows the terminal, at the size of the
  // view, or half a second later at 80×24 when none does.
  func New(opts Options) (*Terminal, error) {
@@ -201,7 +201,7 @@ index 5bff84f..cd3cc9b 100644
  	})
  	if err != nil {
  		return nil, err
-@@ -250,7 +248,11 @@ func New(opts Options) (*Terminal, error) {
+@@ -277,7 +275,11 @@ func New(opts Options) (*Terminal, error) {
  // run reads the output and writes the input of the program, or Conn.
  func (t *Terminal) run() {
  	go t.read()
@@ -214,7 +214,7 @@ index 5bff84f..cd3cc9b 100644
  }
  
  // start starts the program of launch, which the caller took, in a
-@@ -508,7 +510,7 @@ func (t *Terminal) Text() string {
+@@ -535,7 +537,7 @@ func (t *Terminal) Text() string {
  func (t *Terminal) Resize(cols, rows int) {
  	t.mu.Lock()
  	defer t.mu.Unlock()
@@ -223,7 +223,7 @@ index 5bff84f..cd3cc9b 100644
  }
  
  // Snapshot returns what the terminal shows as escape sequences: its
-@@ -527,13 +529,14 @@ func (t *Terminal) Snapshot() []byte {
+@@ -554,13 +556,14 @@ func (t *Terminal) Snapshot() []byte {
  // Send sends data to the program as if typed.
  func (t *Terminal) Send(data []byte) {
  	if len(data) > 0 {
@@ -239,7 +239,7 @@ index 5bff84f..cd3cc9b 100644
  	t.mu.Lock()
  	if t.term == nil {
  		t.mu.Unlock()
-@@ -556,9 +559,11 @@ func (t *Terminal) Close() error {
+@@ -583,9 +586,11 @@ func (t *Terminal) Close() error {
  	t.mu.Lock()
  	if t.closed {
  		t.mu.Unlock()
@@ -251,7 +251,7 @@ index 5bff84f..cd3cc9b 100644
  	src, proc, waiting := t.src, t.proc, t.launch != nil
  	t.launch = nil
  	if t.timer != nil {
-@@ -589,6 +594,7 @@ func (t *Terminal) Close() error {
+@@ -616,6 +621,7 @@ func (t *Terminal) Close() error {
  	// free it under the locks.
  	t.mu.Lock()
  	t.rmu.Lock()
@@ -259,7 +259,7 @@ index 5bff84f..cd3cc9b 100644
  	t.term.Free()
  	t.term = nil
  	t.rs.Free()
-@@ -719,58 +725,60 @@ func unhex(c byte) (byte, bool) {
+@@ -746,58 +752,60 @@ func unhex(c byte) (byte, bool) {
  // inputQueue writes what is typed to the program in order, from a
  // goroutine of its own: a program that does not read its input must not
  // block the reader, which answers its queries.
@@ -372,10 +372,10 @@ index 5bff84f..cd3cc9b 100644
  func vtCursor(s CursorStyle) vt.CursorStyle {
  	switch s {
 diff --git a/view.go b/view.go
-index caca538..2b4652a 100644
+index bab81c8..1605ba4 100644
 --- a/view.go
 +++ b/view.go
-@@ -35,6 +35,7 @@ func View(c *ui.Context, t *Terminal) ui.Element {
+@@ -41,6 +41,7 @@ func View(c *ui.Context, t *Terminal) ui.Element {
  // viewOf returns the terminal's view state, made on the first frame
  // showing it.
  func (t *Terminal) viewOf(c *ui.Context) *view {
@@ -383,7 +383,7 @@ index caca538..2b4652a 100644
  	if t.v == nil {
  		t.v = &view{t: t, blinkStart: time.Now()}
  		t.v.shaped.init(4096)
-@@ -171,7 +172,7 @@ func (v *view) release() {
+@@ -193,7 +194,7 @@ func (v *view) release() {
  		v.mouse = nil
  	}
  	if v.gesture != nil {
@@ -392,7 +392,7 @@ index caca538..2b4652a 100644
  		v.gesture = nil
  	}
  }
-@@ -226,6 +227,7 @@ func (v *view) input(ev ui.InputEvent) bool {
+@@ -248,6 +249,7 @@ func (v *view) input(ev ui.InputEvent) bool {
  		v.typed(ev.Text)
  		return true
  	case ui.InputCompose:
@@ -400,7 +400,25 @@ index caca538..2b4652a 100644
  		v.preedit, v.preeditCaret, v.pending = ev.Text, ev.Caret, nil
  		return true
  	case ui.InputCommand:
-@@ -342,6 +344,7 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
+@@ -263,14 +265,9 @@ func (v *view) input(ev ui.InputEvent) bool {
+ 		}
+ 		return true
+ 	case ui.InputPointerDown, ui.InputPointerUp, ui.InputPointerMove:
+-		took := v.pointerEvent(ev)
+-		if link := v.opening; link != "" {
+-			v.opening = ""
+-			if open := v.t.opts.OpenLink; (open == nil || !open(link)) && !v.openingPath {
+-				v.services.OpenURL(link)
+-			}
+-		}
+-		return took
++        // Remote text and OSC8 never launch local applications, including
++        // the new upstream OpenLink hook. Users can explicitly copy text.
++        return v.pointerEvent(ev)
+ 	case ui.InputScroll:
+ 		return v.scroll(ev)
+ 	}
+@@ -379,6 +376,7 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
  
  // typed sends text typed or committed by an input method.
  func (v *view) typed(text string) {
@@ -408,7 +426,7 @@ index caca538..2b4652a 100644
  	v.preedit = ""
  	p := v.pending
  	v.pending = nil
-@@ -403,7 +406,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
+@@ -443,7 +441,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
  	if len(b) == 0 {
  		return false
  	}
@@ -417,30 +435,20 @@ index caca538..2b4652a 100644
  	if press {
  		t.term.ScrollToBottom()
  		t.term.SetSelection(nil)
-@@ -494,21 +497,7 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
- 		if ev.Button != 0 {
- 			return false // the context menu
- 		}
--		if ev.Mods&ui.Cmd != 0 {
--			// A hyperlink (OSC 8), or a URL printed as text.
--			url := ""
--			if ref, ok := t.term.CellAt(col, row); ok {
--				url = t.term.Hyperlink(ref)
--			}
--			if url == "" {
--				text, cols := t.term.RowText(row)
--				url = urlAt(text, cols, col)
--			}
--			if url != "" {
--				v.services.OpenURL(url)
--				return true
--			}
--		}
-+		// Remote hyperlinks never launch local applications. Use explicit copy.
- 		ref, ok := t.term.CellAt(col, row)
- 		if !ok {
- 			return false
-@@ -600,7 +589,7 @@ func (v *view) report(ev ui.InputEvent) bool {
+@@ -599,10 +597,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
+ // is a file path: none without Command, or while the primary button
+ // selects or the program has a press; t.mu is held.
+ func (v *view) linkUnder(mods ui.Modifiers, x, y float32) (link string, path bool) {
+-	if mods&ui.Cmd == 0 || v.selecting || v.reporting || v.cellW == 0 {
+-		return "", false
+-	}
+-	return v.linkAt(v.cellAt(x, y))
++    // Disable link activation/hover before parsing remote output.
++    return "", false
+ }
+ 
+ // linkAt is the link at the cell: a hyperlink (OSC 8), a URL printed as
+@@ -677,7 +673,7 @@ func (v *view) report(ev ui.InputEvent) bool {
  	v.mouse.Sync(t.term, v.ox*2+v.cols*v.cellW, v.oy*2+v.rows*v.cellH, v.cellW, v.cellH, v.ox, v.oy, pressed)
  	out := v.mouse.Encode(action, b, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale)
  	if len(out) > 0 {
@@ -449,7 +457,7 @@ index caca538..2b4652a 100644
  	}
  	return ev.Kind != ui.InputPointerMove || len(out) > 0
  }
-@@ -643,7 +632,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -720,7 +716,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  		}
  		for range abs(rows) {
  			if out := v.mouse.Encode(vt.MousePress, button, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale); len(out) > 0 {
@@ -458,7 +466,7 @@ index caca538..2b4652a 100644
  			}
  		}
  	case t.term.AltScreen() && t.term.Mode(vt.ModeAltScroll):
-@@ -660,7 +649,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -737,7 +733,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  			key = vt.KeyArrowUp
  		}
  		for range abs(rows) {

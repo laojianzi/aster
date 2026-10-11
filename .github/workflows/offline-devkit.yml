@@ -27,6 +27,24 @@ jobs:
         with:
           go-version: '1.27.2'
           cache: true
+      - name: Retain public upstream inputs for manual compatibility review
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream-review
+          mygo_version=$(python -c 'import json; print(json.load(open("third_party/native-terminal/UPSTREAM.json"))["version"])')
+          go mod download -json "github.com/egoist/mygo@$mygo_version" > upstream-review/module.json
+          module_dir=$(python -c 'import json; print(json.load(open("upstream-review/module.json"))["Dir"])')
+          tar -czf upstream-review/mygo-module.tar.gz -C "$module_dir" .
+          cp go.mod go.sum upstream-review/
+          git rev-parse HEAD > upstream-review/COMMIT
+          (cd upstream-review && sha256sum mygo-module.tar.gz go.mod go.sum > SHA256SUMS)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-review-inputs
+          path: upstream-review/
+          if-no-files-found: error
+          retention-days: 2
       - name: Prepare hash-verified native terminal source and library
         shell: bash
         run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"

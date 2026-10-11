@@ -25,8 +25,8 @@ if __name__ == '__main__':
     version = subprocess.check_output(
         ['go', 'list', '-m', '-f', '{{.Version}}', 'github.com/egoist/mygo'],
         cwd=ROOT, text=True).strip()
-    if version != spec['version'] or not version.startswith('v0.3.'):
-        raise SystemExit('framework/native-source pins differ from the audited 0.3 contract')
+    if version != spec['version'] or version not in ('v0.3.7', 'v0.4.1'):
+        raise SystemExit('framework/native-source pins differ from the audited 0.3/0.4 contract')
     before = snapshot()
     subprocess.run(['go', 'run', 'github.com/egoist/mygo/cmd/mygo@' + version,
                     'migrate-ui', '-write', '.'], cwd=ROOT, check=True)
