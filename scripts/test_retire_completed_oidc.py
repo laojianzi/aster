@@ -120,16 +120,30 @@ class RetirementTests(unittest.TestCase):
                               number=28 if mode == 'other-scope' else number, branch=branch)
 
     def test_mygo_patch_retirement_never_deletes_an_active_or_moved_group(self):
-        number, branch = 39, APPROVED[39]
-        p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
-        refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
-        self.assertEqual(select_scope([p], self.head), number)
-        self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
-        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=33, branch=branch)
-        with self.assertRaises(ValueError): candidate(p, self.head, refs, [p], lambda _: True, number=number, branch=branch)
-        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: False, number=number, branch=branch)
-        refs[branch]['commit']['sha'] = 'f'*40
-        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
+        for number in (39, 41):
+            with self.subTest(pr=number):
+                branch = APPROVED[number]
+                p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
+                refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
+                self.assertEqual(select_scope([p], self.head), number)
+                self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
+                # Older PRs used the same group name; they must never authorize
+                # deletion of this newer PR's branch or select its merge.
+                for older in (33, 39) if number == 41 else (33,):
+                    with self.assertRaises(ValueError):
+                        candidate(p, self.head, refs, [], lambda _: True, number=older, branch=branch)
+                    old = copy.deepcopy(p); old['number'] = older; old['merge_commit_sha'] = 'c'*40
+                    self.assertEqual(select_scope([old, p], self.head), number)
+                for side in ('head', 'base'):
+                    active = copy.deepcopy(p)
+                    active['head']['ref'] = 'unrelated-head'
+                    active['base']['ref'] = 'unrelated-base'
+                    active[side]['ref'] = branch
+                    with self.assertRaises(ValueError):
+                        candidate(p, self.head, refs, [active], lambda _: True, number=number, branch=branch)
+                with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: False, number=number, branch=branch)
+                refs[branch]['commit']['sha'] = 'f'*40
+                with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
 
     def test_unregistered_open_old_or_ambiguous_merges_do_not_select(self):
         self.assertIsNone(select_scope([],self.head))
