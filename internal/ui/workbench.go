@@ -123,6 +123,7 @@ type Workbench struct {
 	schemaLocationChoices []string
 	schemaLocationChoice  string
 	schemaJump            *schemaJump
+	find                  manifestFind
 
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
@@ -260,6 +261,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearFind(true)
 	w.clearSchema()
 	w.clearOIDCRenewal()
 	w.clearOIDC()

@@ -96,19 +96,15 @@ func (w *Workbench) startSchema(check bool) {
 	})
 }
 func (w *Workbench) schemaView(c *ui.Context) {
-	if ui.TextInput(c.Key("field.schemaPointer"), &w.schemaPointer).Label("Schema field pointer").Placeholder("/spec/containers/0/image (empty for root)").Changed() {
-		w.clearSchema()
-	}
-	ui.Row(c).Gap(6).Children(func() {
-		ui.Button(c, "Field help").Disabled(w.schemaActive).OnClick(func() {
-			w.startSchema(false)
-		})
-		ui.Button(c, "Check draft").Disabled(w.schemaActive).OnClick(func() {
-			w.startSchema(true)
-		})
-		ui.Button(c, "Clear schema").Disabled(!w.schemaActive && w.schemaText == "" && w.schemaStatus == "").OnClick(func() {
+	// Keep the source pointer and advisory actions on one stable row. This
+	// reserves room for Find and the mutation controls at the minimum size.
+	ui.Row(c.Key("schema.controls")).Gap(6).Children(func() {
+		if ui.TextInput(c.Key("field.schemaPointer"), &w.schemaPointer).Label("Schema field pointer").Placeholder("/spec/containers/0/image (empty for root)").Grow(1).Changed() {
 			w.clearSchema()
-		})
+		}
+		ui.Button(c, "Help").Label("Field help").Disabled(w.schemaActive).OnClick(func() { w.startSchema(false) })
+		ui.Button(c, "Check draft").Disabled(w.schemaActive).OnClick(func() { w.startSchema(true) })
+		ui.Button(c, "Clear").Label("Clear schema").Disabled(!w.schemaActive && w.schemaText == "" && w.schemaStatus == "").OnClick(func() { w.clearSchema() })
 	})
 	w.schemaLocationsView(c)
 	if w.schemaStatus != "" {

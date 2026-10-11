@@ -13,7 +13,7 @@ type detailWidgetKey struct{ Connection, Detail uint64 }
 
 func (w *Workbench) detailView(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c.Key(detailWidgetKey{w.contextEpoch, w.detailEpoch})).Width(510).Padding(12).Gap(8).Children(func() {
+	ui.Column(c.Key(detailWidgetKey{w.contextEpoch, w.detailEpoch})).Width(510).Padding(12).Gap(6).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			title := w.detail.GetName()
 			if w.creating {
@@ -98,20 +98,24 @@ func (w *Workbench) detailView(c *ui.Context) {
 		if w.detailMessage != "" {
 			ui.Text(c, w.detailMessage).FontSize(12).TextColor(t.TextMuted)
 		}
+		w.syncFind()
 		switch w.detailMode {
 		case "Apply":
 			w.applyView(c)
 		case "Owners":
 			ui.TextArea(c.Key("field.ownersText"), &w.ownersText).Label("Field ownership").ReadOnly(true).Grow(1)
 		case "Edit":
+			w.findView(c)
 			w.manifestEditorView(c)
 			w.schemaView(c)
 			if w.creating {
+				w.findButton(c)
 				ui.PrimaryButton(c, "Preview create").Disabled(w.preparing).OnClick(func() {
 					w.prepare("create")
 				})
 			} else {
 				ui.Row(c).Gap(6).Children(func() {
+					w.findButton(c)
 					ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing).OnClick(func() {
 						w.prepare("edit")
 					})
