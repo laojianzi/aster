@@ -16,7 +16,7 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation'}
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo'}
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ('CI', 'Source evidence', 'Native migration verification', 'OIDC qualification')
@@ -54,8 +54,8 @@ def candidate(pr, head, branches, active, ancestor, *, number=PR, branch=BRANCH)
     return sha
 
 
-def workflows_pass(runs, head):
-    for name in REQUIRED:
+def workflows_pass(runs, head, *, extra=()):
+    for name in (*REQUIRED, *extra):
         matches = sorted((r for r in runs if r.get('name') == name and r.get('head_sha') == head
                           and r.get('event') == 'push' and r.get('head_branch') == 'main'),
                          key=lambda r: r['id'], reverse=True)
@@ -109,7 +109,7 @@ def run(report):
         report['status'] = 'already-recorded'
         return
     runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
-    if not workflows_pass(runs, head):
+    if not workflows_pass(runs, head, extra=('Renovate configuration',) if number == 31 else ()):
         report['status'] = 'waiting-for-verification'
         return
     def preflight():

@@ -1,0 +1,19 @@
+import unittest
+
+
+class DependencyRetirementTests(unittest.TestCase):
+    def test_dependency_retirement_needs_fifth_exact_main_gate(self):
+        from retire_completed_oidc import APPROVED, REQUIRED, workflows_pass
+        self.assertEqual(APPROVED[31], 'fix/dependency-dashboard-mygo')
+        head = 'a' * 40
+        runs = [dict(name=n,id=i,event='push',head_branch='main',head_sha=head,
+                     status='completed',conclusion='success') for i,n in enumerate(REQUIRED)]
+        extra = ('Renovate configuration',)
+        self.assertFalse(workflows_pass(runs,head,extra=extra))
+        result = dict(runs[0],name=extra[0],id=100)
+        self.assertTrue(workflows_pass(runs+[result],head,extra=extra))
+        self.assertFalse(workflows_pass(runs+[dict(result,head_sha='b'*40)],head,extra=extra))
+        self.assertFalse(workflows_pass(runs+[result,dict(result,id=101,conclusion='failure')],head,extra=extra))
+
+
+if __name__ == "__main__": unittest.main()

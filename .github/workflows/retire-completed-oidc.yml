@@ -1,7 +1,7 @@
 name: Retire completed OIDC branch
 on:
   workflow_run:
-    workflows: [CI, Source evidence, Native migration verification, OIDC qualification]
+    workflows: [CI, Source evidence, Native migration verification, OIDC qualification, Renovate configuration]
     types: [completed]
     branches: [main]
 permissions:
