@@ -39,7 +39,7 @@ func findSearch(h *relationshipHarness) {
 func TestNativeFindLiteralNavigationUndoAndWrap(t *testing.T) {
 	h := findHarness(t)
 	findSearch(h)
-	before := h.w.editor
+	before := h.w.editorText()
 	if h.w.find.result.Len() != 2 || !h.tt.Focused("Manifest editor") || h.w.plan != nil {
 		t.Fatal("search did not select first result without a plan")
 	}
@@ -47,14 +47,14 @@ func TestNativeFindLiteralNavigationUndoAndWrap(t *testing.T) {
 	h.w.detailMessage = "Unrelated status"
 	h.tt.Frame()
 	h.tt.Type("fixed")
-	if h.w.editor != before[:first.ByteStart]+"fixed"+before[first.ByteEnd:] {
+	if h.w.editorText() != before[:first.ByteStart]+"fixed"+before[first.ByteEnd:] {
 		t.Fatal("selection not Unicode-correct")
 	}
 	if h.w.find.result != nil || h.w.find.jump != nil {
 		t.Fatal("typing kept stale matches")
 	}
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != before {
+	if h.w.editorText() != before {
 		t.Fatal("find broke same-document Undo")
 	}
 	findSearch(h)
@@ -76,7 +76,7 @@ func TestNativeFindLiteralNavigationUndoAndWrap(t *testing.T) {
 	}
 	h.click("Manifest editor")
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != schemaDraft {
+	if h.w.editorText() != schemaDraft {
 		t.Fatal("Find reset original editor history")
 	}
 }
@@ -99,7 +99,7 @@ func TestNativeFindQueuedResultsCannotCrossEpochs(t *testing.T) {
 				h.click("Manifest editor")
 				h.tt.Type("x")
 			case "raw-draft":
-				h.w.editor += "unrendered"
+				h.w.setEditor(h.w.editorText() + "unrendered")
 			case "detail":
 				h.w.clearDetail()
 			case "connection":
@@ -119,10 +119,10 @@ func TestNativeFindQueuedResultsCannotCrossEpochs(t *testing.T) {
 			case "window":
 				h.w.Close()
 			}
-			before := h.w.editor
+			before := h.w.editorText()
 			complete()
 			h.tt.Frame()
-			if h.w.editor != before || h.w.find.result != nil || h.w.find.jump != nil || h.w.find.active {
+			if h.w.editorText() != before || h.w.find.result != nil || h.w.find.jump != nil || h.w.find.active {
 				t.Fatal("stale result/navigation leaked")
 			}
 		})
@@ -169,10 +169,10 @@ func TestNativeFindCompositionDefersAndRejectsChangedDraft(t *testing.T) {
 			findSearch(h)
 			h.click("Manifest editor")
 			h.tt.Compose("未提交", 3)
-			before := h.w.editor
+			before := h.w.editorText()
 			h.w.queueFindJump(h.w.find.epoch, 1, false)
 			h.tt.Frame()
-			if h.w.editor != before || h.w.find.jump == nil || !h.w.find.jump.deferred {
+			if h.w.editorText() != before || h.w.find.jump == nil || !h.w.find.jump.deferred {
 				t.Fatal("composition not deferred")
 			}
 			h.tt.Compose("", 0)
@@ -213,7 +213,7 @@ func TestNativeFindReadOnlyBudgetsAndMinimumWindow(t *testing.T) {
 		}
 	}
 	saveNativeScreenshot(t, h.tt)
-	if calls.Load() != count || h.w.plan != nil || h.w.editor != schemaDraft {
+	if calls.Load() != count || h.w.plan != nil || h.w.editorText() != schemaDraft {
 		t.Fatal("Find read network, changed draft, or created a plan")
 	}
 	h.click("Manifest editor")
@@ -251,7 +251,7 @@ func TestNativeFindQueuedSelectionCannotCrossDraftOrQuery(t *testing.T) {
 			h.w.queueFindJump(h.w.find.epoch, 1, false)
 			switch change {
 			case "draft":
-				h.w.editor = "new document"
+				h.w.setEditor("new document")
 			case "query":
 				h.w.find.query = "new query"
 			case "connection":
@@ -261,9 +261,9 @@ func TestNativeFindQueuedSelectionCannotCrossDraftOrQuery(t *testing.T) {
 			case "secret":
 				h.w.detail.SetKind("Secret")
 			}
-			before := h.w.editor
+			before := h.w.editorText()
 			h.tt.Frame()
-			if h.w.editor != before || h.w.find.jump != nil || h.w.find.result != nil {
+			if h.w.editorText() != before || h.w.find.jump != nil || h.w.find.result != nil {
 				t.Fatal("queued selection crossed identity")
 			}
 		})
@@ -291,9 +291,9 @@ func TestNativeFindDeferredSelectionLosesFocusAndPreservesTruncation(t *testing.
 	h.click("Find text")
 	h.w.queueFindJump(h.w.find.epoch, 0, false)
 	h.w.find.jump.deferred = true
-	before := h.w.editor
+	before := h.w.editorText()
 	h.tt.Frame()
-	if h.tt.Focused("Manifest editor") || h.w.editor != before || h.w.find.jump != nil {
+	if h.tt.Focused("Manifest editor") || h.w.editorText() != before || h.w.find.jump != nil {
 		t.Fatal("deferred selection stole focus or changed text")
 	}
 }

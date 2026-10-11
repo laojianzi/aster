@@ -17,7 +17,7 @@ func TestNativeFindTextInputNormalizesCRLFBeforeSearch(t *testing.T) {
 	h.tt.Key(ui.Cmd, ui.KeyA)
 	h.tt.Type(input)
 	want := strings.ReplaceAll(input, "\r\n", "\n")
-	if h.w.editor != want {
+	if h.w.editorText() != want {
 		t.Fatal("native input violated the LF normalization contract")
 	}
 	h.click("Find")
@@ -25,15 +25,15 @@ func TestNativeFindTextInputNormalizesCRLFBeforeSearch(t *testing.T) {
 	h.tt.Type(image)
 	findSearch(h)
 	match, ok := h.w.find.result.At(0)
-	if !ok || h.w.find.result.Len() != 1 || h.w.editor != want || !h.tt.Focused("Manifest editor") || h.w.plan != nil {
+	if !ok || h.w.find.result.Len() != 1 || h.w.editorText() != want || !h.tt.Focused("Manifest editor") || h.w.plan != nil {
 		t.Fatal("Find changed the normalized draft or failed to select")
 	}
 	h.tt.Type("local-only")
-	if h.w.editor != want[:match.ByteStart]+"local-only"+want[match.ByteEnd:] {
+	if h.w.editorText() != want[:match.ByteStart]+"local-only"+want[match.ByteEnd:] {
 		t.Fatal("normalized document selected a different range")
 	}
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != want {
+	if h.w.editorText() != want {
 		t.Fatal("Undo failed to restore the exact normalized baseline")
 	}
 }

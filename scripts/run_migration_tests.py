@@ -7,6 +7,15 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestManifestBufferImmutableConcurrentSnapshotsAndExportBounds',
+    'TestManifestBufferIdleRevisionChecksAllocateNothing',
+    'TestNativeManifestBufferStableIdentitySnapshotAndUndo',
+    'TestNativeManifestBufferPreeditNoOpPreservesSemanticRevision',
+    'TestNativeManifestBufferQueuedSchemaSeesUnrenderedEdit',
+    'TestNativeManifestBufferUnrenderedChangeRevokesPreparedPlan',
+    'TestNativeManifestBufferOversizeCannotBecomeEmptyPreview',
+    'TestNativeManifestBufferOversizeIsPreservedUntilExplicitRestore',
+
     'TestNativeFindTextInputNormalizesCRLFBeforeSearch',
     'TestNativeFindLiteralNavigationUndoAndWrap',
     'TestNativeFindQueuedResultsCannotCrossEpochs',

@@ -42,7 +42,8 @@ func (w *Workbench) clearDetail() {
 	w.stopLogs()
 	w.logRows, w.logDropped, w.logStatus = nil, 0, ""
 	w.detail, w.plan = nil, nil
-	w.diff, w.editor, w.detailText, w.confirmation, w.detailMessage = "", "", "", "", ""
+	w.setEditor("")
+	w.diff, w.detailText, w.confirmation, w.detailMessage = "", "", "", ""
 	w.preparing, w.creating = false, false
 }
 func (w *Workbench) openResource(row resourceRow) {
@@ -76,7 +77,8 @@ func (w *Workbench) openResourceKind(kind kube.ResourceKind, row resourceRow) {
 				w.errText = err.Error()
 				return
 			}
-			w.detail, w.detailKind, w.detailText, w.editor, w.detailMode = obj, kind, text, text, "YAML"
+			w.setEditor(text)
+			w.detail, w.detailKind, w.detailText, w.detailMode = obj, kind, text, "YAML"
 			w.containers = nil
 			for _, field := range []string{"containers", "initContainers", "ephemeralContainers"} {
 				items, _, _ := unstructured.NestedSlice(obj.Object, "spec", field)

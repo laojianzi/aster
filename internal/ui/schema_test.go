@@ -29,7 +29,7 @@ func schemaHarness(t *testing.T, host string) *relationshipHarness {
 	t.Helper()
 	h := newRelationshipHarness(t, 15*time.Second)
 	attachRelationshipBackend(t, h, host)
-	h.w.editor = schemaDraft
+	h.w.setEditor(schemaDraft)
 	h.w.schemaPointer = "/spec/containers/0/image"
 	h.tt.Frame()
 	h.click("Edit")
@@ -48,12 +48,12 @@ func TestNativeSchemaReadOnlyDraftAndTabLifecycle(t *testing.T) {
 	h := schemaHarness(t, server.URL)
 	h.click("Field help")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "Container image reference") || h.w.editor != schemaDraft {
+	if !strings.Contains(h.w.schemaText, "Container image reference") || h.w.editorText() != schemaDraft {
 		t.Fatalf("%s", h.w.schemaStatus)
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · required") || h.w.editor != schemaDraft || writes.Load() != 0 {
+	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · required") || h.w.editorText() != schemaDraft || writes.Load() != 0 {
 		t.Fatalf("%s", h.w.schemaText)
 	}
 	saveNativeScreenshot(t, h.tt)
@@ -152,7 +152,7 @@ func TestNativeSchemaControlsAtMinimumWindow(t *testing.T) {
 	w.detail = relatedPod()
 	w.detailKind = catalog()[0]
 	w.detailMode = "Edit"
-	w.editor = schemaDraft
+	w.setEditor(schemaDraft)
 	w.schemaPointer = "/spec/containers/0/image"
 	w.schemaStatus = "Read-only hints · not server validation"
 	w.schemaText = "/spec/containers/0/image · required: Required field is absent.\nThe draft was not changed. Server dry-run remains required."

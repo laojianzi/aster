@@ -62,7 +62,7 @@ func (w *Workbench) schemaLocationsView(c *ui.Context) {
 		// an unbounded-height inline popup in the minimum-size editor window.
 		ui.MenuButton(c.Key("field.schemaLocation"), choice, func(menu *ui.Menu) {
 			for _, label := range w.schemaLocationChoices {
-				if menu.Item(label).Checked(label == choice).Chosen() && epoch == w.schemaEpoch && w.schemaSource.Matches(w.editor) {
+				if menu.Item(label).Checked(label == choice).Chosen() && epoch == w.schemaEpoch && w.schemaFresh() {
 					w.schemaLocationChoice = label
 				}
 			}
@@ -72,7 +72,7 @@ func (w *Workbench) schemaLocationsView(c *ui.Context) {
 }
 
 func (w *Workbench) queueSchemaJump(epoch uint64, choice string) {
-	if epoch != w.schemaEpoch || w.schemaActive || w.detail == nil || w.detailMode != "Edit" || w.detail.GetKind() == "Secret" || w.operationContext().Err() != nil || !w.schemaSource.Matches(w.editor) {
+	if epoch != w.schemaEpoch || w.schemaActive || w.detail == nil || w.detailMode != "Edit" || w.detail.GetKind() == "Secret" || w.operationContext().Err() != nil || !w.schemaFresh() {
 		return
 	}
 	for _, target := range w.schemaLocations {
@@ -88,15 +88,14 @@ func (w *Workbench) queueSchemaJump(epoch uint64, choice string) {
 // never a MyGo build-scoped Element or Context. Typing is processed first, so a
 // queued navigation cannot act on a newly edited document in the same frame.
 func (w *Workbench) manifestEditorView(c *ui.Context) {
-	editor := ui.TextArea(c.Key("field.editor"), &w.editor).Label("Manifest editor").Grow(1)
-	if editor.Changed() {
-		w.clearFind(false)
-		w.clearSchema()
-		w.stopPreview()
-		w.draftRevision++
-		w.plan = nil
-		w.diff, w.confirmation = "", ""
+	w.syncEditor()
+	if w.manifestBudgetView(c) {
+		return
 	}
+	editor := ui.TextAreaBuffer(c.Key("field.editor"), w.editor).Label("Manifest editor").Grow(1)
+	// Native input may be committed before this frame or while building the
+	// control. Observe both boundaries, not Changed's root-publication flag.
+	w.syncEditor()
 	w.syncFind()
 	w.applyFindJump(editor)
 	jump := w.schemaJump
@@ -104,7 +103,7 @@ func (w *Workbench) manifestEditorView(c *ui.Context) {
 		return
 	}
 	w.schemaJump = nil
-	if jump.schema != w.schemaEpoch || jump.detail != w.detailEpoch || jump.revision != w.draftRevision || jump.connection != w.contextEpoch || jump.pointer != w.schemaPointer || w.operationContext().Err() != nil || !w.schemaSource.Matches(w.editor) {
+	if jump.schema != w.schemaEpoch || jump.detail != w.detailEpoch || jump.revision != w.draftRevision || jump.connection != w.contextEpoch || jump.pointer != w.schemaPointer || w.operationContext().Err() != nil || !w.schemaFresh() {
 		return
 	}
 	if editor.Composing() {
@@ -120,6 +119,7 @@ func (w *Workbench) manifestEditorView(c *ui.Context) {
 }
 
 func (w *Workbench) setSchemaLocations(source *manifest.SourceIndex, locations []schemaLocation) {
+	w.schemaBinding = w.draftIdentity()
 	w.schemaSource, w.schemaLocations = source, locations
 	w.schemaLocationChoices = make([]string, 0, len(locations))
 	for _, location := range locations {

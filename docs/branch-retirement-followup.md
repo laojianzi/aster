@@ -30,3 +30,13 @@ a duplicate migration or dependency implementation. Cleanup is only considered
 complete after the main workflow produces an `applied` receipt and remote refs
 and archive tags have been checked. This document is a recovery record, not that
 receipt. OIDC and enterprise/release scope remain separately tracked in #13.
+
+## Manifest buffer #35 / #36
+
+Recovery found only main `2df9ab75f0a8ceb7b550cf1450846c2ee6466466`, no active PR,
+and completed Find #34. This implementation uses only `feat/native-manifest-buffer`.
+The existing retirement registry authorizes PR #36 after its exact merge and all
+four required main workflows; expected-tip lease, reachability, protection,
+active-PR, recovery bundle and atomic receipt guards remain unchanged. No new
+cleanup workflow or blanket branch deletion was introduced. Dashboard #11 and
+production tracker #13 remain ongoing; close #35 only with the scoped merge.

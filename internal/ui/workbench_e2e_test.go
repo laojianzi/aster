@@ -94,6 +94,7 @@ func TestNativeWorkbenchEditAgainstRealCluster(t *testing.T) {
 	click(cm.Name)
 	pump(func() bool { return w.detail != nil })
 	click("Edit")
+	buffer, snapshot := w.editor, w.editor.Snapshot()
 	click("Manifest editor")
 	next := w.detail.DeepCopy()
 	if err := unstructured.SetNestedField(next.Object, "after", "data", "value"); err != nil {
@@ -105,7 +106,10 @@ func TestNativeWorkbenchEditAgainstRealCluster(t *testing.T) {
 	}
 	tt.Key(ui.Cmd, ui.KeyA)
 	tt.Type(text)
-	if !strings.Contains(w.editor, "after") {
+	if w.editor != buffer || !strings.Contains(snapshot.String(), "before") {
+		t.Fatal("native edit replaced buffer or changed the captured snapshot")
+	}
+	if !strings.Contains(w.editorText(), "after") {
 		t.Fatal("native editor did not receive typed YAML")
 	}
 	click("Preview edit")

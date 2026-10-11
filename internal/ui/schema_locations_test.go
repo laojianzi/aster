@@ -49,10 +49,10 @@ func chooseDiagnostic(h *relationshipHarness, path string) schemaLocation {
 }
 func TestNativeSchemaDiagnosticNavigationPreservesDraftAndHistory(t *testing.T) {
 	h := diagnosticHarness(t)
-	before := h.w.editor
+	before := h.w.editorText()
 	target := chooseDiagnostic(h, "/spec/containers/0/image")
 	h.click("Go to location")
-	if !h.tt.Focused("Manifest editor") || h.w.editor != before || h.w.plan != nil || h.w.schemaJump != nil {
+	if !h.tt.Focused("Manifest editor") || h.w.editorText() != before || h.w.plan != nil || h.w.schemaJump != nil {
 		t.Fatal("navigation changed draft/plan or did not focus exactly once")
 	}
 	if !strings.Contains(h.w.schemaStatus, "L10:C5") {
@@ -66,19 +66,19 @@ func TestNativeSchemaDiagnosticNavigationPreservesDraftAndHistory(t *testing.T) 
 	h.tt.Type("MARK")
 	runes := []rune(before)
 	want := string(runes[:target.position.RuneOffset]) + "MARK" + string(runes[target.position.RuneOffset:])
-	if h.w.editor != want {
+	if h.w.editorText() != want {
 		t.Fatal("caret used byte/UTF16 offsets instead of rune offsets")
 	}
 	if h.w.schemaSource != nil || len(h.w.schemaLocations) != 0 || h.w.schemaJump != nil {
 		t.Fatal("typing kept stale source locations")
 	}
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != before {
+	if h.w.editorText() != before {
 		t.Fatal("navigation broke current-document Undo")
 	}
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != schemaDraft {
-		t.Fatalf("navigation reset editor history: %q", h.w.editor)
+	if h.w.editorText() != schemaDraft {
+		t.Fatalf("navigation reset editor history: %q", h.w.editorText())
 	}
 }
 func TestNativeSchemaMissingFieldNavigatesToLabeledParent(t *testing.T) {
@@ -95,11 +95,11 @@ func TestNativeSchemaMissingFieldNavigatesToLabeledParent(t *testing.T) {
 		t.Fatalf("invented missing field location %+v", p)
 	}
 	h.click("Go to location")
-	if !strings.Contains(h.w.schemaStatus, "not the absent field") || h.w.editor != schemaDraft {
+	if !strings.Contains(h.w.schemaStatus, "not the absent field") || h.w.editorText() != schemaDraft {
 		t.Fatal("parent location not disclosed")
 	}
 	h.tt.Type("MARK")
-	if !strings.Contains(h.w.editor, "- MARKname: app") {
+	if !strings.Contains(h.w.editorText(), "- MARKname: app") {
 		t.Fatal("missing field did not navigate to explicit parent")
 	}
 }
@@ -117,13 +117,13 @@ func TestNativeSchemaQueuedNavigationCannotCrossDraftIdentityOrTab(t *testing.T)
 			case "typing":
 				h.tt.Type("replacement document")
 			case "programmatic-draft":
-				h.w.editor = "different draft"
+				h.w.setEditor("different draft")
 			case "detail":
 				h.w.clearDetail()
 				h.w.detail = relatedPod()
 				h.w.detailKind = catalog()[0]
 				h.w.detailMode = "Edit"
-				h.w.editor = "new resource"
+				h.w.setEditor("new resource")
 			case "connection":
 				h.w.contextEpoch++
 			case "pointer":
@@ -135,9 +135,9 @@ func TestNativeSchemaQueuedNavigationCannotCrossDraftIdentityOrTab(t *testing.T)
 			case "close":
 				h.w.Close()
 			}
-			before := h.w.editor
+			before := h.w.editorText()
 			h.tt.Frame()
-			if h.w.editor != before || h.w.schemaJump != nil || strings.Contains(h.w.schemaStatus, "field start") {
+			if h.w.editorText() != before || h.w.schemaJump != nil || strings.Contains(h.w.schemaStatus, "field start") {
 				t.Fatal("stale navigation crossed a boundary")
 			}
 		})
@@ -147,10 +147,10 @@ func TestNativeSchemaNavigationRespectsCompositionAndIsOneShot(t *testing.T) {
 	h := diagnosticHarness(t)
 	h.click("Manifest editor")
 	h.tt.Compose("未提交", 3)
-	before := h.w.editor
+	before := h.w.editorText()
 	h.w.queueSchemaJump(h.w.schemaEpoch, h.w.schemaLocationChoice)
 	h.tt.Frame()
-	if h.w.editor != before || h.w.schemaJump != nil || !strings.Contains(h.w.schemaStatus, "Finish text composition") {
+	if h.w.editorText() != before || h.w.schemaJump != nil || !strings.Contains(h.w.schemaStatus, "Finish text composition") {
 		t.Fatal("navigation altered active IME composition")
 	}
 	h.tt.Compose("", 0)
@@ -191,10 +191,10 @@ func TestNativeSchemaLocationsUnavailableDoNotBlockReadOnlyHelp(t *testing.T) {
 	h.click("Manifest editor")
 	h.tt.Key(ui.Cmd, ui.KeyA)
 	h.tt.Type("invalid draft [")
-	before := h.w.editor
+	before := h.w.editorText()
 	h.click("Field help")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "Container image reference") || !strings.Contains(h.w.schemaText, "navigation unavailable") || len(h.w.schemaLocations) != 0 || h.w.schemaSource != nil || h.w.editor != before || writes.Load() != 0 {
+	if !strings.Contains(h.w.schemaText, "Container image reference") || !strings.Contains(h.w.schemaText, "navigation unavailable") || len(h.w.schemaLocations) != 0 || h.w.schemaSource != nil || h.w.editorText() != before || writes.Load() != 0 {
 		t.Fatal("unsupported mapping blocked help or guessed a position")
 	}
 }
@@ -211,7 +211,7 @@ func TestNativeSchemaLocationLookupIsEpochBoundAndReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, ls, _ := schemaLocations(context.Background(), schemaDraft, []schemaassist.Diagnostic{{Pointer: "/spec/containers/0/image", Code: "required"}})
-	h.w.editor = schemaDraft
+	h.w.setEditor(schemaDraft)
 	h.w.setSchemaLocations(x, ls)
 	h.w.detail.SetKind("Secret")
 	h.w.queueSchemaJump(h.w.schemaEpoch, h.w.schemaLocationChoice)
@@ -244,7 +244,7 @@ func TestNativeSchemaSourceCoordinatesAcrossJSONAndCRLF(t *testing.T) {
 			defer server.Close()
 			h := schemaHarness(t, server.URL)
 			// A programmatically loaded document, unlike a paste, retains CRLF.
-			h.w.editor = text
+			h.w.setEditor(text)
 			h.tt.Frame()
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
@@ -253,7 +253,7 @@ func TestNativeSchemaSourceCoordinatesAcrossJSONAndCRLF(t *testing.T) {
 			h.tt.Type("MARK")
 			r := []rune(text)
 			want := string(r[:target.position.RuneOffset]) + "MARK" + string(r[target.position.RuneOffset:])
-			if h.w.editor != want {
+			if h.w.editorText() != want {
 				t.Fatal("native source units disagree with index")
 			}
 		})

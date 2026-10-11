@@ -33,7 +33,8 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
 	h.click("Edit")
-	input := "# 中文 🚢 é — local search only\r\n" + strings.ReplaceAll(h.w.editor, "\n", "\r\n")
+	buffer, snapshot := h.w.editor, h.w.editor.Snapshot()
+	input := "# 中文 🚢 é — local search only\r\n" + strings.ReplaceAll(h.w.editorText(), "\n", "\r\n")
 	h.click("Manifest editor")
 	h.tt.Key(ui.Cmd, ui.KeyA)
 	h.tt.Type(input)
@@ -41,14 +42,17 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 	// contract before taking the search baseline; Find itself must not change
 	// either the draft text or its Undo history. Core tests retain raw CRLF.
 	text := strings.ReplaceAll(input, "\r\n", "\n")
-	if h.w.editor != text {
+	if h.w.editor != buffer || snapshot.String() != h.w.detailText {
+		t.Fatal("Find input changed the original immutable snapshot or buffer identity")
+	}
+	if h.w.editorText() != text {
 		t.Fatal("native input did not produce the expected LF-normalized draft")
 	}
 	h.click("Find")
 	h.click("Find text")
 	h.tt.Type(testcluster.Image)
 	findSearch(h)
-	if h.w.find.result.Len() < 1 || !h.tt.Focused("Manifest editor") || h.w.editor != text || h.w.plan != nil {
+	if h.w.find.result.Len() < 1 || !h.tt.Focused("Manifest editor") || h.w.editorText() != text || h.w.plan != nil {
 		t.Fatal("read-only Find did not select a live-image occurrence in the local draft")
 	}
 	positions, err := manifest.IndexSource(h.ctx, []byte(text))
@@ -73,7 +77,7 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 	saveNativeScreenshot(t, h.tt)
 	const replacement = "example.invalid/aster-local-draft:never-executed"
 	h.tt.Type(replacement)
-	obj, err := manifest.Decode([]byte(h.w.editor))
+	obj, err := manifest.Decode([]byte(h.w.editorText()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +86,7 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 		t.Fatal("native selection did not modify only the intended local match")
 	}
 	h.tt.Key(ui.Cmd, ui.KeyZ)
-	if h.w.editor != text {
+	if h.w.editorText() != text {
 		t.Fatal("Find lost same-document Undo")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

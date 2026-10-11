@@ -17,12 +17,14 @@ func (w *Workbench) clearSchema() {
 		w.schemaCancel = nil
 	}
 	w.schemaSource, w.schemaJump = nil, nil
+	w.schemaBinding = draftIdentity{}
 	w.schemaLocations, w.schemaLocationChoices = nil, nil
 	w.schemaLocationChoice = ""
 	w.schemaActive = false
 	w.schemaText, w.schemaStatus = "", ""
 }
 func (w *Workbench) startSchema(check bool) {
+	w.syncEditor()
 	if w.backend == nil || w.detail == nil || w.detailMode != "Edit" || w.detailKind.Kind == "Secret" {
 		return
 	}
@@ -32,15 +34,16 @@ func (w *Workbench) startSchema(check bool) {
 	w.schemaCancel, w.schemaActive = cancel, true
 	w.schemaStatus = "Reading schema with the current identity…"
 	epoch, detail, revision, connection := w.schemaEpoch, w.detailEpoch, w.draftRevision, w.contextEpoch
-	backend, gvk, path, draft := w.backend, w.detailKind.GVR.GroupVersion().WithKind(w.detailKind.Kind), w.schemaPointer, w.editor
+	backend, gvk, path := w.backend, w.detailKind.GVR.GroupVersion().WithKind(w.detailKind.Kind), w.schemaPointer
+	snapshot, binding := w.editor.Snapshot(), w.draftIdentity()
 	w.run(func(context.Context) {
 		defer cancel()
 		output := ""
-		var err error
+		draft, err := manifestSnapshotText(ctx, snapshot)
 		var source *manifest.SourceIndex
 		var locations []schemaLocation
 		var objectData map[string]any
-		if check {
+		if check && err == nil {
 			obj, e := manifest.Decode([]byte(draft))
 			if e != nil || obj == nil || obj.GroupVersionKind() != gvk {
 				err = errors.New("draft is invalid or does not match the selected GVK")
@@ -76,7 +79,8 @@ func (w *Workbench) startSchema(check bool) {
 			err = requestErr
 		}
 		w.emit(func() {
-			if epoch != w.schemaEpoch || detail != w.detailEpoch || revision != w.draftRevision || connection != w.contextEpoch || w.detailMode != "Edit" || parent.Err() != nil || w.editor != draft || w.schemaPointer != path {
+			w.syncEditor()
+			if epoch != w.schemaEpoch || detail != w.detailEpoch || revision != w.draftRevision || connection != w.contextEpoch || w.detailMode != "Edit" || parent.Err() != nil || w.draftIdentity() != binding || w.schemaPointer != path {
 				return
 			}
 			w.schemaCancel, w.schemaActive = nil, false

@@ -58,16 +58,16 @@ type Workbench struct {
 	table, logList          ui.ListState
 	selected                int
 
-	detail                                                            *unstructured.Unstructured
-	detailKind                                                        kube.ResourceKind
-	detailMode, detailText, editor, diff, confirmation, detailMessage string
-	containers                                                        []string
-	container, replicas                                               string
-	plan                                                              *operation.Prepared
-	preparing, creating                                               bool
-	pendingWrites                                                     int
-	eventsText                                                        string
-	eventsRevision                                                    uint64
+	detail                                                    *unstructured.Unstructured
+	detailKind                                                kube.ResourceKind
+	detailMode, detailText, diff, confirmation, detailMessage string
+	containers                                                []string
+	container, replicas                                       string
+	plan                                                      *operation.Prepared
+	preparing, creating                                       bool
+	pendingWrites                                             int
+	eventsText                                                string
+	eventsRevision                                            uint64
 
 	logEpoch   uint64
 	logRows    []string
@@ -124,6 +124,14 @@ type Workbench struct {
 	schemaLocationChoice  string
 	schemaJump            *schemaJump
 	find                  manifestFind
+
+	editor         *ui.TextBuffer
+	editorObserved ui.TextSnapshot
+	editorLastSafe ui.TextSnapshot
+	editorHasSafe  bool
+	editorIdentity uint64
+	schemaBinding  draftIdentity
+	planBinding    draftIdentity
 
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
@@ -261,6 +269,9 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.editor = nil
+	w.editorObserved, w.editorLastSafe = ui.TextSnapshot{}, ui.TextSnapshot{}
+	w.editorHasSafe = false
 	w.clearFind(true)
 	w.clearSchema()
 	w.clearOIDCRenewal()

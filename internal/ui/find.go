@@ -13,7 +13,8 @@ import (
 type findBinding struct {
 	connection, detail, revision uint64
 	session                      string
-	source, query                [32]byte
+	draft                        draftIdentity
+	query                        [32]byte
 }
 type findJump struct {
 	epoch    uint64
@@ -39,10 +40,11 @@ func (w *Workbench) findEligible() bool {
 		w.operationContext().Err() == nil
 }
 func (w *Workbench) findBinding() (findBinding, bool) {
-	if !w.findEligible() || len(w.editor) > manifest.MaxBytes || len(w.find.query) > manifest.MaxFindQueryBytes {
+	w.syncEditor()
+	if !w.findEligible() || w.editor.ByteLen() > manifest.MaxBytes || len(w.find.query) > manifest.MaxFindQueryBytes {
 		return findBinding{}, false
 	}
-	return findBinding{w.contextEpoch, w.detailEpoch, w.draftRevision, w.sessionID, sha256.Sum256([]byte(w.editor)), sha256.Sum256([]byte(w.find.query))}, true
+	return findBinding{w.contextEpoch, w.detailEpoch, w.draftRevision, w.sessionID, w.draftIdentity(), sha256.Sum256([]byte(w.find.query))}, true
 }
 func (w *Workbench) findFresh() bool {
 	binding, ok := w.findBinding()
@@ -112,9 +114,13 @@ func (w *Workbench) startFind() {
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	w.find.cancel, w.find.active, w.find.busy = cancel, true, true
 	w.find.status = "Searching local draft…"
-	epoch, source, query := w.find.epoch, w.editor, w.find.query
+	epoch, snapshot, query := w.find.epoch, w.editor.Snapshot(), w.find.query
 	w.run(func(context.Context) {
-		result, err := manifest.FindLiteral(ctx, source, query)
+		source, err := manifestSnapshotText(ctx, snapshot)
+		var result *manifest.FindResult
+		if err == nil {
+			result, err = manifest.FindLiteral(ctx, source, query)
+		}
 		requestErr := ctx.Err()
 		cancel()
 		w.emit(func() {
