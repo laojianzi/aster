@@ -97,6 +97,40 @@ class RetirementTests(unittest.TestCase):
         refs[branch]['protected'] = False; refs[branch]['commit']['sha'] = 'e'*40
         with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
 
+    def test_signout_retirement_requires_its_own_completed_reachable_inactive_merge(self):
+        number, branch = 38, APPROVED[38]
+        self.assertEqual(branch, 'feat/native-oidc-signout')
+        p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
+        refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
+        self.assertEqual(select_scope([p], self.head), number)
+        self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
+        self.assertIsNone(candidate(p, self.head, {}, [], lambda _: True, number=number, branch=branch))
+        for mode in ('open', 'unmerged', 'other-merge', 'wrong-branch', 'moved', 'protected', 'active', 'unreachable', 'other-scope'):
+            with self.subTest(mode=mode):
+                pr, branches = copy.deepcopy(p), copy.deepcopy(refs)
+                if mode == 'open': pr['state'] = 'open'
+                if mode == 'unmerged': pr['merged'] = False
+                if mode == 'other-merge': pr['merge_commit_sha'] = 'e'*40
+                if mode == 'wrong-branch': pr['head']['ref'] = APPROVED[28]
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'e'*40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    candidate(pr, self.head, branches, [p] if mode == 'active' else [],
+                              lambda _: mode != 'unreachable',
+                              number=28 if mode == 'other-scope' else number, branch=branch)
+
+    def test_mygo_patch_retirement_never_deletes_an_active_or_moved_group(self):
+        number, branch = 39, APPROVED[39]
+        p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
+        refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
+        self.assertEqual(select_scope([p], self.head), number)
+        self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=33, branch=branch)
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [p], lambda _: True, number=number, branch=branch)
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: False, number=number, branch=branch)
+        refs[branch]['commit']['sha'] = 'f'*40
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
+
     def test_unregistered_open_old_or_ambiguous_merges_do_not_select(self):
         self.assertIsNone(select_scope([],self.head))
         self.assertEqual(select_scope([self.pr],self.head),25)

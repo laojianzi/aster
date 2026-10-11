@@ -50,7 +50,7 @@ func TestNativeOIDCSignOutReviewTeardownAndMinimumWindow(t *testing.T) {
 	}
 	h.tt.SetSize(1100, 700)
 	h.tt.Frame()
-	for _, label := range []string{"OIDC sign-out identity", "OIDC sign-out endpoint", "OIDC sign-out boundary", "Confirm issuer sign-out context", "Disconnect and open issuer sign-out"} {
+	for _, label := range []string{"OIDC sign-out issuer", "OIDC sign-out identity", "OIDC sign-out endpoint", "OIDC sign-out boundary", "Confirm issuer sign-out context", "Disconnect and open issuer sign-out"} {
 		b, ok := h.tt.Find(label)
 		if !ok || b.H < 8 || b.X < 0 || b.Y < 0 || b.X+b.W > 1100 || b.Y+b.H > 700 {
 			t.Fatal("sign-out clipped", label, b)
@@ -80,6 +80,80 @@ func TestNativeOIDCSignOutReviewTeardownAndMinimumWindow(t *testing.T) {
 	after, _ := os.ReadFile(h.w.path)
 	if string(before) != string(after) {
 		t.Fatal("sign-out rewrote profile")
+	}
+}
+func TestNativeOIDCSignOutOriginalIssuerWithoutRenewal(t *testing.T) {
+	for _, which := range []string{"not-opted-in", "forgotten"} {
+		t.Run(which, func(t *testing.T) {
+			p := testoidc.New(t)
+			p.EditDiscovery = func(d map[string]any) { d["end_session_endpoint"] = p.Server.URL + "/logout" }
+			cfg, _ := renewalAPIServer(t)
+			h := newRelationshipHarness(t, 15*time.Second)
+			if which == "forgotten" {
+				loginRenewable(t, h, p, cfg)
+			} else {
+				// The provider refuses offline_access unless explicitly allowed;
+				// this ordinary browser login must succeed without requesting it.
+				setupOIDC(t, h, p, cfg)
+				h.click("Confirm OIDC context")
+				h.tt.Type("vault-test")
+				h.click("Sign in with browser")
+				h.pump(func() bool { return !h.w.oidcPending })
+				if h.w.oidcIdentity == nil || h.w.oidcAllowRenewal {
+					t.Fatal("ordinary login failed or opted in to renewal", h.w.oidcStatus)
+				}
+				h.click("Confirm OIDC context")
+				h.tt.Type("vault-test")
+				h.click("Connect verified identity")
+				h.pump(func() bool { return h.w.status == "Live" })
+			}
+			capability, lease := h.w.oidcSignOut, h.w.connectionCtx
+			if capability == nil {
+				t.Fatal("sign-out capability missing without renewal")
+			}
+			h.click("Browser sign-in")
+			if which == "forgotten" {
+				h.click("Confirm issuer sign-out context")
+				h.tt.Type("vault-test")
+				h.click("Forget renewal")
+				if h.w.oidcSignOut != capability || h.w.oidcSignOutConfirmation != "" || lease.Err() != nil {
+					t.Fatal("forgetting renewal removed sign-out, retained confirmation or disconnected")
+				}
+			}
+			if h.w.oidcRenewal != nil || h.w.oidcIdentity != nil {
+				t.Fatal("renewal remains in a non-renewing connection")
+			}
+			// The sign-out review must not depend on renewal metadata or the
+			// issuer field used for a later login.
+			h.w.oidcIssuer = "https://unreviewed.invalid"
+			h.tt.SetSize(1100, 700)
+			h.tt.Frame()
+			if !h.tt.HasText("Original issuer: "+p.Server.URL) || h.tt.HasText("Original issuer: "+h.w.oidcIssuer) {
+				t.Fatal("sign-out review omitted or replaced its original issuer")
+			}
+			for _, label := range []string{"OIDC sign-out issuer", "OIDC sign-out identity", "OIDC sign-out endpoint", "OIDC sign-out boundary", "Confirm issuer sign-out context", "Disconnect and open issuer sign-out"} {
+				b, ok := h.tt.Find(label)
+				if !ok || b.H < 8 || b.X < 0 || b.Y < 0 || b.X+b.W > 1100 || b.Y+b.H > 700 {
+					t.Fatal("sign-out without renewal clipped", label, b)
+				}
+			}
+			h.click("Renew identity once")
+			h.click("Disconnect and open issuer sign-out")
+			if lease.Err() != nil || len(h.tt.OpenedURLs()) != 0 {
+				t.Fatal("sign-out no longer requires fresh exact-context confirmation")
+			}
+			saveNativeScreenshot(t, h.tt)
+			h.click("Confirm issuer sign-out context")
+			h.tt.Type("vault-test")
+			h.click("Disconnect and open issuer sign-out")
+			urls := h.tt.OpenedURLs()
+			if lease.Err() == nil || h.w.backend != nil || h.w.oidcSignOut != nil || len(urls) != 1 || urls[0] != p.Server.URL+"/logout?client_id=aster-test" || !strings.Contains(h.w.oidcStatus, "NOT verified") {
+				t.Fatal("non-renewing connection did not perform its reviewed sign-out")
+			}
+			if p.RefreshRequests.Load() != 0 || p.TokenRequests.Load() != 1 {
+				t.Fatal("sign-out requested implicit renewal or repeated login")
+			}
+		})
 	}
 }
 func TestNativeOIDCSignOutFailureIsRedactedAndNeverReplayed(t *testing.T) {

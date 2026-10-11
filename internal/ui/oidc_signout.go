@@ -23,6 +23,9 @@ func (w *Workbench) oidcSignOutView(c *ui.Context) {
 	}
 	info, epoch, reviewEpoch, services := capability.Info(), w.contextEpoch, w.oidcEpoch, c.Services()
 	ui.Text(c, "Issuer sign-out · separate from local Disconnect").FontSize(16).Bold()
+	ui.Row(c).Label("OIDC sign-out issuer").Children(func() {
+		ui.Text(c, "Original issuer: "+info.Issuer).FontSize(12).SingleLine().Grow(1)
+	})
 	ui.Text(c, fmt.Sprintf("Workspace context: %s · Aster subject: %q", info.Context, info.Subject)).Label("OIDC sign-out identity").FontSize(12).SingleLine()
 	ui.Text(c, "Browser destination: "+info.Endpoint).Label("OIDC sign-out endpoint").FontSize(12).SingleLine()
 	ui.Text(c, "This closes this workspace first. Confirm the browser's current account at the issuer; it may differ or be shared by other apps.").FontSize(12)

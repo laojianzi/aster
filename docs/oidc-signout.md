@@ -5,7 +5,9 @@ Scope #37: explicit RP-Initiated Logout handoff, not RFC7009 revocation or autom
 ## User workflow
 
 After connecting with browser OIDC, reopen **Browser sign-in**. An optional sign-out
-section shows the original issuer endpoint and Aster workspace context/subject.
+section shows the original issuer separately from its sign-out endpoint and the
+Aster workspace context/subject. The issuer stays visible when renewal was never
+enabled or has been explicitly forgotten; sign-out does not require offline access.
 The browser's currently signed-in account may differ and its session may serve
 other applications. Review that warning, type the exact active context, then choose
 **Disconnect and open issuer sign-out**. Aster synchronously closes this workspace,
