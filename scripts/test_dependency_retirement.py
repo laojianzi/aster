@@ -3,9 +3,11 @@ import unittest
 
 class DependencyRetirementTests(unittest.TestCase):
     def test_dependency_retirement_needs_fifth_exact_main_gate(self):
-        from retire_completed_oidc import APPROVED, REQUIRED, workflows_pass
+        from retire_completed_oidc import APPROVED, REQUIRED, DEPENDENCY_SCOPES, workflows_pass
         self.assertEqual(APPROVED[31], 'fix/dependency-dashboard-mygo')
         self.assertEqual(APPROVED[33], 'renovate/mygo-native-framework')
+        self.assertEqual(APPROVED[39], 'renovate/mygo-native-framework')
+        self.assertEqual(set(DEPENDENCY_SCOPES), {31, 33, 39})
         head = 'a' * 40
         runs = [dict(name=n,id=i,event='push',head_branch='main',head_sha=head,
                      status='completed',conclusion='success') for i,n in enumerate(REQUIRED)]

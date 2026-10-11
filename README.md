@@ -48,7 +48,7 @@ This does not edit a resource or replace server-side preview. See
 
 ## Development
 
-The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.1**, and Kubernetes Go libraries
+The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.2**, and Kubernetes Go libraries
 **v0.37.1**. Install the toolchain in `go.mod`, Python 3 and Git, then:
 
 ```sh
