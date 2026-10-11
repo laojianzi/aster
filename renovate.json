@@ -1,22 +1,60 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
   "automerge": false,
   "dependencyDashboardApproval": true,
   "prConcurrentLimit": 2,
   "prHourlyLimit": 1,
   "packageRules": [
     {
-      "description": "MyGo upgrades require updating and reviewing the hash-pinned terminal adaptation, library manifest, and OS evidence together. They are manual until this coupling is automated.",
-      "matchManagers": ["gomod"],
-      "matchPackageNames": ["github.com/egoist/mygo"],
-      "enabled": false
+      "description": "Track MyGo without bypassing the coupled native-source and provenance gates.",
+      "matchManagers": [
+        "gomod",
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "github.com/egoist/mygo"
+      ],
+      "groupName": "mygo native framework",
+      "groupSlug": "mygo-native-framework",
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "prBodyNotes": [
+        "MyGo requires joint review of go.mod/go.sum, third_party/native-terminal/UPSTREAM.json, terminal source hashes, the hardening patch and all OS/library evidence. Version extraction does not approve or regenerate trust hashes. See docs/dependency-updates.md."
+      ]
     },
     {
       "description": "Keep the Kubernetes API, clients, and streaming protocol modules on one reviewed version series.",
-      "matchManagers": ["gomod"],
-      "matchPackageNames": ["k8s.io/api", "k8s.io/apimachinery", "k8s.io/client-go", "k8s.io/streaming"],
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "k8s.io/api",
+        "k8s.io/apimachinery",
+        "k8s.io/client-go",
+        "k8s.io/streaming"
+      ],
       "groupName": "kubernetes client and streaming"
+    }
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardAutoclose": false,
+  "dependencyDashboardHeader": "Dependency updates require review and exact-head CI. MyGo module and native source versions are grouped; source hashes, terminal patches and libraries still require manual provenance review. An empty queue is not a vulnerability or release certificate.",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^third_party\\/native-terminal\\/UPSTREAM\\.json$/"
+      ],
+      "matchStrings": [
+        "\"module\"\\s*:\\s*\"github\\.com/egoist/mygo\"\\s*,\\s*\"version\"\\s*:\\s*\"(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\""
+      ],
+      "depNameTemplate": "github.com/egoist/mygo",
+      "datasourceTemplate": "go",
+      "versioningTemplate": "go"
     }
   ]
 }

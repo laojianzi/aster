@@ -1,10 +1,10 @@
 name: Renovate configuration
 on:
   pull_request:
-    paths: [renovate.json, .github/workflows/renovate-config.yml]
+    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, third_party/native-terminal/UPSTREAM.json, go.mod]
   push:
     branches: [main]
-    paths: [renovate.json, .github/workflows/renovate-config.yml]
+    paths: [renovate.json, .github/workflows/renovate-config.yml, scripts/check_dependency_extraction.py, scripts/test_dependency_dashboard.py, third_party/native-terminal/UPSTREAM.json, go.mod]
 permissions:
   contents: read
 jobs:
@@ -28,6 +28,19 @@ jobs:
           node --version >> artifacts/environment.txt
           npm --version >> artifacts/environment.txt
           npx --yes --package=renovate@44.148.3 renovate-config-validator --strict renovate.json 2>&1 | tee artifacts/renovate-validation.log
+      - name: Dashboard contract regressions
+        run: python -m unittest discover -s scripts -p 'test_dependency_dashboard.py'
+      - name: Real Renovate extraction without repository writes
+        shell: bash
+        env:
+          LOG_LEVEL: debug
+          LOG_FILE_LEVEL: trace
+          LOG_FILE: artifacts/renovate-extraction.jsonl
+        run: |
+          set -euo pipefail
+          npx --yes --package=renovate@44.148.3 renovate --platform=local --dry-run=extract > artifacts/renovate-extraction-console.txt 2>&1
+          python scripts/check_dependency_extraction.py artifacts/renovate-extraction.jsonl > artifacts/dependency-extraction-summary.json
+          git diff --exit-code
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
