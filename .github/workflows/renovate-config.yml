@@ -33,8 +33,8 @@ jobs:
       - name: Real Renovate extraction without repository writes
         shell: bash
         env:
-          LOG_LEVEL: debug
-          LOG_FILE_LEVEL: trace
+          LOG_LEVEL: info
+          LOG_FILE_LEVEL: info
           LOG_FILE: artifacts/renovate-extraction.jsonl
         run: |
           set -euo pipefail
