@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -122,5 +123,51 @@ func TestTerminalResizeIsBounded(t *testing.T) {
 	c, r := term.Size()
 	if c != 400 || r != 200 {
 		t.Fatal(c, r)
+	}
+}
+
+// The 0.4 framework added OpenLink and paste/key hooks. Test the actual native
+// surface, not only direct Terminal methods, so moved input dispatch cannot
+// accidentally restore local launches or bypass the input budget.
+func TestTerminalNativeRemoteLinksCannotLaunchLocalApplications(t *testing.T) {
+	term, _ := testTerm(t)
+	tt := ui.NewTester(func(c *ui.Context) { View(c, term).Fill() }, 800, 500)
+	tt.Frame()
+	term.Feed([]byte("https://example.invalid/remote\r\n\x1b]8;;file:///etc/passwd\aOPEN-REMOTE\x1b]8;;\a\r\n/etc/passwd\r\n"))
+	tt.Frame()
+	if !strings.Contains(term.Text(), "OPEN-REMOTE") {
+		t.Fatal("remote link was not rendered")
+	}
+	// Cover all glyphs on these lines for both the platform command modifier and
+	// Ctrl. Renderer-specific glyph geometry must not make a single missed click
+	// look like a security success.
+	for _, mods := range []ui.Modifiers{ui.Cmd, ui.Ctrl} {
+		for y := float32(2); y < 84; y += 6 {
+			for x := float32(2); x < 420; x += 6 {
+				tt.ClickAtWith(mods, x, y)
+			}
+		}
+	}
+	if len(tt.OpenedURLs()) != 0 {
+		t.Fatal("remote terminal content opened a local URL")
+	}
+}
+func TestTerminalNativePasteCannotBypassInputBudget(t *testing.T) {
+	term, _ := testTerm(t)
+	tt := ui.NewTester(func(c *ui.Context) { View(c, term).Fill() }, 800, 500)
+	if err := tt.Click("Remote terminal screen"); err != nil {
+		t.Fatal(err)
+	}
+	tt.SetClipboard(strings.Repeat("x", (16<<10)+1))
+	mods := ui.Ctrl | ui.Shift
+	if runtime.GOOS == "darwin" {
+		mods = ui.Super
+	}
+	tt.Key(mods, ui.KeyV)
+	until(t, func() bool { return errors.Is(term.InputError(), ErrInputLimit) })
+	select {
+	case <-term.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("oversized native paste did not disconnect")
 	}
 }

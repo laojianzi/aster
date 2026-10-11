@@ -16,7 +16,7 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo'}
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo', 33: 'renovate/mygo-native-framework'}
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ('CI', 'Source evidence', 'Native migration verification', 'OIDC qualification')
@@ -109,7 +109,7 @@ def run(report):
         report['status'] = 'already-recorded'
         return
     runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
-    if not workflows_pass(runs, head, extra=('Renovate configuration',) if number == 31 else ()):
+    if not workflows_pass(runs, head, extra=('Renovate configuration',) if number in (31, 33) else ()):
         report['status'] = 'waiting-for-verification'
         return
     def preflight():

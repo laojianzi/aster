@@ -5,6 +5,7 @@ class DependencyRetirementTests(unittest.TestCase):
     def test_dependency_retirement_needs_fifth_exact_main_gate(self):
         from retire_completed_oidc import APPROVED, REQUIRED, workflows_pass
         self.assertEqual(APPROVED[31], 'fix/dependency-dashboard-mygo')
+        self.assertEqual(APPROVED[33], 'renovate/mygo-native-framework')
         head = 'a' * 40
         runs = [dict(name=n,id=i,event='push',head_branch='main',head_sha=head,
                      status='completed',conclusion='success') for i,n in enumerate(REQUIRED)]
