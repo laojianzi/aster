@@ -32,6 +32,7 @@ func TestNativeSchemaAssistanceAgainstRealCluster(t *testing.T) {
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
 	h.click("Edit")
+	buffer, snapshot := h.w.editor, h.w.editor.Snapshot()
 	h.click("Schema field pointer")
 	h.tt.Key(ui.Cmd, ui.KeyA)
 	h.tt.Type("/spec/containers/0/image")
@@ -40,7 +41,7 @@ func TestNativeSchemaAssistanceAgainstRealCluster(t *testing.T) {
 	if !strings.Contains(h.w.schemaText, "type string") {
 		t.Fatalf("%s", h.w.schemaStatus)
 	}
-	obj, err := manifest.Decode([]byte(h.w.editor))
+	obj, err := manifest.Decode([]byte(h.w.editorText()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +57,10 @@ func TestNativeSchemaAssistanceAgainstRealCluster(t *testing.T) {
 	h.tt.Type(text)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · type") || h.w.editor != text || h.w.plan != nil {
+	if h.w.editor != buffer || snapshot.String() != h.w.detailText {
+		t.Fatal("schema processing replaced buffer or modified original snapshot")
+	}
+	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · type") || h.w.editorText() != text || h.w.plan != nil {
 		t.Fatalf("%s %s", h.w.schemaStatus, h.w.schemaText)
 	}
 	saveNativeScreenshot(t, h.tt)
@@ -88,7 +92,7 @@ func TestNativeSchemaDiagnosticNavigationAgainstRealCluster(t *testing.T) {
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
 	h.click("Edit")
-	obj, err := manifest.Decode([]byte(h.w.editor))
+	obj, err := manifest.Decode([]byte(h.w.editorText()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,13 +119,13 @@ func TestNativeSchemaDiagnosticNavigationAgainstRealCluster(t *testing.T) {
 		t.Fatal("explicit image key has no exact source location")
 	}
 	h.click("Go to location")
-	if h.w.editor != text || h.w.plan != nil || !h.tt.Focused("Manifest editor") {
+	if h.w.editorText() != text || h.w.plan != nil || !h.tt.Focused("Manifest editor") {
 		t.Fatal("navigation modified the draft or plan")
 	}
 	saveNativeScreenshot(t, h.tt)
 	h.tt.Key(ui.Shift, ui.KeyEnd)
 	h.tt.Type("image: " + testcluster.Image)
-	corrected, err := manifest.Decode([]byte(h.w.editor))
+	corrected, err := manifest.Decode([]byte(h.w.editorText()))
 	if err != nil {
 		t.Fatal(err)
 	}

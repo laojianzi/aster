@@ -16,7 +16,7 @@ func TestNativeEditorUndoCannotCrossResourceIdentity(t *testing.T) {
 	w := New()
 	defer w.Close()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid-a", "pod-a"), catalog()[0], "Edit"
-	w.editor = "original-resource-a"
+	w.setEditor("original-resource-a")
 	tt := ui.NewTester(w.View, 1440, 1000)
 	if err := tt.Click("Manifest editor"); err != nil {
 		t.Fatal(err)
@@ -27,14 +27,14 @@ func TestNativeEditorUndoCannotCrossResourceIdentity(t *testing.T) {
 	// its selection, composition, or history into a new detail identity.
 	w.clearDetail()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid-b", "pod-b"), catalog()[0], "Edit"
-	w.editor = "original-resource-b"
+	w.setEditor("original-resource-b")
 	tt.Frame()
 	if err := tt.Click("Manifest editor"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Key(ui.Cmd, ui.KeyZ)
-	if w.editor != "original-resource-b" {
-		t.Fatalf("Undo crossed resource identity: %q", w.editor)
+	if w.editorText() != "original-resource-b" {
+		t.Fatalf("Undo crossed resource identity: %q", w.editorText())
 	}
 }
 
@@ -67,7 +67,7 @@ func TestNativeMigrationTextFieldsDoNotShareHistory(t *testing.T) {
 	w := New()
 	defer w.Close()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid", "pod"), catalog()[0], "Edit"
-	w.editor = "original-manifest"
+	w.setEditor("original-manifest")
 	tt := ui.NewTester(w.View, 1440, 1000)
 	if err := tt.Click("Manifest editor"); err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func TestNativeMigrationReadOnlyRejectsTypingAndUndo(t *testing.T) {
 	w := New()
 	defer w.Close()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid", "pod"), catalog()[0], "Edit"
-	w.editor = "original-manifest"
+	w.setEditor("original-manifest")
 	w.detailText = "read-only-live-document"
 	tt := ui.NewTester(w.View, 1440, 1000)
 	if err := tt.Click("Manifest editor"); err != nil {
@@ -125,7 +125,7 @@ func TestNativeMigrationReadOnlyRejectsTypingAndUndo(t *testing.T) {
 	tt.SetClipboard("must-not-paste")
 	tt.Key(ui.Cmd, ui.KeyV)
 	tt.Key(ui.Cmd, ui.KeyZ)
-	if w.detailText != "read-only-live-document" || w.editor != "edited-manifest" {
+	if w.detailText != "read-only-live-document" || w.editorText() != "edited-manifest" {
 		t.Fatal("read-only input changed document/model")
 	}
 }
@@ -161,7 +161,7 @@ func TestNativeMigrationResourceSwitchDropsComposition(t *testing.T) {
 	w := New()
 	defer w.Close()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid-a", "same-name"), catalog()[0], "Edit"
-	w.editor = "resource-a"
+	w.setEditor("resource-a")
 	tt := ui.NewTester(w.View, 1440, 1000)
 	if err := tt.Click("Manifest editor"); err != nil {
 		t.Fatal(err)
@@ -169,13 +169,13 @@ func TestNativeMigrationResourceSwitchDropsComposition(t *testing.T) {
 	tt.Compose("未提交输入", 3)
 	w.clearDetail()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid-b", "same-name"), catalog()[0], "Edit"
-	w.editor = "resource-b"
+	w.setEditor("resource-b")
 	tt.Frame()
 	if tt.Focused("Manifest editor") {
 		t.Fatal("focus crossed the replaced resource UID")
 	}
 	tt.Key(0, ui.KeyEnter)
-	if w.editor != "resource-b" {
+	if w.editorText() != "resource-b" {
 		t.Fatal("old composition committed to new resource")
 	}
 }
@@ -234,7 +234,7 @@ func TestNativeMigrationTransientMessagePreservesEditorHistory(t *testing.T) {
 	w := New()
 	defer w.Close()
 	w.detail, w.detailKind, w.detailMode = modelObject("uid", "pod"), catalog()[0], "Edit"
-	w.editor = "before"
+	w.setEditor("before")
 	tt := ui.NewTester(w.View, 1440, 1000)
 	if err := tt.Click("Manifest editor"); err != nil {
 		t.Fatal(err)
@@ -247,8 +247,8 @@ func TestNativeMigrationTransientMessagePreservesEditorHistory(t *testing.T) {
 		t.Fatal("status insertion lost stable field focus")
 	}
 	tt.Key(ui.Cmd, ui.KeyZ)
-	if w.editor != "before" {
-		t.Fatalf("status insertion broke history: %q", w.editor)
+	if w.editorText() != "before" {
+		t.Fatalf("status insertion broke history: %q", w.editorText())
 	}
 	saveNativeScreenshot(t, tt)
 }
@@ -286,7 +286,7 @@ func TestNativeMigrationConstructorsAreKeyed(t *testing.T) {
 				return true
 			}
 			switch sel.Sel.Name {
-			case "TextInput", "TextArea", "Select", "Checkbox", "Table", "List":
+			case "TextInput", "TextArea", "TextInputBuffer", "TextAreaBuffer", "Select", "Checkbox", "Table", "List":
 			default:
 				return true
 			}

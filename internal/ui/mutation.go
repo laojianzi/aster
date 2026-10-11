@@ -22,6 +22,7 @@ func (w *Workbench) stopPreview() {
 }
 
 func (w *Workbench) prepare(kind string) {
+	w.syncEditor()
 	if w.detail == nil || w.ops == nil || w.preparing {
 		return
 	}
@@ -30,7 +31,17 @@ func (w *Workbench) prepare(kind string) {
 		return
 	}
 	epoch, revision := w.detailEpoch, w.draftRevision
-	target, service, text, replicas := w.target(), w.ops, []byte(w.editor), w.replicas
+	binding := w.draftIdentity()
+	target, service, replicas := w.target(), w.ops, w.replicas
+	var text []byte
+	if kind == "edit" || kind == "create" {
+		draft, err := manifestSnapshotText(w.operationContext(), w.editor.Snapshot())
+		if err != nil {
+			w.detailMessage = err.Error()
+			return
+		}
+		text = []byte(draft)
+	}
 	if kind == "apply" {
 		text = []byte(w.applyDraft)
 	}
@@ -93,12 +104,13 @@ func (w *Workbench) prepare(kind string) {
 			}
 		}
 		w.emit(func() {
+			w.syncEditor()
 			if epoch != w.detailEpoch || previewEpoch != w.previewEpoch {
 				return
 			}
 			w.preparing = false
 			w.previewCancel = nil
-			if revision != w.draftRevision {
+			if revision != w.draftRevision || w.draftIdentity() != binding {
 				w.detailMessage = "Draft changed; prepare a new preview."
 				return
 			}
@@ -106,13 +118,20 @@ func (w *Workbench) prepare(kind string) {
 				w.detailMessage = err.Error()
 				return
 			}
+			w.planBinding = binding
 			w.plan, w.diff, w.detailMode = plan, diff, "Diff"
 			w.detailMessage = "Review " + kind + " for " + target.Namespace + "/" + target.Name + " · expires " + plan.Expires().Local().Format("15:04:05")
 		})
 	})
 }
 func (w *Workbench) execute() {
+	w.syncEditor()
 	if w.plan == nil || w.ops == nil || w.pendingWrites > 0 {
+		return
+	}
+	if w.planBinding != w.draftIdentity() {
+		w.plan, w.confirmation, w.diff = nil, "", ""
+		w.detailMessage = "Draft identity changed; prepare a new preview."
 		return
 	}
 	plan, service, epoch, contextName := w.plan, w.ops, w.detailEpoch, w.activeContext
@@ -143,7 +162,8 @@ func (w *Workbench) execute() {
 					w.creating, w.detail = false, result.Object.DeepCopy()
 					w.applyDraft, w.ownersText, w.applyAcknowledged = "", "", false
 					if text, displayErr := manifest.Display(w.detail, false); displayErr == nil {
-						w.detailText, w.editor = text, text
+						w.setEditor(text)
+						w.detailText = text
 					}
 					w.detailMode = "YAML"
 					w.startHealthTracking(result.Object, plan.ID())

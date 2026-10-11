@@ -7,6 +7,7 @@ import (
 )
 
 func (w *Workbench) View(c *ui.Context) {
+	w.syncEditor()
 	w.syncFind()
 	w.frames++
 	t := c.Theme()

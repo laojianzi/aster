@@ -24,13 +24,13 @@ func TestNativeNewWorkspaceDoesNotCopyIdentityOrPreparedState(t *testing.T) {
 	h.w.path = "first-config"
 	h.w.currentContext = "production"
 	h.w.trustedFingerprint = "approved-first"
-	h.w.editor = "private draft"
+	h.w.setEditor("private draft")
 	h.w.sessionID = "first-session"
 	var child *Workbench
 	h.w.newWorkspace = func() error { child = New(); return nil }
 	h.tt.Frame()
 	h.click("New workspace")
-	if child == nil || child.path != "" || child.backend != nil || child.ops != nil || child.plan != nil || child.sessionID != "" || child.editor != "" || child.trustedFingerprint != "" || child.currentContext != "" {
+	if child == nil || child.path != "" || child.backend != nil || child.ops != nil || child.plan != nil || child.sessionID != "" || child.editorText() != "" || child.trustedFingerprint != "" || child.currentContext != "" {
 		t.Fatal("new workspace inherited privileged state")
 	}
 	h.w.newWorkspace = func() error { return workspace.ErrLimit }
