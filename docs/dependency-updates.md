@@ -1,8 +1,17 @@
 # Dependency Dashboard operations
 
-Issue #11 is an ongoing Renovate dashboard, not an unresolved application error.
-Keep it open even when its queue is empty. Check actual refs/PRs before approval;
-continue an existing update branch instead of opening a manual duplicate.
+Dependency Dashboard is a recurring Renovate control surface, not an unresolved
+application error. Enable `dependencyDashboardAutoclose`: let Renovate close it
+when no actionable updates remain and ensure a dashboard when new work appears.
+The next dashboard need not reuse Issue #11's number. Do not disable monitoring,
+remove pending approvals, or close failed update PRs merely to empty the queue.
+Check actual refs/PRs before approval; continue an existing update branch instead
+of opening a manual duplicate.
+
+This lifecycle-only change retains `dependencyDashboardApproval: true` and
+`automerge: false` globally and for MyGo. It does not switch presets, introduce
+selective approval or automatically merge dependencies. Those are separate policy
+reviews, not incidental effects of autoclose.
 
 ## MyGo tracking and trust
 
@@ -34,7 +43,26 @@ live hosted-bot lookup, security scan, or full future-update compatibility proof
 
 Hosted Renovate owns #11's body. After merging config, request its next scan via
 the existing manual checkbox and inspect the resulting Detected Dependencies.
+Inspect the hosted issue's state and closing actor after a successful scan.
 Do not replace the bot body with a handwritten all-clear or close it to hide work.
+Only having zero open PRs is insufficient: uncreated approvals, failed, blocked,
+rate-limited and scheduled updates are still work. Upstream also retains a
+dashboard for deprecated dependencies or replacements without update branches.
+
+The lifecycle suite executes the **unmodified, Git-blob-verified dashboard writer
+and checkbox reader from Renovate 44.148.3**, transpiled with Node's built-in
+TypeScript stripper. Its platform and unrelated formatting/advisory dependencies
+are memory-only test doubles. It verifies close requests on an empty queue;
+ensure-issue requests and unchecked approval controls for future/pending work;
+error, schedule, rate-limit, blocked and open-PR visibility; completed work,
+deprecations/replacements, checked approval parsing and dry-run behavior.
+This is an upstream-component contract test, NOT a live GitHub/hosted Renovate
+E2E, vulnerability scan or proof of reopening the same issue number. Hosted
+closure must be observed separately after merge. An updated upstream source hash
+must be reviewed rather than automatically refreshed to get tests passing.
+
+Official behavior: https://docs.renovatebot.com/configuration-options/#dependencydashboardautoclose
+and https://docs.renovatebot.com/key-concepts/dashboard/.
 
 Other hash-pinned test images, the native library and build tools remain reviewed
 build inputs; absence from the dashboard does not imply there are no newer or
