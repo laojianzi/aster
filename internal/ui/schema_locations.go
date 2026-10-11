@@ -77,6 +77,7 @@ func (w *Workbench) queueSchemaJump(epoch uint64, choice string) {
 	}
 	for _, target := range w.schemaLocations {
 		if target.label == choice {
+			w.find.jump = nil
 			w.schemaJump = &schemaJump{position: target.position, schema: epoch, detail: w.detailEpoch, revision: w.draftRevision, connection: w.contextEpoch, pointer: w.schemaPointer}
 			return
 		}
@@ -89,12 +90,15 @@ func (w *Workbench) queueSchemaJump(epoch uint64, choice string) {
 func (w *Workbench) manifestEditorView(c *ui.Context) {
 	editor := ui.TextArea(c.Key("field.editor"), &w.editor).Label("Manifest editor").Grow(1)
 	if editor.Changed() {
+		w.clearFind(false)
 		w.clearSchema()
 		w.stopPreview()
 		w.draftRevision++
 		w.plan = nil
 		w.diff, w.confirmation = "", ""
 	}
+	w.syncFind()
+	w.applyFindJump(editor)
 	jump := w.schemaJump
 	if jump == nil {
 		return

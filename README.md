@@ -36,6 +36,16 @@ plane or satisfy all release qualifications. See [project status](docs/PROGRESS.
 Independent multi-cluster workspace windows are implemented; shared tabs and persisted workspace definitions are not.
 The editor is a bounded text editor and field-diff reviewer, not a complete Kubernetes IDE.
 
+## Manifest Find
+
+In **Edit**, choose **Find**, enter literal text, and press **Search**. **Previous**
+and **Next** select exact, case-sensitive matches in the current local draft.
+Results use Unicode code-point coordinates and retain at most the first 512
+matches; truncation and wrap are explicit. Navigation preserves Undo, defers
+while an input method composes, and cannot act on another draft or identity.
+This does not edit a resource or replace server-side preview. See
+[Find limits and lifecycle](docs/manifest-find.md).
+
 ## Development
 
 The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.1**, and Kubernetes Go libraries

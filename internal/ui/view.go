@@ -7,6 +7,7 @@ import (
 )
 
 func (w *Workbench) View(c *ui.Context) {
+	w.syncFind()
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Fill().Background(t.Background).Children(func() {

@@ -18,6 +18,7 @@ import (
 )
 
 func (w *Workbench) clearDetail() {
+	w.clearFind(true)
 	w.clearSchema()
 	w.schemaPointer = "/spec"
 	w.stopPreview()
