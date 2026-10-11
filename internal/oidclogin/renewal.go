@@ -216,6 +216,7 @@ func (r *Renewal) Renew(ctx context.Context, cfg *rest.Config, contextName, user
 		return nil, ErrExpired
 	}
 	id := &Identity{info: info, key: r.opts.TargetKey, token: idToken, deadline: deadline}
+	id.signOut = newSignOut(r.opts, r.endpoints, info)
 	// The final rotation still yields a usable reviewed identity, but no further
 	// capability. The absolute family lifetime limits its connection as well.
 	nextHistory := make(map[[32]byte]struct{}, len(history)+1)

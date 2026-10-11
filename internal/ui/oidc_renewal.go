@@ -77,7 +77,7 @@ func (w *Workbench) oidcRenewalView(c *ui.Context) {
 	t := c.Theme()
 	ui.Column(c).Grow(1).Padding(12).Gap(8).Children(func() {
 		ui.Text(c, "OIDC · reviewed connection renewal").FontSize(20).Bold()
-		ui.Text(c, "Explicit, memory-only rotation. No background renewal, persistent refresh storage, browser logout or issuer revocation.").FontSize(12)
+		ui.Text(c, "Explicit, memory-only rotation. No background renewal, persistent refresh storage or token revocation. Issuer sign-out below is a separate explicit action.").FontSize(12)
 		if w.oidcRenewalTarget != nil {
 			ui.Text(c, "Context: "+w.oidcRenewalTarget.Context+" · Server: "+w.oidcRenewalTarget.Server).Label("OIDC renewal target").SingleLine().FontSize(12)
 		}
@@ -105,6 +105,7 @@ func (w *Workbench) oidcRenewalView(c *ui.Context) {
 			ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.connectOIDC() })
 		}
 		ui.Text(c, w.oidcStatus).Label("OIDC renewal status").FontSize(12).TextColor(t.TextMuted)
+		w.oidcSignOutView(c)
 	})
 }
 

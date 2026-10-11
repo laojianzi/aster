@@ -16,7 +16,7 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo', 33: 'renovate/mygo-native-framework', 34: 'feat/native-manifest-find', 36: 'feat/native-manifest-buffer', 39: 'renovate/mygo-native-framework', 40: 'fix/dependency-dashboard-autoclose'}
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo', 33: 'renovate/mygo-native-framework', 34: 'feat/native-manifest-find', 36: 'feat/native-manifest-buffer', 38: 'feat/native-oidc-signout', 39: 'renovate/mygo-native-framework', 40: 'fix/dependency-dashboard-autoclose'}
 DEPENDENCY_SCOPES = (31, 33, 39, 40)
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]

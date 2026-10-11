@@ -109,3 +109,13 @@ See `oidc-renewal.md`: opt-in only, memory-only, consume before a single POST,
 original identity/target/trust binding, fixed family budget, second confirmation
 before replacing a connection. No refresh persistence, automatic retry or issuer
 revocation is claimed. Existing expiry/stream teardown remains authoritative.
+
+## Reviewed issuer sign-out (#37)
+
+`oidc-signout.md` describes the optional same-origin endpoint, one-use public-URL
+handoff and connection/panel-epoch/expiry confirmation. The URL contains client_id
+only: no token hint, callback, state or local file path. Local teardown completes
+before browser dispatch. The provider must confirm the browser's current session;
+Aster cannot know that it matches the displayed workspace subject. Other apps may
+share that browser session. No browser callback, issuer revocation assertion,
+automatic retry, OS-vault deletion or implicit teardown of other workspaces exists.

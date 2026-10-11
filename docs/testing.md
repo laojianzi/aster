@@ -124,3 +124,12 @@ Synthetic schema/HTTP fixtures remain unit tests. The independent discovery RBAC
 fixture explicitly separates schema reads from object access. Local E2E compilation
 is never counted as execution. Artifact summary and exact checkout identities must
 be revalidated at the final commit; older counts in this document are historical.
+
+## Issuer sign-out handoff (#37)
+
+The independent Dex workflow additionally requires
+`TestNativeOIDCSignOutWithDexAndRealKubernetes`. It verifies provider-owned browser
+confirmation and rejection of the prior disposable session cookie, alongside real
+namespace RBAC and local live-log teardown. Fixture cookies are private temporary
+files and never artifacts. The UI itself claims only a handoff, not remote completion
+or JWT revocation. Native sign-out contract tests also run in both migration modes.

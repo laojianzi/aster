@@ -183,6 +183,7 @@ func (r *Review) Login(ctx context.Context, open func(string) error) (*Identity,
 		return nil, ErrInterrupted
 	}
 	id := &Identity{info: info, key: r.opts.TargetKey, token: token, deadline: time.Now().Add(ReviewLifetime)}
+	id.signOut = newSignOut(r.opts, r.endpoints, info)
 	if r.opts.AllowRenewal {
 		refresh := text("refresh_token")
 		if !validRefresh(refresh) {

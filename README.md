@@ -46,6 +46,15 @@ while an input method composes, and cannot act on another draft or identity.
 This does not edit a resource or replace server-side preview. See
 [Find limits and lifecycle](docs/manifest-find.md).
 
+## Reviewed issuer sign-out
+
+For an active browser-OIDC connection, **Browser sign-in** shows an optional issuer
+sign-out action. Review the original issuer, endpoint and account warning, type the exact
+active context, then **Disconnect and open issuer sign-out**. This workspace closes
+before the system browser is asked to open the provider's confirmation page. No
+ID/access/refresh token is included in the URL. Browser handoff is not proof that
+the issuer logged out or revoked Kubernetes JWTs. See [sign-out boundaries](docs/oidc-signout.md).
+
 ## Development
 
 The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.2**, and Kubernetes Go libraries

@@ -7,6 +7,14 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeOIDCSignOutReviewTeardownAndMinimumWindow',
+    'TestNativeOIDCSignOutOriginalIssuerWithoutRenewal',
+    'TestNativeOIDCSignOutFailureIsRedactedAndNeverReplayed',
+    'TestNativeOIDCSignOutStaleLeaseContextPendingAndWindow',
+    'TestNativeOIDCSignOutConfirmationHistoryAndRenewalReplacement',
+    'TestNativeOIDCSignOutDoesNotEraseOtherWorkspace',
+    'TestNativeOIDCSignOutPersistentServicesDispatchOnce',
+
     'TestNativeMyGo04EscapeDismissesWithoutChoosingButton',
     'TestNativeMyGo04ToastExpiresAfterClosingDialog',
     'TestNativeMyGo04SpinnerUsesExplicitTextColor',

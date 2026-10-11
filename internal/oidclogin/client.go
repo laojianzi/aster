@@ -39,7 +39,7 @@ type Options struct {
 	// AllowRenewal requests offline_access and consent. False discards refresh tokens.
 	AllowRenewal bool
 }
-type Endpoints struct{ Issuer, ClientID, Authorization, Token, Keys, TrustSHA256 string }
+type Endpoints struct{ Issuer, ClientID, Authorization, Token, Keys, TrustSHA256, EndSession string }
 type Review struct {
 	mu        sync.Mutex
 	used      bool
@@ -162,7 +162,7 @@ func Discover(ctx context.Context, opts Options) (*Review, error) {
 		}
 	}
 	trust := sha256.Sum256(opts.CAPEM)
-	return &Review{opts: opts, client: c, expires: time.Now().Add(ReviewLifetime), endpoints: Endpoints{opts.Issuer, opts.ClientID, text("authorization_endpoint"), text("token_endpoint"), text("jwks_uri"), hex.EncodeToString(trust[:])}}, nil
+	return &Review{opts: opts, client: c, expires: time.Now().Add(ReviewLifetime), endpoints: Endpoints{opts.Issuer, opts.ClientID, text("authorization_endpoint"), text("token_endpoint"), text("jwks_uri"), hex.EncodeToString(trust[:]), supportedSignOutEndpoint(opts.Issuer, text("end_session_endpoint"))}}, nil
 }
 func randomValue() (string, error) {
 	var b [32]byte
@@ -186,6 +186,7 @@ type Identity struct {
 	used       bool
 	resolved   bool
 	renewal    *Renewal
+	signOut    *SignOut
 }
 
 func (*Identity) String() string       { return "OIDC identity (credentials redacted)" }
@@ -198,6 +199,10 @@ func (i *Identity) Close() {
 	i.mu.Lock()
 	i.used = true
 	i.token = ""
+	if i.signOut != nil {
+		i.signOut.Close()
+		i.signOut = nil
+	}
 	if i.renewal != nil {
 		i.renewal.Close()
 		i.renewal = nil
@@ -240,6 +245,9 @@ func (i *Identity) Resolve(ctx context.Context, cfg *rest.Config, contextName, u
 	}
 	if i.renewal != nil {
 		i.renewal.bindLease(ctx, expires)
+	}
+	if i.signOut != nil {
+		i.signOut.bindLease(ctx, contextName, expires)
 	}
 	i.resolved = true
 	copy.Wrap(func(base http.RoundTripper) http.RoundTripper { return &leaseGuard{base, ctx, expires} })
