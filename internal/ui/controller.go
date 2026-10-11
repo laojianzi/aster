@@ -48,6 +48,7 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+	w.clearOIDCSignOut()
 	w.clearOIDCRenewal()
 	w.oidcAllowRenewal = false
 	w.clearOIDC()

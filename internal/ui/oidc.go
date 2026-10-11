@@ -14,6 +14,8 @@ import (
 )
 
 func (w *Workbench) clearOIDC() {
+	w.oidcSignOutConfirmation = ""
+	w.oidcSignOutComposing = false
 	w.oidcReplacing = false
 	w.oidcEpoch++
 	if w.oidcCancel != nil {
@@ -161,6 +163,7 @@ func (w *Workbench) connectOIDC() {
 	w.oidcIdentity = nil
 	w.oidcOpen = false
 	var next *oidclogin.Renewal
+	var signOut *oidclogin.SignOut
 	stopCleanup := func() bool { return true }
 	var profile kubeconfig.Options
 	w.beginConnectionWithCompletion(func(ctx context.Context, opts kubeconfig.Options) (kubeconfig.Connection, credentialexec.Resolved, error) {
@@ -174,18 +177,24 @@ func (w *Workbench) connectOIDC() {
 		resolved, err := id.Resolve(ctx, conn.Config, conn.ContextName, freshTarget.User)
 		if err == nil {
 			next = id.TakeRenewal()
+			signOut = id.TakeSignOut()
 		}
 		if ctx.Err() != nil && next != nil {
 			next.Close()
 			next = nil
 			err = oidclogin.ErrInterrupted
 		}
-		if next != nil {
-			stopCleanup = context.AfterFunc(ctx, next.Close)
+		if next != nil || signOut != nil {
+			stopCleanup = context.AfterFunc(ctx, func() { next.Close(); signOut.Close() })
 		}
 		return conn, resolved, err
 	}, func(ok bool) {
 		defer stopCleanup()
+		if ok {
+			w.oidcSignOut = signOut
+		} else {
+			signOut.Close()
+		}
 		// A stopped/replaced connection cannot inherit the rotating credential.
 		if !ok || next == nil || !time.Now().Before(next.Info().FamilyExpiresAt) || next.Info().Remaining <= 0 {
 			if next != nil {
@@ -243,6 +252,9 @@ func (w *Workbench) oidcView(c *ui.Context) {
 				ep := w.oidcReview.Endpoints()
 				ui.Text(c, "Browser: "+ep.Authorization).Label("OIDC authorization endpoint").SingleLine().FontSize(12)
 				ui.Text(c, "Token: "+ep.Token+" · Keys: "+ep.Keys).Label("OIDC token and key endpoints").SingleLine().FontSize(12)
+				if ep.EndSession != "" {
+					ui.Text(c, "Optional issuer sign-out: "+ep.EndSession).Label("OIDC discovered sign-out endpoint").SingleLine().FontSize(11)
+				}
 			}
 			if w.oidcIdentity != nil {
 				info := w.oidcIdentity.Info()
@@ -257,6 +269,6 @@ func (w *Workbench) oidcView(c *ui.Context) {
 			})
 		}
 		ui.Text(c, w.oidcStatus).Label("OIDC sign-in status").FontSize(12).TextColor(t.TextMuted)
-		ui.Text(c, "Public client + S256 PKCE · same-origin HTTPS endpoints · single-use exchange · opt-in rotation only · no persistence, automatic refresh or issuer logout").FontSize(11).TextColor(t.TextMuted)
+		ui.Text(c, "Public client + S256 PKCE · same-origin HTTPS endpoints · single-use exchange · opt-in rotation only · no persistence or automatic refresh · issuer sign-out is a separate reviewed browser handoff").FontSize(11).TextColor(t.TextMuted)
 	})
 }

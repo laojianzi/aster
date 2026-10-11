@@ -154,6 +154,10 @@ type Workbench struct {
 	oidcReview                                                             *oidclogin.Review
 	oidcIdentity                                                           *oidclogin.Identity
 	oidcBrowser                                                            func(string) error
+	oidcSignOut                                                            *oidclogin.SignOut
+	oidcSignOutConfirmation                                                string
+	oidcSignOutComposing                                                   bool
+	oidcSignOutBrowser                                                     func(string) error // test-only system-browser override
 	oidcAllowRenewal                                                       bool
 	oidcRenewal                                                            *oidclogin.Renewal
 	oidcRenewalProfile                                                     kubeconfig.Options
@@ -275,6 +279,7 @@ func (w *Workbench) Close() {
 	w.clearFind(true)
 	w.clearSchema()
 	w.clearOIDCRenewal()
+	w.clearOIDCSignOut()
 	w.clearOIDC()
 	w.clearVault()
 	if w.cancel != nil {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,9 +52,20 @@ func newDexWorkbench(t *testing.T) (testcluster.Fixture, *relationshipHarness) {
 		t.Fatal("missing ephemeral provider CA")
 	}
 	h.w.oidcCA = string(ca)
+	cookies := filepath.Join(t.TempDir(), "dex-cookies")
+	h.w.oidcSignOutBrowser = func(link string) error {
+		script, _ := filepath.Abs("../../scripts/oidc_test_browser.py")
+		c := exec.CommandContext(h.ctx, "python3", script, "--url", link, "--ca", os.Getenv("ASTER_OIDC_CA"), "--cookie-file", cookies, "--sign-out")
+		out, err := c.Output()
+		if err != nil || strings.TrimSpace(string(out)) != "DEX_SIGNOUT_CONFIRMED_AND_OLD_SESSION_REJECTED" {
+			return errors.New("disposable provider sign-out not verified")
+		}
+		t.Log("DEX_SIGNOUT_CONFIRMED_AND_OLD_SESSION_REJECTED")
+		return nil
+	}
 	h.w.oidcBrowser = func(link string) error {
 		script, _ := filepath.Abs("../../scripts/oidc_test_browser.py")
-		c := exec.CommandContext(h.ctx, "python3", script, "--url", link, "--ca", os.Getenv("ASTER_OIDC_CA"))
+		c := exec.CommandContext(h.ctx, "python3", script, "--url", link, "--ca", os.Getenv("ASTER_OIDC_CA"), "--cookie-file", cookies)
 		if c.Run() != nil {
 			return errors.New("disposable provider form flow failed")
 		}
@@ -193,5 +205,73 @@ func TestNativeOIDCRenewalWithDexAndRealKubernetes(t *testing.T) {
 	after, _ := os.ReadFile(h.w.path)
 	if string(before) != string(after) {
 		t.Fatal("rotation rewrote kubeconfig")
+	}
+}
+
+// A real upstream browser-cookie session must be present, the provider's own
+// confirmation is exercised, and replaying its prior cookie must be rejected.
+// The desktop itself only requests a public URL; it cannot attest this outcome.
+func TestNativeOIDCSignOutWithDexAndRealKubernetes(t *testing.T) {
+	f, h := newDexWorkbench(t)
+	before, _ := os.ReadFile(h.w.path)
+	h.tt.Frame()
+	h.click("Browser sign-in")
+	h.click("Allow memory-only renewal (requests offline access and consent)")
+	h.click("Review OIDC target")
+	h.pump(func() bool { return !h.w.oidcPending })
+	if h.w.oidcReview == nil || h.w.oidcReview.Endpoints().EndSession == "" {
+		t.Fatal("provider sign-out metadata missing")
+	}
+	h.click("Confirm OIDC context")
+	h.tt.Type("vault-test")
+	h.click("Sign in with browser")
+	h.pump(func() bool { return !h.w.oidcPending })
+	if h.w.oidcIdentity == nil {
+		t.Fatal(h.w.oidcStatus)
+	}
+	h.click("Confirm OIDC context")
+	h.tt.Type("vault-test")
+	h.click("Connect verified identity")
+	h.pump(func() bool { return h.w.status == "Live" && containsRowUID(h.w.rows, string(f.Pod.UID)) })
+	old, lease := h.w.backend, h.w.connectionCtx
+	if h.w.oidcSignOut == nil || h.w.oidcRenewal == nil {
+		t.Fatal("missing lifecycle capabilities")
+	}
+	_, _, e := old.List(h.ctx, schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}, "", metav1.ListOptions{})
+	if !apierrors.IsForbidden(e) {
+		t.Fatal("issuer identity escaped namespace RBAC", e)
+	}
+	h.click(f.Pod.Name)
+	h.pump(func() bool { return h.w.detail != nil })
+	h.click("Logs")
+	h.click("Follow logs")
+	h.pump(func() bool { return len(h.w.logRows) > 0 })
+	browser := h.w.oidcSignOutBrowser
+	h.w.oidcSignOutBrowser = func(link string) error {
+		if lease.Err() == nil || h.w.backend != nil || h.w.oidcRenewal != nil || h.w.detail != nil || len(h.w.logRows) != 0 {
+			return errors.New("local teardown ordering failed")
+		}
+		return browser(link)
+	}
+	h.click("Browser sign-in")
+	h.click("Confirm issuer sign-out context")
+	h.tt.Type("vault-test")
+	h.tt.SetSize(1100, 700)
+	h.tt.Frame()
+	saveNativeScreenshot(t, h.tt)
+	h.click("Disconnect and open issuer sign-out")
+	if lease.Err() == nil || h.w.backend != nil || h.w.oidcSignOut != nil || !strings.Contains(h.w.oidcStatus, "NOT verified") {
+		t.Fatal("sign-out failed or desktop overclaimed", h.w.oidcStatus)
+	}
+	client, e := rest.HTTPClientFor(old.Config())
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = client.Get(f.Config.Host + "/api/v1/namespaces/" + f.Pod.Namespace + "/pods"); e == nil {
+		t.Fatal("old local JWT client survived")
+	}
+	after, _ := os.ReadFile(h.w.path)
+	if string(before) != string(after) {
+		t.Fatal("sign-out rewrote kubeconfig")
 	}
 }

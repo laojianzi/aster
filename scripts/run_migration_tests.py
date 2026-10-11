@@ -7,6 +7,13 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeOIDCSignOutReviewTeardownAndMinimumWindow',
+    'TestNativeOIDCSignOutFailureIsRedactedAndNeverReplayed',
+    'TestNativeOIDCSignOutStaleLeaseContextPendingAndWindow',
+    'TestNativeOIDCSignOutConfirmationHistoryAndRenewalReplacement',
+    'TestNativeOIDCSignOutDoesNotEraseOtherWorkspace',
+    'TestNativeOIDCSignOutPersistentServicesDispatchOnce',
+
     'TestManifestBufferImmutableConcurrentSnapshotsAndExportBounds',
     'TestManifestBufferIdleRevisionChecksAllocateNothing',
     'TestNativeManifestBufferStableIdentitySnapshotAndUndo',
