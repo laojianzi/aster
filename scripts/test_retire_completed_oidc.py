@@ -81,6 +81,22 @@ class RetirementTests(unittest.TestCase):
         refs[branch]['protected']=False;refs[branch]['commit']['sha']='e'*40
         with self.assertRaises(ValueError):candidate(p,self.head,refs,[],lambda _:True,number=34,branch=branch)
 
+    def test_registered_buffer_scope_preserves_retirement_guards(self):
+        number, branch = 36, APPROVED[36]
+        self.assertEqual(branch, 'feat/native-manifest-buffer')
+        p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
+        refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
+        self.assertEqual(select_scope([p], self.head), number)
+        self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
+        self.assertIsNone(candidate(p, self.head, {}, [], lambda _: True, number=number, branch=branch))
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=34, branch=branch)
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [p], lambda _: True, number=number, branch=branch)
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: False, number=number, branch=branch)
+        refs[branch]['protected'] = True
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
+        refs[branch]['protected'] = False; refs[branch]['commit']['sha'] = 'e'*40
+        with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
+
     def test_unregistered_open_old_or_ambiguous_merges_do_not_select(self):
         self.assertIsNone(select_scope([],self.head))
         self.assertEqual(select_scope([self.pr],self.head),25)
