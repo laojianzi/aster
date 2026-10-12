@@ -145,6 +145,53 @@ class RetirementTests(unittest.TestCase):
                 refs[branch]['commit']['sha'] = 'f'*40
                 with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
 
+    def test_schema_constraints_retirement_requires_its_own_completed_inactive_merge(self):
+        from retire_completed_oidc import DEPENDENCY_SCOPES
+        number, branch = 43, APPROVED[43]
+        self.assertEqual(branch, 'feat/native-schema-constraints')
+        self.assertNotIn(42, APPROVED, 'the child Issue is not the implementation PR')
+        self.assertNotIn(number, DEPENDENCY_SCOPES)
+        p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
+        refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
+        self.assertEqual(select_scope([p], self.head), number)
+        self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
+        self.assertIsNone(candidate(p, self.head, {}, [], lambda _: True, number=number, branch=branch))
+        for other in (38, 42):
+            with self.subTest(other_scope=other), self.assertRaises(ValueError):
+                candidate(p, self.head, refs, [], lambda _: True, number=other, branch=branch)
+        for mode in ('open', 'unmerged', 'other-merge', 'wrong-branch', 'wrong-base',
+                     'foreign-head', 'foreign-base', 'invalid-tip', 'moved', 'protected', 'unreachable'):
+            with self.subTest(mode=mode):
+                pr, branches = copy.deepcopy(p), copy.deepcopy(refs)
+                if mode == 'open': pr['state'] = 'open'
+                if mode == 'unmerged': pr['merged'] = False
+                if mode == 'other-merge': pr['merge_commit_sha'] = 'e'*40
+                if mode == 'wrong-branch': pr['head']['ref'] = APPROVED[38]
+                if mode == 'wrong-base': pr['base']['ref'] = 'other-main'
+                if mode == 'foreign-head': pr['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'foreign-base': pr['base']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'invalid-tip': pr['head']['sha'] = 'invalid'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'e'*40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    candidate(pr, self.head, branches, [], lambda _: mode != 'unreachable',
+                              number=number, branch=branch)
+        for side in ('head', 'base'):
+            with self.subTest(active_side=side):
+                active = copy.deepcopy(p)
+                active.update(number=999, state='open', merged=False)
+                active['head']['ref'] = 'unrelated-head'
+                active['base']['ref'] = 'unrelated-base'
+                active[side]['ref'] = branch
+                with self.assertRaises(ValueError):
+                    candidate(p, self.head, refs, [active], lambda _: True, number=number, branch=branch)
+        runs = [dict(name=n, id=i, event='push', head_branch='main', head_sha=self.head,
+                     status='completed', conclusion='success') for i, n in enumerate(REQUIRED)]
+        self.assertTrue(workflows_pass(runs, self.head))
+        for missing in REQUIRED:
+            with self.subTest(missing_gate=missing):
+                self.assertFalse(workflows_pass([r for r in runs if r['name'] != missing], self.head))
+
     def test_unregistered_open_old_or_ambiguous_merges_do_not_select(self):
         self.assertIsNone(select_scope([],self.head))
         self.assertEqual(select_scope([self.pr],self.head),25)

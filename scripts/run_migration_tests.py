@@ -7,6 +7,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeSchemaConstraintsPreserveNumbersDraftAndHistory',
+    'TestNativeSchemaConstraintsMinimumWindowAndNoValueDisclosure',
+
     'TestNativeMyGo045PhysicalShortcutsPreserveScopedHistory',
     'TestNativeMyGo045UnicodeCrossLineSelectionPreservesUndo',
 

@@ -203,8 +203,10 @@ func referenceWrapper(node map[string]any) (string, bool) {
 func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string]any, error) {
 	seen := map[string]bool{}
 	// Only display annotations are overlaid; defaults/examples are never applied
-	// or shown. A copy is made only at the end, leaving shared definitions intact.
+	// or shown. A marker preserves uninspected wrapper semantics without merging
+	// them into the target. Shared definitions are never changed.
 	annotations := map[string]any{}
+	uninspectedWrapper := false
 	for i := 0; i < 32; i++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -219,7 +221,7 @@ func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string
 		if !exists {
 			ref, valid = referenceWrapper(node)
 			if !valid {
-				if len(annotations) == 0 {
+				if len(annotations) == 0 && !uninspectedWrapper {
 					return node, nil
 				}
 				resolved := make(map[string]any, len(node)+len(annotations))
@@ -229,7 +231,15 @@ func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string
 				for key, value := range annotations {
 					resolved[key] = value
 				}
+				if uninspectedWrapper {
+					resolved["x-aster-uninspected-reference"] = true
+				}
 				return resolved, nil
+			}
+			for _, key := range []string{"format", "x-kubernetes-list-type", "x-kubernetes-list-map-keys", "x-kubernetes-map-type"} {
+				if _, present := node[key]; present {
+					uninspectedWrapper = true
+				}
 			}
 		}
 		if !valid || len(ref) > 4096 || !strings.HasPrefix(ref, "#/components/schemas/") {
@@ -323,11 +333,39 @@ func nodeType(n map[string]any) string {
 }
 func composite(n map[string]any) bool {
 	for _, key := range []string{"allOf", "oneOf", "anyOf", "not"} {
-		if _, ok := n[key]; ok && n["x-kubernetes-int-or-string"] != true {
+		if value, ok := n[key]; ok {
+			if key == "anyOf" && n["x-kubernetes-int-or-string"] == true && plainIntegerOrString(value) {
+				continue
+			}
 			return true
 		}
 	}
 	return false
+}
+
+// Only the exact Kubernetes integer|string type union is handled locally.
+// Additional branch constraints must remain visible as an incomplete check.
+func plainIntegerOrString(value any) bool {
+	items, ok := value.([]any)
+	if !ok || len(items) != 2 {
+		return false
+	}
+	seenInteger, seenString := false, false
+	for _, item := range items {
+		node, ok := item.(map[string]any)
+		if !ok || len(node) != 1 {
+			return false
+		}
+		switch node["type"] {
+		case "integer":
+			seenInteger = true
+		case "string":
+			seenString = true
+		default:
+			return false
+		}
+	}
+	return seenInteger && seenString
 }
 
 // Rendered help is bounded independently from the decoded schema.
