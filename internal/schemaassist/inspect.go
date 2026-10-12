@@ -246,15 +246,20 @@ func (d *Document) Check(ctx context.Context, obj map[string]any) (Report, error
 			}
 		}
 		nullable := value == nil && n["nullable"] == true
+		typeMismatch := false
 		if value == nil && typ != "null" && typ != "" && !nullable {
 			add(path, "type", "Expected "+text(typ, 80)+"; null is not nullable.")
-			return
-		}
-		if !nullable && !typeMatches(typ, value) {
+			typeMismatch = true
+		} else if !nullable && !typeMatches(typ, value) {
 			add(path, "type", "Expected "+text(typ, 80)+".")
+			typeMismatch = true
+		}
+		// Inspect constraint metadata even after a known type error, but never
+		// emit secondary value violations for a value of the wrong type.
+		constraints.check(n, value, path, !typeMismatch)
+		if typeMismatch {
 			return
 		}
-		constraints.check(n, value, path)
 		switch v := value.(type) {
 		case map[string]any:
 			if len(v) > MaxWork-r.Checked {

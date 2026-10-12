@@ -285,6 +285,20 @@ func TestSchemaConstraintsRejectMalformedAndUnsupportedWithoutGuessing(t *testin
 			}
 		}
 	})
+	t.Run("malformed-constraints-survive-type-failure", func(t *testing.T) {
+		for _, tc := range []struct{ name, property string }{
+			{"minimum", "{\"type\":\"string\",\"minimum\":\"schema-secret-bound\"}"},
+			{"complex-enum", "{\"type\":\"string\",\"enum\":[\"allowed\",{\"private\":\"schema-secret-enum\"}]}"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				r := constraintCheck(t, tc.property, int64(1))
+				constraintWant(t, r, true, "type")
+				if strings.Contains(r.Text()+constraintEncode(t, r), "schema-secret") {
+					t.Fatal("malformed schema value escaped through a known type error")
+				}
+			})
+		}
+	})
 	t.Run("reference-wrapper-retains-unsupported-semantics", func(t *testing.T) {
 		objectSchema := map[string]any{
 			"type": "object", "required": []any{"count", "mode"},

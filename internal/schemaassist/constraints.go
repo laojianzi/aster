@@ -195,7 +195,7 @@ func (a scalar) equal(b scalar) bool {
 	return a.text == b.text
 }
 
-func (c *constraintChecker) checkEnum(n map[string]any, value any, path string) {
+func (c *constraintChecker) checkEnum(n map[string]any, value any, path string, inspectValue bool) {
 	raw, exists := n["enum"]
 	if !exists {
 		return
@@ -205,10 +205,13 @@ func (c *constraintChecker) checkEnum(n map[string]any, value any, path string) 
 		c.report.Partial = true
 		return
 	}
-	want, ok := c.scalar(value)
-	if !ok {
-		c.report.Partial = true
-		return
+	var want scalar
+	if inspectValue {
+		want, ok = c.scalar(value)
+		if !ok {
+			c.report.Partial = true
+			return
+		}
 	}
 	matched, complete := false, true
 	for _, v := range values {
@@ -219,13 +222,13 @@ func (c *constraintChecker) checkEnum(n map[string]any, value any, path string) 
 		if c.exhausted {
 			return
 		}
-		if valid && want.equal(candidate) {
+		if inspectValue && valid && want.equal(candidate) {
 			matched = true
 		}
 	}
 	// A complex or malformed entry makes a non-match uncertain. Do not turn a
 	// partial scan (including a late exhausted budget) into a constraint hint.
-	if complete && !matched {
+	if inspectValue && complete && !matched {
 		c.add(path, "enum", "Value is outside the advertised scalar choices.")
 	}
 }
@@ -246,8 +249,9 @@ func (c *constraintChecker) bound(raw any, count bool) (decimal, bool) {
 	return d, true
 }
 
-func (c *constraintChecker) checkNumber(n map[string]any, value any, path string) {
+func (c *constraintChecker) checkNumber(n map[string]any, value any, path string, inspectValue bool) {
 	instance, applicable := decimalValue(value)
+	applicable = applicable && inspectValue
 	for _, key := range []string{"minimum", "maximum"} {
 		raw, exists := n[key]
 		exclusiveKey := "exclusiveMinimum"
@@ -324,14 +328,14 @@ func (c *constraintChecker) inspectKeywords(n map[string]any) {
 	}
 }
 
-func (c *constraintChecker) check(n map[string]any, value any, path string) {
+func (c *constraintChecker) check(n map[string]any, value any, path string, inspectValue bool) {
 	if c.exhausted {
 		return
 	}
-	c.checkEnum(n, value, path)
-	c.checkNumber(n, value, path)
+	c.checkEnum(n, value, path, inspectValue)
+	c.checkNumber(n, value, path, inspectValue)
 	length, stringValue := 0, false
-	if s, ok := value.(string); ok {
+	if s, ok := value.(string); ok && inspectValue {
 		_, lower := n["minLength"]
 		_, upper := n["maxLength"]
 		if lower || upper {
@@ -344,7 +348,7 @@ func (c *constraintChecker) check(n map[string]any, value any, path string) {
 	}
 	c.checkSize(n, path, "Length", length, stringValue)
 	items, arrayValue := value.([]any)
-	c.checkSize(n, path, "Items", len(items), arrayValue)
+	c.checkSize(n, path, "Items", len(items), arrayValue && inspectValue)
 	properties, objectValue := value.(map[string]any)
-	c.checkSize(n, path, "Properties", len(properties), objectValue)
+	c.checkSize(n, path, "Properties", len(properties), objectValue && inspectValue)
 }
