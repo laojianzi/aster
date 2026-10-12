@@ -1,7 +1,8 @@
 # Native schema assistance
 
 The field-help milestone (#14), source navigation (#29), bounded constraints
-(#42), exact multipleOf assistance (#46), and portable string patterns (#48)
+(#42), exact multipleOf assistance (#46), portable string patterns (#48), and
+bounded string formats (#50)
 share production tracker #13.
 They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
@@ -112,7 +113,7 @@ Output includes only a field pointer, `multipleOf` category and fixed message.
 It does not echo a divisor, value or arithmetic error. Source, schema, selection
 and mounted history remain unchanged; no Prepared plan is created. Existing
 source-navigation and stale-result guards apply. Supported patterns are described
-below; format, complex enum, composition, list semantics and CEL remain separate work.
+below; other formats, complex enum, composition, list semantics and CEL remain separate work.
 
 ## Bounded portable string patterns (#48)
 
@@ -161,6 +162,59 @@ within an individual cap can still exhaust shared work. All such cases are expli
 incomplete and never manufacture a mismatch. Cancellation is checked around each
 bounded primitive; the synchronous engine itself is not interrupted mid-operation.
 
+## Bounded Kubernetes string formats (#50)
+
+For a string instance, Check draft inspects `date`, `byte` and `uuid` using the
+same string-validation behavior as Kubernetes v1.35.8, v1.36.4 and v1.37.0.
+The format name is normalized by removing ASCII hyphens only: `d-a-t-e` is
+recognized, but `DATE`, ` date ` and Unicode lookalikes are not. No source value
+is trimmed, normalized, decoded, rewritten or inserted into the editor.
+
+| Admitted format | Exact boundary |
+| --- | --- |
+| `date` | A 10-byte, zero-padded Gregorian `YYYY-MM-DD` accepted by Go `time.Parse("2006-01-02", input)`. Year `0000` and valid leap days are accepted; impossible dates, empty strings, short month/day fields, whitespace and timestamp suffixes are rejected. |
+| `byte` | A nonempty standard ASCII Base64 shape, length a positive multiple of four, with zero, one or two legal trailing `=` characters. CR/LF, URL-safe alphabet, misplaced padding and omitted required padding are rejected. `AB==` and `AAB=` are accepted because the server checks shape, not canonical padding bits. No payload is decoded. |
+| `uuid` | Hexadecimal groups of 8/4/4/4/12 characters, with each of the four group separators independently optional. Both hex cases and unrestricted version/variant bits are accepted. Braces, URN prefixes, misplaced hyphens and surrounding whitespace are rejected. |
+
+These are bounded Kubernetes string-format hints, not a complete JSON Schema
+Format-Assertion implementation. OpenAPI 3.0 permits open format names; the
+server ignores unknown names. Aster deliberately keeps a declared but unhandled
+format visible as **incomplete**, including an explicit empty string. Absent
+`format` adds no constraint. Malformed, nonstring, invalid-UTF-8, unknown or
+oversized names do not generate a guessed value violation. Valid metadata on a
+nullable null or a nonstring instance produces no secondary format hint; invalid
+metadata remains incomplete alongside an independent type error.
+
+The raw name is limited to 64 bytes before normalization; decoded input is
+limited to 16 KiB. The name costs `1 + ceil(bytes / 16)` work units and the input
+costs `1 + ceil(bytes / 32)` before UTF-8 inspection, normalization or validation.
+Both consume the existing 20,000-unit work and 8 MiB constraint-byte allowances.
+Repeated individually legal values can exhaust the shared budget. Invalid UTF-8,
+limits or cancellation mark inspection incomplete without inventing a mismatch.
+Cancellation is observed around each bounded primitive, not inside `time.Parse`.
+No dynamic regex, decoded payload, dependency or global cache is introduced.
+
+Output contains only the original field pointer, `format` code and a fixed
+message. It never contains the source value, format metadata, parsed date error,
+Base64 content, default or example. Existing reference-wrapper composition rules
+are unchanged; a format sibling on a reference wrapper is still uninspected.
+
+`date-time`, IP addresses, email, numeric formats and all other names remain
+incomplete. They require separate compatibility contracts: for example, the
+server's date-time parser and permissive IP parsing cannot be replaced by a
+strict RFC parser without changing some outcomes. Numeric-format dispatch also
+differs between the three pinned server versions. These limits do not change
+the manifest decoder or server dry-run as the actual admission decision.
+
+Primary contracts: [OpenAPI data types](https://spec.openapis.org/oas/v3.0.3.html#data-types),
+Kubernetes [format normalization](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/strfmt/format.go),
+[string applicability](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/validate/formats.go),
+[date](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/strfmt/date.go),
+[Base64 grammar](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/internal/third_party/govalidator/patterns.go),
+and [UUID registration](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/strfmt/default.go).
+The relevant string-validator files were compared across all three exact tags;
+real CRD create and live-update dry-run tests separately verify the named cases.
+
 ## Transport and resource limits
 
 Every action obtains fresh OpenAPI v3 discovery and a group-version document
@@ -195,7 +249,8 @@ UI thread; only the finished bounded text is dispatched to the UI.
 
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
 Schema, CEL, webhook or admission behavior. Pattern syntax outside the subset above,
-`format`, complex enum equality, unique/list semantics and CEL remain unsupported.
+formats outside `date`/`byte`/`uuid`, complex enum equality, unique/list semantics
+and CEL remain unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
 exhausted budgets remain explicitly incomplete. A report with zero hints does

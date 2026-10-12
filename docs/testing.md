@@ -264,3 +264,46 @@ pattern location. No previous mandatory name or old multipleOf case is removed.
 Apply the same four final-head and four fresh-main original-evidence gates,
 complete binaries, actual guarded retirement and independent recovery requirements
 described above before explicitly completing #48.
+
+## Bounded Schema string formats (#50)
+
+Keep every previous mandatory unit/native/real-cluster/OIDC/migration name and
+the existing email/private-format incompleteness regressions. Add the five
+mandatory core tests `TestSchemaFormatSupportedStringValues`,
+`TestSchemaFormatMatchesIndependentExpectations`,
+`TestSchemaFormatRejectsMalformedAndInapplicable`,
+`TestSchemaFormatBudgetsAndCancellation`, and
+`TestSchemaFormatInspectionPreservesInputsAndPrivacy`.
+Independent checks compare 5,544 Gregorian date cases using calendar arithmetic,
+608 Base64 encoder/ASCII cases, and 576 UUID separator/ASCII cases using the
+pinned server's grammar. These 6,728 comparisons are internal oracle iterations,
+not separately named Go test records. Boundary cases preserve year zero,
+noncanonical Base64 padding bits and every optional UUID separator combination.
+
+Require `TestNativeSchemaFormatPreservesDraftAndHistory` and
+`TestNativeSchemaFormatMinimumWindowAndIncomplete` in unit/native suites and both
+migration modes on each OS. Four minimum-window subcases cover unknown metadata,
+nonstring metadata, type plus malformed metadata and decoded input above 16 KiB.
+The oversized value uses native Type with many short source lines; it does not
+qualify the upstream giant single-segment Type/IME path. Native source selection,
+Copy at the original endpoint, actual corrections, and mounted Undo/Redo must
+preserve draft bytes and Unicode history. Review one positive and four minimum
+format screenshots from each native OS artifact.
+
+Require `TestRealSchemaFormatAgreeWithDryRun` and
+`TestNativeSchemaFormatAgainstRealCluster` on every supported Kubernetes version.
+The new four-field CRD publishes `date`, `byte`, `uuid` and nullable `date`. The
+backend has 28 create and two live-update cases. Empty byte input must fail while
+`AB==`/`AAB=` and mixed UUID separators succeed; field causes must agree with
+local `format` or independent `type` hints. Use fresh current-identity OpenAPI,
+`FieldValidationStrict` and `DryRunAll`; create candidates must remain NotFound,
+and live UID/resourceVersion/spec must not change. The native flow reads the
+actual discovered resource, corrects date and byte through the editor, preserves
+Undo/Redo, previews without persisting and disconnects through the native control.
+
+Final PR and fresh exact-main qualification each need independent original
+artifacts, complete normal/production binaries, paired JSONL names and actual
+visual review. Preserve previous source, migration, OIDC, vault, pattern and
+multipleOf guards. After merge and fresh main qualification, verify actual guarded
+retirement and an independent complete-history restore, then explicitly complete
+#50. Premerge references remain neutral so merging cannot close the Issue early.

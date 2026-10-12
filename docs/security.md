@@ -128,6 +128,14 @@ same shared budgets. Unsupported syntax or exhausted budgets remain incomplete; 
 pattern, value or parser error is rendered. Native history, current identity and the
 separate reviewed-write boundary are unchanged. Cancellation surrounds bounded regexp
 primitives and does not claim mid-engine interruption.
+Format assistance admits only `date`, `byte` and `uuid` under the pinned Kubernetes
+string-validator contract. Raw names are limited to 64 bytes and decoded input to
+16 KiB; name/input scans share the same work and byte budgets before normalization
+or validation. Unknown, empty or malformed metadata and invalid UTF-8 remain
+incomplete even when a separate type hint exists. Base64 shape is checked without
+decoding, and UUID values are never rewritten. No source value, format name or
+date-parser error appears in a diagnostic. Nullable values, current identity,
+original source navigation and the separate server dry-run boundary remain intact.
 See `schema-assistance.md`.
 
 ## Explicit OS token storage
