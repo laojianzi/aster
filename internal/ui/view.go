@@ -9,6 +9,7 @@ import (
 func (w *Workbench) View(c *ui.Context) {
 	w.syncEditor()
 	w.syncFind()
+	w.syncDelivery()
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Fill().Background(t.Background).Children(func() {
@@ -23,6 +24,7 @@ func (w *Workbench) View(c *ui.Context) {
 			}
 			if ui.TextInput(c.Key("field.namespace"), &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150).Changed() {
 				w.clearOIDC()
+				w.deliveryNamespaceChanged()
 			}
 			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending || w.oidcPending).OnClick(func() {
 				w.connect()
@@ -41,12 +43,23 @@ func (w *Workbench) View(c *ui.Context) {
 				w.loadContexts()
 			})
 			ui.Button(c, "Credentials").OnClick(func() {
+				if w.delivery.open {
+					w.closeDelivery()
+				}
 				w.clearOIDC()
 				w.oidcOpen = false
 				w.vaultOpen = !w.vaultOpen
 				w.clearVault()
 			})
-			ui.Button(c, "Browser sign-in").OnClick(func() { w.clearVault(); w.vaultOpen = false; w.clearOIDC(); w.oidcOpen = !w.oidcOpen })
+			ui.Button(c, "Browser sign-in").OnClick(func() {
+				if w.delivery.open {
+					w.closeDelivery()
+				}
+				w.clearVault()
+				w.vaultOpen = false
+				w.clearOIDC()
+				w.oidcOpen = !w.oidcOpen
+			})
 			ui.Text(c, w.notice).FontSize(12).TextColor(t.TextMuted).Grow(1).SingleLine()
 			if w.workspaceNumber > 0 {
 				ui.Text(c, fmt.Sprintf("Workspace %d", w.workspaceNumber)).Label("Workspace identity").FontSize(12).SingleLine()
@@ -67,6 +80,10 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+			if w.delivery.open {
+				w.deliveryView(c)
+				return
+			}
 			if w.oidcOpen {
 				w.oidcView(c)
 				return
@@ -100,6 +117,7 @@ func (w *Workbench) View(c *ui.Context) {
 					ui.Button(c, "New resource").Disabled(w.backend == nil || w.currentKind.GVR.Resource == "secrets").OnClick(func() {
 						w.beginCreate()
 					})
+					ui.Button(c, "Deliver manifests").Disabled(w.backend == nil || w.pendingWrites != 0).OnClick(w.openDelivery)
 				})
 				labels := make([]string, 0, len(w.kinds))
 				for _, k := range w.kinds {

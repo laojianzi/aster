@@ -13,10 +13,13 @@ CI performs the same hash-pinned preparation before loading Go packages.
 | Real-cluster API + native interaction | `bash scripts/e2e.sh` | Actual Kubernetes API server/controllers plus workbench actions; no fake client |
 | Per-OS native interaction | `go test -json ./internal/ui/...` on all three OS runners | Native widget tests on each OS; not physical keyboard/IME certification |
 | Per-OS real-window smoke | `scripts/window_smoke.py` | Built executable starts, renders an actual window and closes with the expected marker |
-| Release qualification | Outstanding | Signed installer, upgrade/recovery, real IME, accessibility, mixed-DPI, soak and enterprise security |
+| First-MVP release qualification | Outstanding | Direct-client security, signed installer, upgrade/recovery, real IME, accessibility, mixed-DPI and soak |
+| Enterprise authority qualification | Deferred P3, outside first MVP | Gateway/Connector, tenant isolation, authoritative policy/approvals/audit and enterprise session revocation |
 
 `go test -tags=e2e ... -run '^$'` is compilation only. Never report it as passing E2E.
 The window-smoke fixture does not connect to Kubernetes; native real-cluster tests are separate.
+Deferring enterprise authority does not remove any existing credential, authorization,
+mutation, transport or failure-injection test.
 
 ## Disposable-cluster contract
 
@@ -133,3 +136,51 @@ confirmation and rejection of the prior disposable session cookie, alongside rea
 namespace RBAC and local live-log teardown. Fixture cookies are private temporary
 files and never artifacts. The UI itself claims only a handoff, not remote completion
 or JWT revocation. Native sign-out contract tests also run in both migration modes.
+
+## Reviewed manifest delivery (#44)
+
+The new set boundary has required parser/service unit coverage plus the native cases
+`TestNativeDeliveryImportPreviewAndConfirm`,
+`TestNativeDeliveryPartialUnknownAndReviewAgain`,
+`TestNativeDeliveryStaleWorkAndWorkspaceIsolation`, and
+`TestNativeDeliveryMinimumWindowUnicodeAndBudget` on each OS and in both migration modes.
+They cover real widgets, ordered review, exact confirmation, invalidation, partial outcomes
+and workspace isolation. The set service additionally rejects malformed, wrong-identity
+or oversized create dry-run responses before publishing a plan. Native result history
+retains at most 16 attempts per object with a visible omitted-record count; error status
+text is limited to a 2,048-code-point prefix plus a shortening marker. Changing inventory
+selection clears the prior preview and confirmation. Synthetic input is not physical
+keyboard/IME qualification.
+
+`clipboard-preflight-retains-input` uses actual clipboard shortcut and menu-command paths.
+It requires complete separately retained text, zero import requests until explicit discard,
+an unchanged source buffer and selection, and preserved native Undo/Redo while the source
+editor remains open. Conservative preflight adds current/incoming byte and newline counts,
+and their longest-line byte lengths (8,192-byte upper bound), without deducting a selection.
+Back retains source and pending paste, but import/inventory/Back do not preserve the previous
+source widget's Undo/Redo history or selection. The byte-budget case sends 2 MiB + 1 byte
+through real native Type with approximately 128 bytes per line and fewer than 160,000 newlines;
+the separate newline case exceeds only the newline budget. Neither case qualifies arbitrary
+giant single-segment direct text or IME submission: MyGo can still block in synchronous layout
+before the application's next budget check. That upstream safe-editor/release boundary remains
+unresolved and is not covered by clipboard preflight.
+
+Every configured Kubernetes version requires
+`TestRealManifestDeliveryReviewedSetSafety` and
+`TestNativeManifestDeliveryAgainstRealCluster`. The API scenario imports a ConfigMap,
+Service and Deployment through fresh discovery, creates each through an independent reviewed
+POST plan, then previews/applies new fields and updates fields owned by `aster-apply`.
+Changing fields still owned by the original POST manager must conflict. Additional subtests
+exercise real UID/resourceVersion races including the last GET-to-PATCH window, concurrent
+creation, denied reads and writes, actual committed-response loss, partial progress and
+explicit fresh review. A same-named object in a second real namespace must remain denied,
+without another dry-run or write, even when the first namespace permits its GET.
+The native scenario uses Connect, paste/import, ordered previews,
+exact-name submission, existing-resource SSA, accepted-UID inspection and Disconnect.
+
+The shared fixture creates only an existing disposable namespace and provides rendered
+manifests; the tested workflow creates the objects. Its Deployment has zero replicas:
+these tests establish API delivery and inspection, not running application traffic or
+workload availability. Existing real rollout/readiness scenarios remain required.
+Local `-tags=e2e -run '^$'` is compilation only; final PR and exact-main raw evidence must
+qualify these cases alongside every previously required test before scope completion.

@@ -4,6 +4,11 @@ Aster currently implements a **direct-access development desktop**, not a manage
 authorization gateway. Kubernetes authorization is authoritative. A desktop confirmation cannot
 prevent a user with direct cluster credentials from using another client.
 
+The owner placed enterprise authority at **P3, deferred and outside the first MVP**
+on 2026-10-12. Gateway/Connector, tenant isolation, authoritative policy/approvals/audit
+and enterprise session revocation are future scopes. This decision does not relax
+credential handling, current-identity authorization, reviewed mutation or local teardown.
+
 ## Implemented safeguards
 
 - UI state is owned by the UI thread. Workers capture immutable session/scope/resource identity.
@@ -13,6 +18,13 @@ prevent a user with direct cluster credentials from using another client.
 - Writes require a successful server dry-run and a service-issued, immutable, short-lived,
   single-use plan. Editing/deletion check the reviewed UID/resourceVersion. Create uses POST,
   not apply/upsert, so a concurrent creator cannot be overwritten.
+- Manifest delivery imports bounded, already-rendered objects into one reviewed existing
+  namespace. Fresh discovery and per-object reads use the current connection; existence
+  lookup, dry-run and submission share the same operation service's client. Only actual
+  NotFound permits create. Existing objects use acknowledged no-force SSA. The UI enforces
+  source order and one exact-name confirmation per object, then stops on a failure or
+  Unknown outcome. Accepted progress is not an atomic transaction or an automatic rollback.
+  See [manifest delivery](manifest-delivery.md) for invalidation and ownership limits.
 - The native editor hides Secret values and refuses Secret editing; limits apply to manifest,
   log, resource cache and queued state. Redaction is not a universal DLP guarantee for arbitrary
   sensitive fields in custom resources or application log output.
@@ -54,11 +66,23 @@ not SSA, and direct users/controllers can bypass ownership through other update 
 ## Production release gate
 
 Do not publish a production release until the approved scope, threat model and evidence cover:
-identity and credential handling; managed-access isolation where required; all write/stream
+identity and credential handling; all write/stream
 paths; adversarial authorization and failure injection; resource/queue/stream soak tests;
 real OS IME/accessibility/DPI scenarios; signed installers and update metadata; upgrade and
 rollback/recovery drills; dependency inventory/SBOM and vulnerability review; support matrix
 and documented operational recovery. Missing items remain blockers, even when CI is green.
+
+Managed-access isolation and enterprise authority qualification apply to the future P3
+enterprise scope. They are not first-MVP acceptance gates. Direct-client security and the
+release requirements above remain in scope.
+
+Rendered-manifest delivery's clipboard preflight preserves the original draft and holds one
+complete risky paste separately, with import paused until explicit discard. Its conservative
+byte/newline/line-length checks do not cover every native input source. A giant direct text
+segment or IME commit can still block MyGo's synchronous layout before the next application
+budget check. Parser limits and passing clipboard tests do not resolve that upstream editor
+resource boundary; it remains part of safe-editor and release qualification. See the precise
+[input and history limits](manifest-delivery.md#native-text-input-and-clipboard).
 
 
 ## Transport boundary (post-PR #3 hardening)

@@ -7,9 +7,11 @@
 A native Kubernetes workbench built with Go and [MyGo Native UI](https://github.com/egoist/mygo).
 No browser UI or embedded web dashboard is used.
 
-**Development preview, not a production release.** The repository contains working desktop
-workflows and executable regression suites. It does not yet implement the enterprise control
-plane or satisfy all release qualifications. See [project status](docs/PROGRESS.zh-CN.md),
+**Development preview, not a production release.** The first MVP is a direct-access Kubernetes
+desktop. Enterprise Gateway/Connector, tenant isolation, authoritative policy/approvals/audit
+and session revocation are deferred **P3, outside the first MVP**. Existing credential,
+authorization and reviewed-write safeguards remain required, as do the remaining release
+qualifications. See [project status](docs/PROGRESS.zh-CN.md),
 [testing](docs/testing.md), and [security boundaries](docs/security.md).
 
 ## Implemented workflows
@@ -55,9 +57,36 @@ OpenAPI v3 schema. Checks preserve the draft and native history, keep values out
 of diagnostics, and do not prepare or submit a resource change. Unsupported
 constraints and exhausted budgets are marked incomplete; server dry-run remains
 authoritative. See [supported constraints and limits](docs/schema-assistance.md).
-Scope #42 and its single PR carry the final commit-specific qualification;
+Scope #42 / [PR #43](https://github.com/laojianzi/aster/pull/43) is completed;
 [the progress tracker](https://github.com/laojianzi/aster/issues/13) records the
 remaining editor and release goals.
+
+## Reviewed manifest delivery
+
+Choose one existing namespace, **Connect**, then **Deliver manifests**. Paste up to
+32 already-rendered namespaced objects / 2 MiB and choose **Import manifests**.
+Review the ordered inventory and resolved target, **Preview next object**, type that
+object's exact name, then **Submit reviewed object**. Each object needs its own
+server dry-run, review and confirmation; accepted objects are not rolled back when
+a later object fails. Unknown outcomes pause the set for explicit reconciliation
+and fresh review. See [the delivery workflow and limits](docs/manifest-delivery.md).
+
+Risky clipboard pastes are retained separately and pause import until **Discard retained paste**;
+the original draft remains unchanged. Leaving the source editor retains its text, but does not
+preserve its previous Undo/Redo history or selection. Arbitrary giant direct-input or IME text
+segments can still stall the upstream editor; clipboard preflight does not qualify those paths.
+
+An actual NotFound selects POST/create-only. Existing resources use acknowledged,
+no-force SSA with the reviewed UID/resourceVersion. POST-created fields may still
+belong to `aster-desktop`; subsequent `aster-apply` intent cannot silently take them
+over. Resolve conflicts with the owning workflow, then review again. This feature
+does not render Helm charts, manage Helm releases or reconcile Git repositories.
+
+Remaining P1 work includes advanced Schema semantics, reviewed Helm/GitOps lifecycle
+and safe completion. Completion still needs an upstream editor transaction that
+preserves Undo/Redo, selection and IME; MyGo v0.4.5 external `TextBuffer.Replace`
+does not provide that contract. Other identity policy, product-depth and release
+priorities remain in [the tracker](https://github.com/laojianzi/aster/issues/13).
 
 ## Reviewed issuer sign-out
 
@@ -118,6 +147,7 @@ A green matrix is evidence for these tests and versions, not full production cer
 | `internal/ttysession`, `internal/nativeterm` | Ordered interactive sessions and hardened native emulator |
 | `internal/execsession` | Bounded command arguments, output and explicit outcome model |
 | `internal/operation` | Immutable preview/execute boundary |
+| `internal/delivery` | Bounded immutable manifest imports and per-object preparation |
 | `internal/health`, `internal/rollout` | Readiness semantics and identity-pinned observation |
 | `internal/cluster`, `internal/eventqueue` | Cancellation and bounded state transport |
 | `internal/manifest`, `internal/logbuffer` | Bounded/redacted presentation models |
