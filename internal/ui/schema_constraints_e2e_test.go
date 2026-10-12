@@ -27,19 +27,30 @@ func TestNativeSchemaConstraintsAgainstRealCluster(t *testing.T) {
 	h.w.namespace = f.Namespace
 	h.tt.Frame()
 	h.click("Connect")
-	label := ""
+	label, choiceIndex := "", -1
 	h.pump(func() bool {
-		for _, kind := range h.w.kinds {
+		for i, kind := range h.w.kinds {
 			if kind.GVR == f.GVR && kind.Kind == f.GVK.Kind && kind.Namespaced {
-				label = kind.Label()
+				label, choiceIndex = kind.Label(), i
 				return true
 			}
 		}
 		return false
 	})
 	h.click("Resource kind")
-	if err := h.tt.ChooseMenuItem(label); err != nil {
-		t.Fatal(err)
+	if !h.tt.Focused("Resource kind") {
+		t.Fatal("resource kind select did not receive focus")
+	}
+	// Select opens a rendered popup, unlike the platform menu used by the
+	// Schema location MenuButton. Use its public keyboard interaction so a
+	// discovered resource outside the popup viewport is still selectable.
+	h.tt.Key(0, ui.KeyHome)
+	for range choiceIndex {
+		h.tt.Key(0, ui.KeyDown)
+	}
+	h.tt.Key(0, ui.KeyEnter)
+	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
+		t.Fatal("native resource kind selection did not choose the discovered CRD")
 	}
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Live.GetUID())) })
 	h.click(f.Live.GetName())
