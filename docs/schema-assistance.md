@@ -1,7 +1,8 @@
 # Native schema assistance
 
 The field-help milestone (#14), source navigation (#29), bounded constraints
-(#42), and exact multipleOf assistance (#46) share production tracker #13.
+(#42), exact multipleOf assistance (#46), and portable string patterns (#48)
+share production tracker #13.
 They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
 language server or an admission validator.
@@ -110,8 +111,55 @@ dry-run remains the actual permission, schema and admission check.
 Output includes only a field pointer, `multipleOf` category and fixed message.
 It does not echo a divisor, value or arithmetic error. Source, schema, selection
 and mounted history remain unchanged; no Prepared plan is created. Existing
-source-navigation and stale-result guards apply. Pattern/format, complex enum,
-composition, list semantics and CEL remain separate work.
+source-navigation and stale-result guards apply. Supported patterns are described
+below; format, complex enum, composition, list semantics and CEL remain separate work.
+
+## Bounded portable string patterns (#48)
+
+For a string instance, `pattern` reports a fixed field hint if the decoded value
+contains no match. Matching is case-sensitive and unanchored unless the expression
+uses `^` or `$`; the empty pattern matches every valid string. With no flags, `$`
+requires the end of the entire string, including after any final line terminator.
+For example, `ok` matches `before\nok\nafter`, but `^ok$` does not match `ok` followed
+by a newline. No Unicode normalization is performed.
+
+OpenAPI 3.0.3 recommends the ECMA-262 5.1 dialect. The tested Kubernetes validators
+compile with Go regexp. The checker therefore accepts a conservative common subset
+before using the standard Go engine. It does not infer support from successful Go
+compilation alone or claim full ECMA-262 or Kubernetes admission equivalence.
+
+| Admitted syntax | Boundary |
+| --- | --- |
+| Literal characters | Valid BMP characters excluding UTF-16 surrogates. Valid input may contain astral characters such as emoji. |
+| Positive character classes and ranges | Every member is within that same BMP subset; a range must not cross the surrogate interval, even if both endpoints are valid. |
+| Groups and alternatives | Ordinary captures, `(?:...)`, `\|`, and empty alternatives. No flags or named groups. |
+| Repetition | `*`, `+`, `?`, `{m}`, `{m,n}`, `{m,}`, including their lazy suffixes. Counts use canonical decimal notation, at most 1,000, and must fit the compiled-program budget. Assertions cannot be directly quantified. |
+| Escapes | Positive ASCII `\d` / `\w`, `\t` / `\n` / `\r` / `\f` / `\v`, and escaped regex punctuation, slash or hyphen. A multi-character shorthand cannot be a range endpoint. |
+| Assertions | Explicit `^` and `$` without multiline flags. |
+
+Dot, negated classes, complement/whitespace classes, word boundaries, flags,
+lookaround, backreferences, Unicode properties, hexadecimal/Unicode/octal/identity
+escapes, POSIX or nested bracket extensions, and astral literals in the pattern
+remain **incomplete**. Restricting consuming atoms to the BMP subset avoids treating
+Go's rune positions as ECMA-262 5.1 UTF-16 positions. It does not reject emoji in
+the inspected value or equate bytes, graphemes and Unicode code points.
+
+Pattern metadata is validated before value applicability. A valid pattern on a
+nonstring or nullable-null value produces no secondary pattern hint; malformed,
+unsupported or over-budget metadata still makes the report incomplete alongside
+an existing type error. The report never exposes the expression, value or parser
+error. The manifest decoder, source pointer, native selection/history and operation
+plan are unchanged by checking.
+
+The independent limits are 512 pattern bytes, 16 KiB decoded input bytes, 32 nested
+groups and 256 compiled instructions. A conservative program bound is checked
+before repetition expansion, and actual instructions are checked after compilation.
+Parsing, both bounded compilation passes, character-class lookup and input/program
+matching cost consume the existing 20,000-work allowance; inspected pattern/input
+bytes consume its 8 MiB allowance. Limits apply together: expressions or values
+within an individual cap can still exhaust shared work. All such cases are explicitly
+incomplete and never manufacture a mismatch. Cancellation is checked around each
+bounded primitive; the synchronous engine itself is not interrupted mid-operation.
 
 ## Transport and resource limits
 
@@ -146,8 +194,8 @@ UI thread; only the finished bounded text is dispatched to the UI.
 ## Deliberate limitations
 
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
-Schema, CEL, webhook or admission behavior. `pattern`, `format`,
-complex enum equality, unique/list semantics and CEL remain unsupported.
+Schema, CEL, webhook or admission behavior. Pattern syntax outside the subset above,
+`format`, complex enum equality, unique/list semantics and CEL remain unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
 exhausted budgets remain explicitly incomplete. A report with zero hints does
@@ -199,6 +247,22 @@ CRD on all supported Kubernetes versions. All prior #42 cases remain mandatory;
 the formerly-unsupported multipleOf regression retains its identity/input and now
 requires the exact known violation.
 
+The #48 contract adds portable matching and independent finite-language membership
+comparisons, malformed/dialect metadata, Unicode and anchor boundaries, pre-expansion
+and shared budgets, cancellation, privacy and concurrent input-immutability coverage.
+Mandatory native cases are `TestNativeSchemaPatternPreservesDraftAndHistory` and
+`TestNativeSchemaPatternMinimumWindowAndIncomplete`, including six incomplete
+metadata/input cases in both migration modes. `TestRealSchemaPatternAgreeWithDryRun`
+and `TestNativeSchemaPatternAgainstRealCluster` use a dedicated published CRD on all
+three supported Kubernetes versions. Its 24 create and two live dry-run subcases
+cover anchors, unanchored multiline input, BMP literals alongside emoji, empty and
+nullable strings, and actual type errors. Create candidates must remain absent;
+live UID, resourceVersion and spec must remain unchanged. The CRD API omits an empty
+pattern string on serialization, so empty-pattern metadata is qualified in the core
+tests; the published CRD uses `^$` to check an empty value. All prior required cases
+remain. The former unsupported literal-pattern regression now requires its known
+hint; the older native incomplete case retains an unsupported format annotation.
+
 This document defines changes and required evidence, not future CI outcomes.
 Final PR/main commits, raw results and completion belong to each Issue, its single
 PR and the live #13 checkpoint.
@@ -207,6 +271,11 @@ Primary references:
 - https://kubernetes.io/docs/concepts/overview/kubernetes-api/#openapi-v3
 - https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 - https://spec.openapis.org/oas/v3.0.3.html
+- https://262.ecma-international.org/5.1/#sec-15.10.2.6
+- https://262.ecma-international.org/5.1/#sec-15.10.2.15
+- https://github.com/golang/go/blob/go1.27.2/src/regexp/syntax/compile.go
+- https://github.com/golang/go/blob/go1.27.2/src/regexp/syntax/simplify.go
+- https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/validate/rexp.go
 - https://datatracker.ietf.org/doc/html/draft-wright-json-schema-validation-00#section-5.1
 - https://github.com/golang/go/blob/go1.27.2/src/math/big/int.go
 - https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/validate/values.go

@@ -135,7 +135,7 @@ type Report struct {
 
 func (r Report) Text() string {
 	var b strings.Builder
-	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, scalar choices, numeric bounds, exact multiples and sizes. Not admission validation.\n")
+	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, scalar choices, numeric bounds, exact multiples, sizes and supported string patterns. Not admission validation.\n")
 	for _, d := range r.Diagnostics {
 		fmt.Fprintf(&b, "%s · %s: %s\n", text(d.Pointer, 160), d.Code, d.Message)
 	}

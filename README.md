@@ -52,14 +52,17 @@ This does not edit a resource or replace server-side preview. See
 
 In **Edit**, **Field help** explains a field and **Check draft** reports bounded
 structural hints, scalar enum/numeric constraints, exact decoded-number multiples,
-Unicode string lengths and container sizes. Each explicit action uses the current connection's fresh
+supported string patterns, Unicode string lengths and container sizes. Each explicit action uses the current connection's fresh
 OpenAPI v3 schema. Checks preserve the draft and native history, keep values out
 of diagnostics, and do not prepare or submit a resource change. Unsupported
 constraints and exhausted budgets are marked incomplete; server dry-run remains
 authoritative. See [supported constraints and limits](docs/schema-assistance.md).
 Scope #42 / [PR #43](https://github.com/laojianzi/aster/pull/43) is completed.
-The #46 multipleOf increment reuses those checks with bounded arithmetic;
-server floating-point tolerance may differ from local exact hints.
+The completed #46 / [PR #47](https://github.com/laojianzi/aster/pull/47) multipleOf
+increment uses bounded arithmetic; server floating-point tolerance may differ from
+local exact hints. The #48 pattern increment checks an explicitly bounded portable
+subset, including BMP literals, positive classes, groups and repetition. Matching
+is unanchored unless the expression uses anchors; unsupported syntax remains incomplete.
 [The progress tracker](https://github.com/laojianzi/aster/issues/13) records the
 remaining editor and release goals.
 

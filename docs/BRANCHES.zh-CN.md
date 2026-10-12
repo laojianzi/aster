@@ -1,9 +1,9 @@
 # 分支与 PR 接续台账
 
 2026-10-12 接续基线为已验证 main
-`387ee43bc4d39d657044785529203e60104e2842`，源码树
-`1a99815218dc662eccc2486a771576e0bde96612`。#38/#41/#43/#45 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #46 / PR #47 / `feat/native-schema-multipleof`。
+`45f897f17e89c463df78b288aa652ecf2f48032c`，源码树
+`643f2e3946c4f24bf66ddd37ea43d9b9ea63c8fc`。#38/#41/#43/#45/#47 均已完成，不重建其功能或
+依赖分支。本轮唯一新增范围为 Issue #48 / `feat/native-schema-pattern`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -67,17 +67,30 @@ Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真�
 13 个实际 Issues（仅 #13 open）、只余 main 分支、15 个恢复 tags、0 releases。
 #11 正文中的旧 #41 条目属于已关闭的历史快照，不代表新的待批准更新。
 
-## 本轮唯一范围：Issue #46 / PR #47
+## 已结项：#46 / #47
 
-使用 `feat/native-schema-multipleof` 实现精确 decoded-number multipleOf 提示。
-复用已有 Schema transport、规范化数值、只读检查、诊断导航和原生历史合约；
-不创建并行 validator、补全引擎或 mutation 路径。Pattern、实际 Helm/GitOps
-生命周期及原生安全编辑器边界保留在 #13。
+`feat/native-schema-multipleof` 的最终 HEAD
+`10ad0c1eee337d3b4fd9d20abdbb7d51d120405d` 合并为 `45f897f…`。
+四项最终 PR 和四项精确主干门槛各自审阅 14 份原始 ZIP、六个完整二进制以及必跑
+JSONL；旧失败候选没有替代最终结果。[退役 38215920851](https://github.com/laojianzi/aster/actions/runs/38215920851)
+实际返回 **applied**，完整历史 bundle 在空 bare 库独立恢复，strict fsck 通过。
+旧 15 个 tag 的 ref→SHA 未变，新增 `maintenance/completed-pr-47` 指向 merge，准确
+feature 分支在远端及本地均已回收。#46 于主干人工审阅及恢复核验完成后的
+2026-10-12T07:15:23Z 明确关闭，不将自动退役发生时间与人工审阅顺序倒置。
 
-要求数学对照、共享算术预算/取消/隐私测试、三平台原生交互与普通/生产迁移，
-以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。PR #47 已实际建立，
-既有退役登记新增准确 #47 / `feat/native-schema-multipleof` 对应关系，专属测试复用
-完整 inactive-completed-merge guards 并区分旧 PR #45；Issue #46 不属于退役编号。
+新增 #48 前全量盘点为 33 个 PR（32 merged、#2 superseded/closed、0 open），
+14 个实际 Issues（仅 #13 open）、只余 main 分支、16 个恢复 tags、0 releases。
+
+## 本轮唯一范围：Issue #48
+
+使用 `feat/native-schema-pattern` 实现有界可移植字符串 pattern 提示。
+复用已有 Schema transport、只读检查、诊断导航和原生历史合约。要求独立有限语言
+对照、方言和 Unicode 边界、共享预算/取消/隐私、三平台原生交互与普通/生产迁移，
+以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。
+
+仅在唯一 PR 实际创建后，将其准确编号和本 feature 对应关系加入既有退役登记；
+专属测试复用完整 inactive-completed-merge guards 并区分旧 PR #47，#48 是 Issue
+编号，不属于退役 PR 编号。实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
 合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
 本文件不预先宣称新 scope 的 CI、合并或退役成功。
@@ -103,5 +116,5 @@ CI、Source evidence、Native migration verification、OIDC qualification。
 分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
 `maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
 不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
-依赖范围另外要求 Renovate configuration 第五项主干门槛；#46 是独立 MVP Schema 功能，
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#48 是独立 MVP Schema 功能，
 不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。
