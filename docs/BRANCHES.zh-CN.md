@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `2186a23cf118265ad853466474e5c9e3fe3cffb9`，源码树
 `0f324efebc8ad71572d0112c9aaf5d11a0632af4`。#38/#41/#43/#45/#47/#49/#51 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #52 / `feat/native-schema-structured-enum`；不预留 PR 编号。
+依赖分支。本轮唯一新增范围为 Issue #52 / PR #53 / `feat/native-schema-structured-enum`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -112,14 +112,15 @@ Issues（仅 #13 open）、只余 main 分支、17 个恢复 tags、0 releases�
 新增 #52 前全页盘点为 35 个 PR（34 merged、#2 superseded/closed、0 open），16 个实际
 Issues（仅 #13 open）、只余 main 分支、18 个恢复 tags。
 
-## 本轮唯一范围：Issue #52
+## 本轮唯一范围：Issue #52 / PR #53
 
 使用 `feat/native-schema-structured-enum` 实现有界 decoded JSON 对象/数组枚举相等，
 保留纯 scalar 路径、精确数值、共享预算、完整元数据检查与所有旧门槛。新增独立 JSON
 对照、原生父字段导航/选择/history/最小窗口、三平台双模式迁移及三版本真实 CRD。
 正确区分服务端嵌套数字类型、nullable enum、裁剪/默认值与本地只读辅助的语义边界。
-唯一 PR 实际创建后才登记其准确编号；#52 是 Issue，不能当作退役 PR 编号。专属回归
-必须复用完整 inactive-completed-merge guards 并区分旧 PR #51，不创建重复功能分支。
+唯一 [PR #53](https://github.com/laojianzi/aster/pull/53) 已实际创建并登记其准确编号；#52 是
+Issue，不能当作退役 PR 编号。专属回归复用完整 inactive-completed-merge guards，并区分
+旧 PR #51 与 Issue #52，不创建重复功能分支。
 实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
 合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。

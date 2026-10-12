@@ -4,7 +4,7 @@
 源码树 `0f324efebc8ad71572d0112c9aaf5d11a0632af4`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45/#47/#49/#51 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #52 的
 有界结构化 Schema enum 提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#52](https://github.com/laojianzi/aster/issues/52)、其实际创建的单一 PR 及
+状态以 [#52](https://github.com/laojianzi/aster/issues/52)、其单一 [PR #53](https://github.com/laojianzi/aster/pull/53) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -196,7 +196,7 @@ pattern/multipleOf/来源/凭据库/OIDC/双模式迁移门槛。没有新增依
 远端和本地 feature 已回收，#50 于 2026-10-12T09:59:21Z 明确关闭。
 详见 [Schema 合约](schema-assistance.md)。
 
-## 本轮唯一范围：#52 有界结构化 enum 提示
+## 本轮唯一范围：#52 / PR #53 有界结构化 enum 提示
 
 唯一 `feat/native-schema-structured-enum` 将精确 decoded JSON 比较递归扩展到对象和数组。
 对象完整键集合与值相等、键顺序无关；数组保留顺序和重复次数。缺失、null、空对象和
@@ -213,7 +213,8 @@ Prepared 与服务端。原有三个 complex-enum 测试保留名称和输入，
 独立 JSON/有理数对照、三平台原生交互和双模式迁移、三版本真实结构化 CRD/dry-run 是
 新增门槛。服务端只转换枚举最外层 Go 类型，不对嵌套数字归一化；nullable enum 的具名
 差异与一致案例分开。裁剪、默认值、ratcheting、列表/CEL/webhook 仍由实际 dry-run 决定。
-唯一 PR 必须实际创建后才登记准确退役编号；最终 PR 和精确 main 独立核验证据、实际
+唯一 PR #53 已实际创建，并登记准确 PR/branch 恢复关系；专属回归核验 (PR 53、Issue 52、
+旧 PR 51) 的完整退役边界。最终 PR 和精确 main 独立核验证据、实际
 可恢复退役及空仓库恢复后再明确关闭 #52，本文件不预先宣称这些阶段已经成功。
 
 ## 后续优先级

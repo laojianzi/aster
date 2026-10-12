@@ -69,7 +69,8 @@ The completed #50 / [PR #51](https://github.com/laojianzi/aster/pull/51) format
 increment checks bounded `date`, `byte` and `uuid` strings against
 the supported Kubernetes validators' behavior. Other formats remain incomplete;
 format hints do not decode, normalize or replace the draft.
-The #52 enum increment extends exact decoded JSON equality to bounded objects and
+The #52 / [PR #53](https://github.com/laojianzi/aster/pull/53) enum increment extends
+exact decoded JSON equality to bounded objects and
 arrays. Object key order is irrelevant; complete key sets, array order, repeated
 entries and explicit null remain significant. Nested numbers keep the existing
 exact decimal contract. All enum metadata is checked before a match can succeed;

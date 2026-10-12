@@ -165,6 +165,10 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(APPROVED[51], 'feat/native-schema-format')
         self.assert_completion_scope_guards(51, 50, 49)
 
+    def test_schema_enum_retirement_requires_its_own_completed_inactive_merge(self):
+        self.assertEqual(APPROVED[53], 'feat/native-schema-structured-enum')
+        self.assert_completion_scope_guards(53, 52, 51)
+
     def assert_completion_scope_guards(self, number, issue, previous):
         from retire_completed_oidc import DEPENDENCY_SCOPES
         branch = APPROVED[number]
