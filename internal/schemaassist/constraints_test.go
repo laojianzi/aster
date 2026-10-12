@@ -246,7 +246,11 @@ func TestSchemaConstraintsRejectMalformedAndUnsupportedWithoutGuessing(t *testin
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := constraintCheck(t, tc.property, tc.value)
-			if tc.name == "unsupported-multiple-of" {
+			if tc.name == "unsupported-pattern" {
+				// Keep the original name/input; the literal pattern is now
+				// supported and must establish this mismatch without leaks.
+				constraintWant(t, r, false, "pattern")
+			} else if tc.name == "unsupported-multiple-of" {
 				// Keep the original regression identity and input. This keyword
 				// now produces a known violation instead of an incomplete scan.
 				constraintWant(t, r, false, "multipleOf")

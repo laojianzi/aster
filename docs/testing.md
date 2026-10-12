@@ -222,3 +222,45 @@ After merge, repeat qualification on fresh exact-main artifacts. Complete the
 Issue after checking actual guarded retirement and complete-history recovery.
 A workflow summary or a waiting retirement report does not substitute for the
 corresponding original evidence.
+
+## Portable Schema patterns (#48)
+
+Retain every previously required unit/native/real-cluster/OIDC/migration case.
+Add mandatory `TestSchemaPatternPortableMatching`,
+`TestSchemaPatternMatchesIndependentFiniteLanguages`,
+`TestSchemaPatternRejectsMalformedAndUnsupported`,
+`TestSchemaPatternBudgetsAndCancellation`, and
+`TestSchemaPatternInspectionPreservesInputsAndPrivacy`. The independent oracle
+enumerates six finite languages and uses exact equality or substring membership,
+without a regex parser or matcher. Boundary cases cover BMP/astral input, classes
+crossing the surrogate interval, strict no-flags anchors, nullable values, wrong
+types, unsupported metadata, expansion/work/byte/depth limits and cancellation.
+
+Require `TestNativeSchemaPatternPreservesDraftAndHistory` and
+`TestNativeSchemaPatternMinimumWindowAndIncomplete` in the unit/native suites and
+both migration modes on each OS. Six minimum-window subcases exercise malformed,
+unsupported, wrong-type and over-budget metadata or inputs. Actual source navigation,
+copy at the original selection endpoint, correction and mounted Undo/Redo must retain
+the draft/Unicode/history contract. The input-budget case sends 16,385 decoded bytes
+through native Type with source lines around 128 bytes; it does not qualify a giant
+single-segment Type/IME path. Screenshots and byte/history evidence remain separate
+from physical keyboard, font and IME release qualification.
+
+Require `TestRealSchemaPatternAgreeWithDryRun` and
+`TestNativeSchemaPatternAgainstRealCluster` on every configured Kubernetes version.
+The dedicated five-field CRD has 24 create and two live dry-run subcases. Invalid
+responses must identify the actual cause fields; successful previews must preserve
+the expected spec, including Unicode, empty strings and nullable null. The native
+flow corrects two field hints through the real editor and previews actual newline
+content decoded from YAML escapes. No create dry-run candidate may persist, and
+the live resource must retain its UID/resourceVersion/spec. Empty pattern metadata
+is tested locally because the CRD API's serialization omits an empty string; `^$`
+is used for the real empty-value constraint.
+
+The older literal-pattern regression retains its name/input and now expects the
+known hint. The older native constraints fixture retains its incomplete/privacy
+purpose through an unsupported format annotation and additionally requires the
+pattern location. No previous mandatory name or old multipleOf case is removed.
+Apply the same four final-head and four fresh-main original-evidence gates,
+complete binaries, actual guarded retirement and independent recovery requirements
+described above before explicitly completing #48.

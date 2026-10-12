@@ -1,10 +1,10 @@
 # Aster 实施状态
 
-2026-10-12 接续基线：已验证 main `387ee43bc4d39d657044785529203e60104e2842`，
-源码树 `1a99815218dc662eccc2486a771576e0bde96612`，Go 1.27.2 / MyGo v0.4.5。
-#38/#41/#43/#45 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #46 的
-有界精确 Schema `multipleOf` 提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 #46、其单一 [PR #47](https://github.com/laojianzi/aster/pull/47) 及
+2026-10-12 接续基线：已验证 main `45f897f17e89c463df78b288aa652ecf2f48032c`，
+源码树 `643f2e3946c4f24bf66ddd37ea43d9b9ea63c8fc`，Go 1.27.2 / MyGo v0.4.5。
+#38/#41/#43/#45/#47 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #48 的
+有界可移植 Schema 字符串 `pattern` 提示。这是开发预览。当前精确提交、CI 收据和 Issue
+状态以 [#48](https://github.com/laojianzi/aster/issues/48)、其单一 [PR #49](https://github.com/laojianzi/aster/pull/49) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -20,6 +20,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | --- | --- |
 | 原生增量 TextBuffer、不可变快照、超限保留 | #36 |
 | 有界 scalar enum、精确数值边界、Unicode 长度与容器大小 Schema 提示 | #43 |
+| 有界精确 decoded-number multipleOf、数学对照与实际服务器容差边界 | #47 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -35,7 +36,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | MyGo 0.4.5 全量来源审查、物理快捷键和跨行选择/历史合约 | #41 |
 
 #2 已被不可变 Prepared/SSA 替代，保持关闭而不合并其旧实现。
-#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44 已完成。
+#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44、#46 已完成。
 历史分支清理保留恢复归档，不恢复旧分支或重新提交已完成范围。
 
 ## 已结项：#37 / #38 显式发行方登出
@@ -85,8 +86,8 @@ schema `json.Number` 不经 `float64` 比较；已有浮点 draft 值按其 JSON
 不宣称恢复 manifest 解码前已丢失的 YAML 数字词法或精度。
 
 诊断不回显 draft/enum 值、默认值或示例，不修改 draft，不生成 Prepared 计划或发起变更。
-不支持、格式错误、复杂 enum 和预算耗尽均显式标为检查不完整。pattern、format、
-完整组合、列表语义与 CEL 等仍保留；multipleOf 由本轮 #46 独立扩展，server dry-run
+不支持、格式错误、复杂 enum 和预算耗尽均显式标为检查不完整。format、完整组合、
+列表语义与 CEL 等仍保留；multipleOf 已由 #46 完成，pattern 由本轮 #48 独立扩展，server dry-run
 继续决定实际准入。
 
 最终 PR HEAD `16fa04b7446a0975f4cc1e913d91452442510e6c` 合并为 `01089da…`，
@@ -126,7 +127,7 @@ Helm release 或 GitOps reconcile。三平台原生生命周期及两模式迁�
 恢复检查后于 2026-10-12T04:17:21Z 明确关闭；远端和本地 feature 已回收。
 详见 [交付合约](manifest-delivery.md) 和 [最终 PR 收据](https://github.com/laojianzi/aster/pull/45)。
 
-## 本轮唯一范围：#46 / PR #47 精确 multipleOf 提示
+## 已结项：#46 / PR #47 精确 multipleOf 提示
 
 复用 Check draft、已规范化的十进制值、共享预算与原始源码诊断导航。正数除数的
 整倍数条件按实际 decoded JSON number 精确判断；零、负值、超过 2^53 的整数和
@@ -137,13 +138,38 @@ Helm release 或 GitOps reconcile。三平台原生生命周期及两模式迁�
 Kubernetes 浮点容差可能接受某些局部 exact 提示的邻近小数；本地提示不能替代
 server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为数学对照；原生测试
 覆盖精确输入、Unicode 选区/原有 Undo/Redo、最小窗口和不完整输出；真实 CRD 比较
-二进制可精确表示的除数，并单独验证命名的容差边界。最终通过记录以 #46 单一 PR #47
-及其精确 main 的原始证据为准。详见 [Schema 合约](schema-assistance.md)。
+二进制可精确表示的除数，并单独验证命名的容差边界。
+
+最终 HEAD `10ad0c1eee337d3b4fd9d20abdbb7d51d120405d` 合并为 `45f897f…`。
+修正后的四项 PR 门槛与四项新 main 门槛，各自审阅 14 份原始 ZIP 和六个完整二进制；
+未采用旧失败候选结果。主干原始证据包含 595 次独立数学比较、三版本实际 CRD 与原生
+用例，原有必跑测试全部保留。[退役 38215920851](https://github.com/laojianzi/aster/actions/runs/38215920851)
+返回 **applied**；完整历史 bundle 在空 bare 库独立恢复并通过 strict fsck。
+原 15 个 tag 的准确指向不变，新增 `maintenance/completed-pr-47` 指向 merge；远端和
+本地 feature 已回收。#46 在主干人工审阅及恢复核验后于 2026-10-12T07:15:23Z
+明确关闭。详见 [Schema 合约](schema-assistance.md) 和 [PR #47](https://github.com/laojianzi/aster/pull/47)。
+
+## 本轮唯一范围：#48 / PR #49 有界可移植 pattern 提示
+
+使用唯一 `feat/native-schema-pattern`，复用每次显式 Check 的当前身份 OpenAPI 请求、
+共享预算、原始源码诊断和原生编辑历史。以 ECMA-262 5.1 与 Kubernetes 所用 Go regexp
+的保守公共子集检查字符串：BMP 字面值、正向字符类、分组/选择、贪婪或懒惰量词及无 flags
+的显式首尾锚点；默认匹配子串，允许输入包含 emoji。字符类整个范围必须避开 surrogate
+区间，不把 Go 成功编译等同于跨方言支持。未支持语法、非法元数据和预算耗尽显式 incomplete。
+
+模式限 512 字节、输入限 16 KiB、分组深度 32、编译指令 256，重复展开前先核保守上界。
+解析/编译/匹配共享 20,000 工作量和 8 MiB 输入预算；不暴露模式、值或解析器错误。
+678 次独立有限语言对照、Unicode/锚点/空值/错误类型、原生修正与 mounted Undo/Redo、最小窗口、
+三版本实际 CRD/dry-run 及两模式迁移均列入本范围必跑门槛。
+
+新 PR 与精确合并主干各自需要新原始证据和完整二进制审阅；实际可恢复退役及独立恢复
+核验后再明确关闭 #48。本文件不预先宣称尚未发生的运行、合并、关闭或清理成功。
+详见 [Schema 合约](schema-assistance.md)。
 
 ## 后续优先级
 
-P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46 扩展精确 multipleOf。
-剩余 pattern/format、复杂 enum/组合/列表/CEL 等高级 Schema、编辑辅助、
+P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
+#48 实现有界可移植 pattern。该子集之外的 pattern/format、复杂 enum/组合/列表/CEL、编辑辅助、
 真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，
 保留 Undo、IME 和不可变审阅边界。

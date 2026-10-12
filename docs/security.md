@@ -121,6 +121,13 @@ coefficients and modular powers charged to the shared work/operand budgets; they
 expand enormous powers or use a float epsilon. Invalid metadata remains incomplete even
 alongside a known type error. The server's floating-point tolerance may differ from local
 exact-number hints. No arithmetic error, divisor or draft value is displayed.
+Pattern checks admit a conservative ECMA-262/Go subset before compilation. Pattern
+bytes, input bytes, nesting and compiled-program size are bounded; repetition expansion
+has a preflight instruction bound. Parse/compile/match work and operands consume the
+same shared budgets. Unsupported syntax or exhausted budgets remain incomplete; no
+pattern, value or parser error is rendered. Native history, current identity and the
+separate reviewed-write boundary are unchanged. Cancellation surrounds bounded regexp
+primitives and does not claim mid-engine interruption.
 See `schema-assistance.md`.
 
 ## Explicit OS token storage

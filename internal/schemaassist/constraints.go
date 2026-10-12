@@ -152,9 +152,9 @@ func (c *constraintChecker) charge(size int) bool {
 	return c.chargeWork(1, size)
 }
 
-// Arithmetic and traversal consume the same inspection allowance. Numeric
-// primitives are bounded separately by MaxNumberBytes; weighted work prevents
-// many individually bounded modular powers from monopolizing one inspection.
+// Arithmetic, pattern inspection and traversal share one allowance. Primitive
+// input/program limits and weighted work prevent repeated bounded operations
+// from monopolizing one inspection.
 func (c *constraintChecker) chargeWork(units, size int) bool {
 	if c.ctx.Err() != nil || c.exhausted || units < 1 || size < 0 || units > MaxWork-c.report.Checked || size > MaxConstraintBytes-c.bytes {
 		c.report.Partial, c.exhausted = true, true
@@ -326,7 +326,7 @@ func (c *constraintChecker) inspectKeywords(n map[string]any) {
 		case "title", "description", "default", "example", "externalDocs", "deprecated", "readOnly", "writeOnly",
 			"type", "nullable", "properties", "required", "additionalProperties", "items", "$ref",
 			"allOf", "oneOf", "anyOf", "not", "enum", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-			"minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties",
+			"minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties", "pattern",
 			"x-kubernetes-int-or-string", "x-kubernetes-preserve-unknown-fields", "x-kubernetes-embedded-resource",
 			"x-kubernetes-group-version-kind", "x-kubernetes-patch-strategy", "x-kubernetes-patch-merge-key":
 		default:
@@ -342,6 +342,7 @@ func (c *constraintChecker) check(n map[string]any, value any, path string, insp
 	c.checkEnum(n, value, path, inspectValue)
 	c.checkNumber(n, value, path, inspectValue)
 	c.checkMultipleOf(n, value, path, inspectValue)
+	c.checkPattern(n, value, path, inspectValue)
 	length, stringValue := 0, false
 	if s, ok := value.(string); ok && inspectValue {
 		_, lower := n["minLength"]

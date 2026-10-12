@@ -150,7 +150,9 @@ func TestSchemaMultipleOfRejectsMalformedAndInapplicable(t *testing.T) {
 		{"enum-and-multiple", "{\"type\":\"number\",\"enum\":[4],\"multipleOf\":2}", int64(3), false, []string{"enum", "multipleOf"}},
 		{"bounds-and-multiple", "{\"type\":\"number\",\"minimum\":5,\"maximum\":10,\"multipleOf\":2}", int64(3), false, []string{"minimum", "multipleOf"}},
 		{"unsupported-alongside-known-mismatch", "{\"type\":\"number\",\"format\":\"PRIVATE_SCHEMA_FORMAT\",\"multipleOf\":2}", int64(3), true, []string{"multipleOf"}},
-		{"known-type-error-retains-other-unsupported", "{\"type\":\"number\",\"pattern\":\"PRIVATE_PATTERN\",\"multipleOf\":2}", "PRIVATE_DRAFT_VALUE", true, []string{"type"}},
+		// Retain the historical name/input: literal pattern metadata is now
+		// supported, so only the established type error remains.
+		{"known-type-error-retains-other-unsupported", "{\"type\":\"number\",\"pattern\":\"PRIVATE_PATTERN\",\"multipleOf\":2}", "PRIVATE_DRAFT_VALUE", false, []string{"type"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := constraintCheck(t, tc.property, tc.value)

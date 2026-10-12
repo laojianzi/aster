@@ -30,7 +30,7 @@ const nativeConstraintsDocument = `{
      "title":{"type":"string","minLength":2,"maxLength":4},
      "items":{"type":"array","items":{"type":"string"},"minItems":1,"maxItems":2},
      "attributes":{"type":"object","additionalProperties":{"type":"string"},"minProperties":1,"maxProperties":2},
-     "uninspected":{"type":"string","pattern":"PRIVATE_SCHEMA_PATTERN"}
+     "uninspected":{"type":"string","pattern":"PRIVATE_SCHEMA_PATTERN","format":"PRIVATE_SCHEMA_FORMAT"}
     }}
    }}
  }}}
@@ -152,10 +152,13 @@ func TestNativeSchemaConstraintsMinimumWindowAndNoValueDisclosure(t *testing.T) 
 					t.Errorf("missing size constraint %s at %s", tc.codes[i], path)
 				}
 			}
-			if !strings.Contains(h.w.schemaText, "/spec/mode · enum") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || len(h.w.schemaLocations) != 4 {
+			// The existing literal pattern now contributes a known mismatch.
+			// Keep a separate format annotation to retain incomplete/privacy
+			// coverage, without removing the original pattern or draft value.
+			if !strings.Contains(h.w.schemaText, "/spec/mode · enum") || !strings.Contains(h.w.schemaText, "/spec/uninspected · pattern") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || len(h.w.schemaLocations) != 5 {
 				t.Fatal("scalar choices or unsupported-constraint disclosure missing")
 			}
-			for _, private := range []string{"PRIVATE_DRAFT_CHOICE", "PRIVATE_ENUM_CHOICE", "PRIVATE_UNCHECKED_VALUE", "PRIVATE_SCHEMA_PATTERN"} {
+			for _, private := range []string{"PRIVATE_DRAFT_CHOICE", "PRIVATE_ENUM_CHOICE", "PRIVATE_UNCHECKED_VALUE", "PRIVATE_SCHEMA_PATTERN", "PRIVATE_SCHEMA_FORMAT"} {
 				if strings.Contains(h.w.schemaText+h.w.schemaStatus, private) {
 					t.Fatal("schema output echoed a draft value or advertised constraint value")
 				}
