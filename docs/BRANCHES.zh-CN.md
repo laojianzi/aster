@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `b1bfdf867f6eca9a682bd92d8d40111f3a71f577`，源码树
 `ab3be3be48593aa381de8b25ffac45e1ec1b9388`。#38/#41/#43/#45/#47/#49 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #50 / `feat/native-schema-format`，沿用单一 PR。
+依赖分支。本轮唯一新增范围为 Issue #50 / PR #51 / `feat/native-schema-format`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -97,13 +97,14 @@ feature 分支在远端及本地均已回收。#48 于主干人工审阅及恢�
 新增 #50 前盘点为 34 个 PR（33 merged、#2 superseded/closed、0 open），15 个实际
 Issues（仅 #13 open）、只余 main 分支、17 个恢复 tags、0 releases。
 
-## 本轮唯一范围：Issue #50
+## 本轮唯一范围：Issue #50 / PR #51
 
 使用 `feat/native-schema-format` 实现有界 `date` / `byte` / `uuid` 提示，保留既有传输、
 只读诊断、原始源码导航和原生历史合约。独立公历/编码/语法对照、错误类型和 nullable
 适用性、共享预算、三平台原生编辑/最小窗口/双模式迁移及三版本真实 dry-run 为新增门槛。
-实际创建唯一 PR 后才登记该准确 PR/branch 对应关系；#50 是 Issue 编号，不能预猜为
-退役 PR 编号。实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
+唯一 [PR #51](https://github.com/laojianzi/aster/pull/51) 已实际创建，并登记准确 PR/branch
+对应关系。专属回归复用完整 inactive-completed-merge guards 并区分旧 PR #49；#50 是
+Issue 编号，不属于退役 PR 编号。实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
 合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
 本文件不预先宣称新 scope 的 CI、合并或退役成功。

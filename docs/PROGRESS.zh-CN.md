@@ -4,7 +4,7 @@
 源码树 `ab3be3be48593aa381de8b25ffac45e1ec1b9388`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45/#47/#49 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #50 的
 有界 Schema 字符串 `date` / `byte` / `uuid` 格式提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#50](https://github.com/laojianzi/aster/issues/50)、其单一 PR 及
+状态以 [#50](https://github.com/laojianzi/aster/issues/50)、其单一 [PR #51](https://github.com/laojianzi/aster/pull/51) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -172,7 +172,7 @@ server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为
 2026-10-12T08:41:55Z 明确关闭。
 详见 [PR #49](https://github.com/laojianzi/aster/pull/49) 和 [Schema 合约](schema-assistance.md)。
 
-## 本轮唯一范围：#50 有界字符串 format 提示
+## 本轮唯一范围：#50 / PR #51 有界字符串 format 提示
 
 使用唯一 `feat/native-schema-format`，继续复用显式 Check、当前身份的新鲜 Schema、
 共享预算和原始源码/原生编辑历史。仅实现三个固定 Kubernetes 版本行为一致的字符串
