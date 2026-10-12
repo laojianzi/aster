@@ -1,7 +1,8 @@
 # Native schema assistance
 
-The field-help milestone (#14), source navigation (#29), and bounded constraint
-assistance (#42) share production tracker #13. They reuse the same explicit,
+The field-help milestone (#14), source navigation (#29), bounded constraints
+(#42), and exact multipleOf assistance (#46) share production tracker #13.
+They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
 language server or an admission validator.
 
@@ -69,6 +70,49 @@ composition untouched. It does not install editor completions or use synthetic
 input. The existing connection/detail/draft/pointer epochs and source digest
 reject a delayed result or navigation request after its identity changes.
 
+## Exact decoded-number multiples (#46)
+
+`multipleOf` requires a positive numeric divisor. For a numeric instance, Check
+draft reports a field hint when the exact decoded decimal quotient is not an
+integer. Zero and negative instances follow the same rule. Valid numeric metadata
+on a nonnumeric or nullable-null value does not produce a numeric violation;
+malformed metadata still makes the report incomplete, including alongside a type
+error.
+
+For example, `0.3` is an exact multiple of `0.1`, whereas `0.30000000001` is not.
+Integers above 2^53 and bounded `json.Number` values retain their exact value.
+The existing manifest decoder is unchanged: an already-decoded float uses its
+shortest JSON decimal representation. These hints do not recover earlier
+precision or change the object sent to the server.
+
+The checker uses normalized coefficients and a signed 64-bit exponent difference.
+A nonzero coefficient has no trailing zero, so a negative difference cannot
+produce an integer quotient. For a nonnegative difference, modular exponentiation
+determines divisibility without expanding a giant power of ten. Numeric tokens
+still have at most 512 bytes; a normalized exponent difference can exceed uint32
+and needs up to 33 bits. The divisor must be positive before modular arithmetic.
+
+Arithmetic shares the existing 20,000-work and 8 MiB operand-byte allowances.
+Each modular check charges squared 64-decimal-digit blocks times a bound on
+multiply/square steps before big-integer allocation. One legal arithmetic charge
+is at most 4,480 units, in addition to operand and traversal charges; repeated
+expensive checks may make an otherwise well-formed
+document incomplete. Cancellation is checked around bounded primitives, not
+inside a preemptible big-integer operation.
+
+Kubernetes may use floating-point representation and an integer-test tolerance.
+A nearby decimal receiving a local exact hint may still pass server dry-run.
+The real-cluster suite separately compares binary-representable integer/quarter/
+half cases and observes a named tolerance boundary. Local checking never adopts
+a server epsilon or treats its advisory hint as an admission error. Server
+dry-run remains the actual permission, schema and admission check.
+
+Output includes only a field pointer, `multipleOf` category and fixed message.
+It does not echo a divisor, value or arithmetic error. Source, schema, selection
+and mounted history remain unchanged; no Prepared plan is created. Existing
+source-navigation and stale-result guards apply. Pattern/format, complex enum,
+composition, list semantics and CEL remain separate work.
+
 ## Transport and resource limits
 
 Every action obtains fresh OpenAPI v3 discovery and a group-version document
@@ -102,7 +146,7 @@ UI thread; only the finished bounded text is dispatched to the UI.
 ## Deliberate limitations
 
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
-Schema, CEL, webhook or admission behavior. `pattern`, `format`, `multipleOf`,
+Schema, CEL, webhook or admission behavior. `pattern`, `format`,
 complex enum equality, unique/list semantics and CEL remain unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
@@ -144,14 +188,29 @@ and production migration builds on all three OSes. The real-cluster cases
 and server dry-run behavior in each supported Kubernetes version. These tests
 do not establish full admission equivalence or physical IME qualification.
 
-This document defines the change and its required evidence, not a future CI
-result. Final PR/main commits, raw results and scope completion belong to #42,
-its single PR and the live #13 checkpoint.
+The #46 contract adds exact numeric cases, 595 independent rational comparisons,
+malformed/inapplicable metadata, arithmetic/operand budgets, cancellation, privacy
+and input-immutability coverage. Mandatory native cases are
+`TestNativeSchemaMultipleOfPreservesNumbersAndHistory` and
+`TestNativeSchemaMultipleOfMinimumWindowAndIncomplete` on all three OSes and in
+both migration modes. `TestRealSchemaMultipleOfAgreeWithDryRun` and
+`TestNativeSchemaMultipleOfAgainstRealCluster` use a separately isolated published
+CRD on all supported Kubernetes versions. All prior #42 cases remain mandatory;
+the formerly-unsupported multipleOf regression retains its identity/input and now
+requires the exact known violation.
+
+This document defines changes and required evidence, not future CI outcomes.
+Final PR/main commits, raw results and completion belong to each Issue, its single
+PR and the live #13 checkpoint.
 
 Primary references:
 - https://kubernetes.io/docs/concepts/overview/kubernetes-api/#openapi-v3
 - https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 - https://spec.openapis.org/oas/v3.0.3.html
+- https://datatracker.ietf.org/doc/html/draft-wright-json-schema-validation-00#section-5.1
+- https://github.com/golang/go/blob/go1.27.2/src/math/big/int.go
+- https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/validate/values.go
+- https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/github.com/go-openapi/swag/conv/convert.go
 
 Compatibility reference: `kubernetes/kube-openapi/pkg/builder3/util/util.go` (`WrapRefs`)
 wraps native references with sibling annotations in single-element `allOf`. The
