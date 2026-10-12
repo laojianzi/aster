@@ -246,7 +246,13 @@ func TestSchemaConstraintsRejectMalformedAndUnsupportedWithoutGuessing(t *testin
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := constraintCheck(t, tc.property, tc.value)
-			if tc.name == "unsupported-pattern" {
+			if tc.name == "enum-complex-even-after-match" {
+				// Keep the original name/input. Structured alternatives now
+				// validate completely, including the one after this match.
+				constraintWant(t, r, false)
+			} else if tc.name == "enum-complex-no-match" {
+				constraintWant(t, r, false, "enum")
+			} else if tc.name == "unsupported-pattern" {
 				// Keep the original name/input; the literal pattern is now
 				// supported and must establish this mismatch without leaks.
 				constraintWant(t, r, false, "pattern")
@@ -302,7 +308,9 @@ func TestSchemaConstraintsRejectMalformedAndUnsupportedWithoutGuessing(t *testin
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				r := constraintCheck(t, tc.property, int64(1))
-				constraintWant(t, r, true, "type")
+				// Preserve the old complex-enum fixture; its metadata is now
+				// fully supported, so only the original type error remains.
+				constraintWant(t, r, tc.name != "complex-enum", "type")
 				if strings.Contains(r.Text()+constraintEncode(t, r), "schema-secret") {
 					t.Fatal("malformed schema value escaped through a known type error")
 				}

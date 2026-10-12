@@ -51,7 +51,7 @@ This does not edit a resource or replace server-side preview. See
 ## Schema assistance
 
 In **Edit**, **Field help** explains a field and **Check draft** reports bounded
-structural hints, scalar enum/numeric constraints, exact decoded-number multiples,
+structural hints, bounded enum/numeric constraints, exact decoded-number multiples,
 supported string patterns and formats, Unicode string lengths and container sizes.
 Each explicit action uses the current connection's fresh OpenAPI v3 schema.
 Checks preserve the draft and native history, keep values out
@@ -65,9 +65,17 @@ local exact hints. The completed #48 / [PR #49](https://github.com/laojianzi/ast
 pattern increment checks an explicitly bounded portable
 subset, including BMP literals, positive classes, groups and repetition. Matching
 is unanchored unless the expression uses anchors; unsupported syntax remains incomplete.
-The #50 format increment checks bounded `date`, `byte` and `uuid` strings against
+The completed #50 / [PR #51](https://github.com/laojianzi/aster/pull/51) format
+increment checks bounded `date`, `byte` and `uuid` strings against
 the supported Kubernetes validators' behavior. Other formats remain incomplete;
 format hints do not decode, normalize or replace the draft.
+The #52 / [PR #53](https://github.com/laojianzi/aster/pull/53) enum increment extends
+exact decoded JSON equality to bounded objects and
+arrays. Object key order is irrelevant; complete key sets, array order, repeated
+entries and explicit null remain significant. Nested numbers keep the existing
+exact decimal contract. All enum metadata is checked before a match can succeed;
+malformed or over-budget content keeps the report incomplete. Server numeric
+types, nullable enum handling, pruning and defaults remain dry-run boundaries.
 [The progress tracker](https://github.com/laojianzi/aster/issues/13) records the
 remaining editor and release goals.
 

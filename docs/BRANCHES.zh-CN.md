@@ -1,9 +1,9 @@
 # 分支与 PR 接续台账
 
 2026-10-12 接续基线为已验证 main
-`b1bfdf867f6eca9a682bd92d8d40111f3a71f577`，源码树
-`ab3be3be48593aa381de8b25ffac45e1ec1b9388`。#38/#41/#43/#45/#47/#49 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #50 / PR #51 / `feat/native-schema-format`。
+`2186a23cf118265ad853466474e5c9e3fe3cffb9`，源码树
+`0f324efebc8ad71572d0112c9aaf5d11a0632af4`。#38/#41/#43/#45/#47/#49/#51 均已完成，不重建其功能或
+依赖分支。本轮唯一新增范围为 Issue #52 / PR #53 / `feat/native-schema-structured-enum`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -97,14 +97,31 @@ feature 分支在远端及本地均已回收。#48 于主干人工审阅及恢�
 新增 #50 前盘点为 34 个 PR（33 merged、#2 superseded/closed、0 open），15 个实际
 Issues（仅 #13 open）、只余 main 分支、17 个恢复 tags、0 releases。
 
-## 本轮唯一范围：Issue #50 / PR #51
+## 已结项：#50 / #51
 
-使用 `feat/native-schema-format` 实现有界 `date` / `byte` / `uuid` 提示，保留既有传输、
+通过 `feat/native-schema-format` 实现有界 `date` / `byte` / `uuid` 提示，保留既有传输、
 只读诊断、原始源码导航和原生历史合约。独立公历/编码/语法对照、错误类型和 nullable
 适用性、共享预算、三平台原生编辑/最小窗口/双模式迁移及三版本真实 dry-run 为新增门槛。
-唯一 [PR #51](https://github.com/laojianzi/aster/pull/51) 已实际创建，并登记准确 PR/branch
-对应关系。专属回归复用完整 inactive-completed-merge guards 并区分旧 PR #49；#50 是
-Issue 编号，不属于退役 PR 编号。实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
+最终 HEAD `0c10a56180658062352886fc63c6bf7336ec900c` 合并为当前接续 main `2186a23…`。
+四项最终 PR、四项精确 main 门槛及原始证据均已独立核验。
+[退役 38231769807](https://github.com/laojianzi/aster/actions/runs/38231769807) 返回 **applied**，
+完整历史 bundle 在新空 bare 仓库独立恢复并通过 strict fsck；旧 17 个 tag 不变，新增
+`maintenance/completed-pr-51` 指向 merge，准确 feature 分支在远端及本地均已回收。
+#50 于 2026-10-12T09:59:21Z 在独立主干与恢复核验后明确关闭。
+
+新增 #52 前全页盘点为 35 个 PR（34 merged、#2 superseded/closed、0 open），16 个实际
+Issues（仅 #13 open）、只余 main 分支、18 个恢复 tags。
+
+## 本轮唯一范围：Issue #52 / PR #53
+
+使用 `feat/native-schema-structured-enum` 实现有界 decoded JSON 对象/数组枚举相等，
+保留纯 scalar 路径、精确数值、共享预算、完整元数据检查与所有旧门槛。新增独立 JSON
+对照、原生父字段导航/选择/history/最小窗口、三平台双模式迁移及三版本真实 CRD。
+正确区分服务端嵌套数字类型、nullable enum、裁剪/默认值与本地只读辅助的语义边界。
+唯一 [PR #53](https://github.com/laojianzi/aster/pull/53) 已实际创建并登记其准确编号；#52 是
+Issue，不能当作退役 PR 编号。专属回归复用完整 inactive-completed-merge guards，并区分
+旧 PR #51 与 Issue #52，不创建重复功能分支。
+实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
 合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
 本文件不预先宣称新 scope 的 CI、合并或退役成功。
@@ -130,5 +147,5 @@ CI、Source evidence、Native migration verification、OIDC qualification。
 分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
 `maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
 不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
-依赖范围另外要求 Renovate configuration 第五项主干门槛；#50 是独立 MVP Schema 功能，
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#52 是独立 MVP Schema 功能，
 不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。
