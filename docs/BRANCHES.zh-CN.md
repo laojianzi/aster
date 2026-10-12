@@ -1,9 +1,9 @@
 # 分支与 PR 接续台账
 
 2026-10-12 接续基线为已验证 main
-`2186a23cf118265ad853466474e5c9e3fe3cffb9`，源码树
-`0f324efebc8ad71572d0112c9aaf5d11a0632af4`。#38/#41/#43/#45/#47/#49/#51 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #52 / PR #53 / `feat/native-schema-structured-enum`。
+`841745bf0b2dd0f52f994cae31a464c5dbc72a5c`，源码树
+`460306069e410276ec1dda6124f077fc60f2c7fe`。#38/#41/#43/#45/#47/#49/#51/#53 均已完成，不重建其功能或
+依赖分支。本轮唯一新增范围为 Issue #54 / PR #55 / `feat/native-schema-list-map`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -112,7 +112,7 @@ Issues（仅 #13 open）、只余 main 分支、17 个恢复 tags、0 releases�
 新增 #52 前全页盘点为 35 个 PR（34 merged、#2 superseded/closed、0 open），16 个实际
 Issues（仅 #13 open）、只余 main 分支、18 个恢复 tags。
 
-## 本轮唯一范围：Issue #52 / PR #53
+## 已结项：Issue #52 / PR #53
 
 使用 `feat/native-schema-structured-enum` 实现有界 decoded JSON 对象/数组枚举相等，
 保留纯 scalar 路径、精确数值、共享预算、完整元数据检查与所有旧门槛。新增独立 JSON
@@ -121,10 +121,27 @@ Issues（仅 #13 open）、只余 main 分支、18 个恢复 tags。
 唯一 [PR #53](https://github.com/laojianzi/aster/pull/53) 已实际创建并登记其准确编号；#52 是
 Issue，不能当作退役 PR 编号。专属回归复用完整 inactive-completed-merge guards，并区分
 旧 PR #51 与 Issue #52，不创建重复功能分支。
-实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
-保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
-合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
-本文件不预先宣称新 scope 的 CI、合并或退役成功。
+最终 HEAD `60f412b6…` 合并为 main `841745bf…`。四项最终 PR 和四项精确主干验证、
+原始证据、完整二进制和图像均独立核验。原失败/重试来源保留，没有复用 PR 产物验收主干。
+[退役 38247964969](https://github.com/laojianzi/aster/actions/runs/38247964969) 实际 applied；
+完整 bundle 在新空 bare 仓库恢复，15 项 Git 检查含 strict fsck 通过；原 18 个 tag
+映射未变，新增 `maintenance/completed-pr-53`。自动退役先于独立产物审查，恢复、本地
+清理及 2026-10-12T12:32:07Z 的 #52 completed 关闭在其后，时间顺序不倒置。
+
+新增 #54 前全页盘点为 36 个 PR（35 merged、#2 superseded/closed、0 open），17 个实际
+Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。没有并发待续接范围。
+
+## 本轮唯一范围：Issue #54 / PR #55
+
+`feat/native-schema-list-map` 只实现有界 map-list 字符串键 tuple 重复提示，复用现有
+Schema/原生历史/服务端 dry-run。MyGo 最新稳定版仍 0.4.5，未发布的布局缓存改动不等于
+安全编辑事务；不为补全或企业权限另建分支。实际 Helm/GitOps 和其他列表语义仍在 #13。
+
+唯一 [PR #55](https://github.com/laojianzi/aster/pull/55) 已实际创建，准确 branch 已登记；
+#54 是 Issue，不能当作退役 PR 编号。新增回归核对 PR 55 / Issue 54 / 旧 PR 53 的完整保护。
+保留全部原 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档与历史 tags。
+合并前保持中性 Issue 引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #54。
+本节不预先声称本轮实现、CI、合并或退役成功。
 
 企业 Gateway/Connector、tenant/policy/approval/audit/session-revocation 已按用户决定
 列 P3 暂缓，排除首版 MVP；不为它创建活动实现分支。#13 保留其他产品与发布验收。
@@ -147,5 +164,5 @@ CI、Source evidence、Native migration verification、OIDC qualification。
 分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
 `maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
 不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
-依赖范围另外要求 Renovate configuration 第五项主干门槛；#52 是独立 MVP Schema 功能，
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#54 是独立 MVP Schema 功能，
 不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。

@@ -1,10 +1,10 @@
 # Aster 实施状态
 
-2026-10-12 接续基线：已验证 main `2186a23cf118265ad853466474e5c9e3fe3cffb9`，
-源码树 `0f324efebc8ad71572d0112c9aaf5d11a0632af4`，Go 1.27.2 / MyGo v0.4.5。
-#38/#41/#43/#45/#47/#49/#51 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #52 的
-有界结构化 Schema enum 提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#52](https://github.com/laojianzi/aster/issues/52)、其单一 [PR #53](https://github.com/laojianzi/aster/pull/53) 及
+2026-10-12 接续基线：已验证 main `841745bf0b2dd0f52f994cae31a464c5dbc72a5c`，
+源码树 `460306069e410276ec1dda6124f077fc60f2c7fe`，Go 1.27.2 / MyGo v0.4.5。
+#38/#41/#43/#45/#47/#49/#51/#53 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #54 的
+有界 Kubernetes map-list 字符串键身份提示。这是开发预览。当前精确提交、CI 收据和 Issue
+状态以 [#54](https://github.com/laojianzi/aster/issues/54)、其单一 [PR #55](https://github.com/laojianzi/aster/pull/55) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -23,6 +23,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | 有界精确 decoded-number multipleOf、数学对照与实际服务器容差边界 | #47 |
 | 有界可移植字符串 pattern、独立有限语言对照与真实 CRD 验证 | #49 |
 | 有界 date/byte/uuid 格式提示、独立公历/编码/语法对照与真实 CRD 验证 | #51 |
+| 有界结构化 enum、完整对象/有序数组等值和实际服务端类型/nullable 边界 | #53 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -38,7 +39,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | MyGo 0.4.5 全量来源审查、物理快捷键和跨行选择/历史合约 | #41 |
 
 #2 已被不可变 Prepared/SSA 替代，保持关闭而不合并其旧实现。
-#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44、#46、#48 已完成。
+#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44、#46、#48、#50、#52 已完成。
 历史分支清理保留恢复归档，不恢复旧分支或重新提交已完成范围。
 
 ## 已结项：#37 / #38 显式发行方登出
@@ -196,7 +197,7 @@ pattern/multipleOf/来源/凭据库/OIDC/双模式迁移门槛。没有新增依
 远端和本地 feature 已回收，#50 于 2026-10-12T09:59:21Z 明确关闭。
 详见 [Schema 合约](schema-assistance.md)。
 
-## 本轮唯一范围：#52 / PR #53 有界结构化 enum 提示
+## 已结项：#52 / PR #53 有界结构化 enum 提示
 
 唯一 `feat/native-schema-structured-enum` 将精确 decoded JSON 比较递归扩展到对象和数组。
 对象完整键集合与值相等、键顺序无关；数组保留顺序和重复次数。缺失、null、空对象和
@@ -213,14 +214,37 @@ Prepared 与服务端。原有三个 complex-enum 测试保留名称和输入，
 独立 JSON/有理数对照、三平台原生交互和双模式迁移、三版本真实结构化 CRD/dry-run 是
 新增门槛。服务端只转换枚举最外层 Go 类型，不对嵌套数字归一化；nullable enum 的具名
 差异与一致案例分开。裁剪、默认值、ratcheting、列表/CEL/webhook 仍由实际 dry-run 决定。
-唯一 PR #53 已实际创建，并登记准确 PR/branch 恢复关系；专属回归核验 (PR 53、Issue 52、
-旧 PR 51) 的完整退役边界。最终 PR 和精确 main 独立核验证据、实际
-可恢复退役及空仓库恢复后再明确关闭 #52，本文件不预先宣称这些阶段已经成功。
+最终 HEAD `60f412b6…` 合并为接续 main `841745bf…`，tree `46030606…`。
+最终 PR 和精确 main 分别审阅 14 份新 ZIP、6 个完整二进制、24 份 raw / 4,526 条通过
+记录（含跨平台/模式重复）及 81 张实际查看的图像。主干 CI/迁移的准备阶段 HTTP 504
+与原始重试来源均保留，旧必跑门槛完整。[退役 38247964969](https://github.com/laojianzi/aster/actions/runs/38247964969)
+实际 applied；完整历史在新空 bare 仓库独立恢复，15 项 Git 检查含 strict fsck 通过。
+原 18 个 tag 指向不变，新增 `maintenance/completed-pr-53` 指向 main。自动退役先于
+独立原始产物审查；恢复与本地清理在审查后完成，#52 于 2026-10-12T12:32:07Z 明确关闭。
+
+## 本轮唯一范围：#54 / PR #55 有界 map-list 字符串键身份提示
+
+唯一 `feat/native-schema-list-map` 复用当前身份的新鲜 OpenAPI、Check draft、预算和原始
+父字段导航。仅检查 `x-kubernetes-list-type: map`、显式 required/nonnullable string keys；
+完整 tuple 相同即重复，其他 payload 不参与身份。键元数据和全部条目先检查完，晚出现
+的缺键、null、类型错误、超限或取消不会被早期重复掩盖。固定通用提示不回显键名和值。
+
+键名限制 1–8 个、各 1–256 UTF-8 字节，数组最多 256 条，每个键值最多 16 KiB；解析、
+引用、分配、扫描和散列预先计入既有共享预算。默认-only/非字符串键、set/atomic、普通
+uniqueItems 和完整列表合并仍属后续范围。CRD 本身禁止 `uniqueItems: true`，不能把
+通用 JSON Schema 的这一关键词当作可发布 CRD 功能。默认、裁剪和旧错误对象的更新
+豁免由服务端决定；本地不会修改草稿或模拟转换。
+
+新增独立 tuple 对照、原生选择/历史/修正重查/最小窗口，以及三版本真实 CRD create/live
+dry-run。原有全部门槛和四项 PR/主干资格继续保留；本节不预先声称实现已完成验收。
+唯一 PR #55 已实际建立；退役映射准确登记 PR 55 / Issue 54 / 旧 PR 53，完整 guard 回归
+继续拒绝移动、保护、活动、不可达或错误范围的分支。精确主干与可恢复退役后才关闭 #54。
 
 ## 后续优先级
 
 P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
-#48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52 推进有界结构化 enum。
+#48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52/#53 已完成结构化 enum；
+#54 推进有界 map-list 字符串键身份提示。
 这些子集之外的 pattern/format、组合/列表/CEL、编辑辅助、
 真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，

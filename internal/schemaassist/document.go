@@ -201,6 +201,13 @@ func referenceWrapper(node map[string]any) (string, bool) {
 	return ref, true
 }
 func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string]any, error) {
+	return d.resolveWithBudget(ctx, node, nil)
+}
+
+// resolveWithBudget keeps one reference-resolution contract. Additional local
+// constraint inspections can prepay its bounded scans, key hashing and copies;
+// ordinary Help/Check callers retain their established nil-budget behavior.
+func (d *Document) resolveWithBudget(ctx context.Context, node map[string]any, charge func(int, int) bool) (map[string]any, error) {
 	seen := map[string]bool{}
 	// Only display annotations are overlaid; defaults/examples are never applied
 	// or shown. A marker preserves uninspected wrapper semantics without merging
@@ -215,6 +222,19 @@ func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string
 		// small independent budget so annotation overlays cannot amplify copies.
 		if len(node) > MaxSchemaKeys {
 			return nil, ErrLimit
+		}
+		if charge != nil {
+			// Reserve iteration/copy work before traversing the bounded map.
+			// Keyword bytes pay for wrapper checks and possible overlay hashing;
+			// annotation names are the two fixed description/title strings.
+			if !charge(1+3*len(node)+2*len(annotations), 32*len(annotations)) {
+				return nil, ErrLimit
+			}
+			for key := range node {
+				if !charge(1, 2*len(key)) {
+					return nil, ErrLimit
+				}
+			}
 		}
 		value, exists := node["$ref"]
 		ref, valid := value.(string)
@@ -242,7 +262,15 @@ func (d *Document) resolve(ctx context.Context, node map[string]any) (map[string
 				}
 			}
 		}
-		if !valid || len(ref) > 4096 || !strings.HasPrefix(ref, "#/components/schemas/") {
+		if !valid || len(ref) > 4096 {
+			return nil, ErrUnsupported
+		}
+		// Prefix checks, seen-ref hashing, pointer decoding and definition lookup
+		// are all linear in this bounded reference. Charge before any of them.
+		if charge != nil && !charge(4, 8*len(ref)) {
+			return nil, ErrLimit
+		}
+		if !strings.HasPrefix(ref, "#/components/schemas/") {
 			return nil, ErrUnsupported
 		}
 		if seen[ref] {
