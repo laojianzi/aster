@@ -246,7 +246,13 @@ func TestSchemaConstraintsRejectMalformedAndUnsupportedWithoutGuessing(t *testin
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := constraintCheck(t, tc.property, tc.value)
-			constraintWant(t, r, true)
+			if tc.name == "unsupported-multiple-of" {
+				// Keep the original regression identity and input. This keyword
+				// now produces a known violation instead of an incomplete scan.
+				constraintWant(t, r, false, "multipleOf")
+			} else {
+				constraintWant(t, r, true)
+			}
 			if strings.Contains(r.Text(), "schema-secret") || strings.Contains(r.Text(), "draft-secret") {
 				t.Fatal("incomplete report disclosed source values")
 			}

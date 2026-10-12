@@ -116,7 +116,12 @@ Decoded byte/depth/work/output budgets cover untrusted OpenAPI and diagnostic te
 No draft values, schema defaults or examples appear in diagnostic output. Plain-text
 descriptions are not executable markup. Editing, hiding or closing the panel and
 connection expiry invalidate pending results. Structural hints do not replace
-server admission/dry-run or authorize mutations. See `schema-assistance.md`.
+server admission/dry-run or authorize mutations. Exact `multipleOf` checks use bounded
+coefficients and modular powers charged to the shared work/operand budgets; they never
+expand enormous powers or use a float epsilon. Invalid metadata remains incomplete even
+alongside a known type error. The server's floating-point tolerance may differ from local
+exact-number hints. No arithmetic error, divisor or draft value is displayed.
+See `schema-assistance.md`.
 
 ## Explicit OS token storage
 

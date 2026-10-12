@@ -184,3 +184,41 @@ these tests establish API delivery and inspection, not running application traff
 workload availability. Existing real rollout/readiness scenarios remain required.
 Local `-tags=e2e -run '^$'` is compilation only; final PR and exact-main raw evidence must
 qualify these cases alongside every previously required test before scope completion.
+
+
+## Exact Schema multipleOf (#46)
+
+Retain the complete existing unit/native/real-cluster/OIDC/migration inventories.
+Add mandatory `TestSchemaMultipleOfExactDecodedValues`,
+`TestSchemaMultipleOfMatchesIndependentRationalOracle`,
+`TestSchemaMultipleOfRejectsMalformedAndInapplicable`,
+`TestSchemaMultipleOfBudgetsAndCancellation`, and
+`TestSchemaMultipleOfInspectionPreservesInputsAndPrivacy`. The independent big.Rat
+oracle uses bounded test exponents; production uses coefficient-bounded modular
+arithmetic and tests the full signed exponent boundary without expanding powers.
+The original formerly-unsupported multipleOf case retains its name and input,
+with its expectation promoted to the exact established violation.
+
+Require `TestNativeSchemaMultipleOfPreservesNumbersAndHistory` and
+`TestNativeSchemaMultipleOfMinimumWindowAndIncomplete` in the full unit/native
+suites and both checked/production migration modes on each OS. Actual keyboard,
+selection, Copy, navigation, correction and Undo/Redo assertions cover the mounted
+editor. Minimum-window screenshots and malformed metadata output are inspected;
+they do not establish physical IME, all fonts or cross-view native history.
+
+Require `TestRealSchemaMultipleOfAgreeWithDryRun` and
+`TestNativeSchemaMultipleOfAgainstRealCluster` on Kubernetes 1.35.8, 1.36.4 and
+1.37.0. Their dedicated CRD is established and its fresh current-identity OpenAPI
+document is used. Binary-representable multiples are compared with actual strict
+dry-run; a separately named nearby-decimal tolerance case observes the server
+decision without changing the exact local rule. Draft and live object UID,
+resourceVersion and spec must remain unchanged, and dry-run resources must not
+persist. Compilation alone is not execution.
+
+The sole PR must retain the exact prior mandatory names and obtain all four
+final-head gates. Review original raw streams, archive/API sizes and hashes,
+source/provenance, all six full normal/production binaries and window evidence.
+After merge, repeat qualification on fresh exact-main artifacts. Complete the
+Issue after checking actual guarded retirement and complete-history recovery.
+A workflow summary or a waiting retirement report does not substitute for the
+corresponding original evidence.

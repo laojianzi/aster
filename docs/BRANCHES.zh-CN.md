@@ -1,9 +1,9 @@
 # 分支与 PR 接续台账
 
 2026-10-12 接续基线为已验证 main
-`01089da1e57ed6235a316d919a1cb7075dbb5e35`，源码树
-`cc5a680f507bdb8355911534bad1457e3eda3d7c`。#38/#41/#43 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #44 / PR #45 / `feat/reviewed-manifest-delivery`。
+`387ee43bc4d39d657044785529203e60104e2842`，源码树
+`1a99815218dc662eccc2486a771576e0bde96612`。#38/#41/#43/#45 均已完成，不重建其功能或
+依赖分支。本轮唯一新增范围为 Issue #46 / `feat/native-schema-multipleof`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -33,7 +33,7 @@ PR 与主干各四项验证及原始证据均通过，#37 已关闭。
 [退役 38186078349](https://github.com/laojianzi/aster/actions/runs/38186078349)
 报告 **already-absent**。该流程没有再次删除分支，也没有产生新的 `before.bundle`
 或 `maintenance/completed-pr-41`。PR HEAD 是 #41 merge `7bf17dd…` 的直接第二父提交，
-也是现 main `01089da…` 的祖先，完整实现历史仍在；不制造回收收据，也不重建分支以重新删除。
+也是接续 main `387ee43…` 的祖先，完整实现历史仍在；不制造回收收据，也不重建分支以重新删除。
 
 Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真实依赖更新可重开同一
 #11，那是新的依赖 scope；保留正文中的已合并 #41 不代表当前队列仍未完成。
@@ -52,19 +52,34 @@ Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真�
 12 个实际 Issues（仅 #13 open）、只余 main 分支、14 个恢复 tags、0 releases。
 这些是已完成基线的盘点，不是新 scope 的未来状态承诺。
 
-## 本轮唯一范围：#44 / #45
+## 已结项：#44 / #45
 
-使用 `feat/reviewed-manifest-delivery` 和 [PR #45](https://github.com/laojianzi/aster/pull/45)，实现有界已渲染清单导入、当前
-身份发现及逐对象审阅交付。复用已有不可变 Prepared、create-only、无 force SSA、
-真实资源详情与 UID 固定的只读 Health 入口；不另建重复的 apply/回滚/批量执行器。
-实际 Helm release、GitOps reconcile、CRD/Namespace 安装顺序不属于本范围。
+`feat/reviewed-manifest-delivery` 的已审 HEAD `043819766f26def751df74f531235f65c6168afe`
+合并为 `387ee43…`。四项 PR 与四项精确 main gate 各自完成 14 份新 ZIP 和六个完整
+普通/生产二进制审阅；有界清单交付复用 Prepared 与既有只读 Health 入口。
+[退役 38202506391](https://github.com/laojianzi/aster/actions/runs/38202506391) 报告
+**applied**；完整历史 bundle 在新空 bare 仓库恢复并通过 strict fsck，原 14 个 tag
+指向不变，新增 `maintenance/completed-pr-45` 指向 merge。准确 feature 在远端和
+本地均已回收。自动退役发生在四项主干 workflow 成功后、人工最终审阅之前；
+#44 在人工审阅及恢复核验完成后的 2026-10-12T04:17:21Z 明确关闭，不把先后顺序倒置。
 
-本范围必须验证来源/namespace/连接/epoch 绑定，三平台原生顺序/确认/取消/隔离、
-普通/生产迁移，以及三个 K8s 版本的多对象 create/update、真实竞态、所有权、RBAC、
-丢响应 Unknown、partial outcomes 与显式 fresh review。退役只登记已建立的 PR #45 与
-准确 branch，保留所有原有 scope guards；Issue #44 不属于 PR 退役编号。
-合并前 PR 正文各处使用中性 Issue 引用；main 资格与实际清理核验后再执行结项。
-精确 HEAD、原始结果、合并及实际退役由该 PR、#44 和 #13 记录，本段不是 CI 通过声明。
+新增 #46 前全量盘点为 32 个 PR（31 merged、#2 superseded/closed、0 open），
+13 个实际 Issues（仅 #13 open）、只余 main 分支、15 个恢复 tags、0 releases。
+#11 正文中的旧 #41 条目属于已关闭的历史快照，不代表新的待批准更新。
+
+## 本轮唯一范围：#46
+
+使用 `feat/native-schema-multipleof` 实现精确 decoded-number multipleOf 提示。
+复用已有 Schema transport、规范化数值、只读检查、诊断导航和原生历史合约；
+不创建并行 validator、补全引擎或 mutation 路径。Pattern、实际 Helm/GitOps
+生命周期及原生安全编辑器边界保留在 #13。
+
+要求数学对照、共享算术预算/取消/隐私测试、三平台原生交互与普通/生产迁移，
+以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。只有实际 PR 建立后，
+才把其准确 PR/branch 对应关系加入既有退役登记；Issue #46 不属于 PR 退役编号。
+保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
+合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
+本文件不预先宣称新 scope 的 CI、合并或退役成功。
 
 企业 Gateway/Connector、tenant/policy/approval/audit/session-revocation 已按用户决定
 列 P3 暂缓，排除首版 MVP；不为它创建活动实现分支。#13 保留其他产品与发布验收。
@@ -87,5 +102,5 @@ CI、Source evidence、Native migration verification、OIDC qualification。
 分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
 `maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
 不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
-依赖范围另外要求 Renovate configuration 第五项主干门槛；#44 是独立 MVP 交付功能，
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#46 是独立 MVP Schema 功能，
 不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。
