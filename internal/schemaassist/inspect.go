@@ -2,9 +2,7 @@ package schemaassist
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -137,56 +135,22 @@ type Report struct {
 
 func (r Report) Text() string {
 	var b strings.Builder
-	b.WriteString("Structural hints only: required, type and undescribed fields. Not admission validation.\n")
+	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, scalar choices, numeric bounds and sizes. Not admission validation.\n")
 	for _, d := range r.Diagnostics {
 		fmt.Fprintf(&b, "%s · %s: %s\n", text(d.Pointer, 160), d.Code, d.Message)
 	}
 	if len(r.Diagnostics) == 0 {
-		b.WriteString("No required/type/unknown-field hints found.\n")
+		b.WriteString("No supported structural or constraint hints found.\n")
 	}
 	if r.Partial {
-		b.WriteString("Inspection is incomplete: unsupported structure or inspection limit reached.\n")
+		b.WriteString("Inspection is incomplete: unsupported or invalid constraints/structure, or inspection limit reached.\n")
 	}
 	b.WriteString("The draft was not changed. Server dry-run remains required.")
 	return boundedOutput(b.String())
 }
 func integer(v any) bool {
-	switch n := v.(type) {
-	case int, int32, int64, uint, uint32, uint64:
-		return true
-	case float64:
-		return !math.IsNaN(n) && !math.IsInf(n, 0) && math.Trunc(n) == n
-	case json.Number:
-		// Classify decimal/exponent spelling without allocating a huge big.Int.
-		s := string(n)
-		if len(s) > 512 || !json.Valid([]byte(s)) {
-			return false
-		}
-		exponent := int64(0)
-		if i := strings.IndexAny(s, "eE"); i >= 0 {
-			var err error
-			exponent, err = strconv.ParseInt(s[i+1:], 10, 32)
-			if err != nil {
-				return false
-			}
-			s = s[:i]
-		}
-		s = strings.TrimPrefix(s, "-")
-		fraction := int64(0)
-		if i := strings.IndexByte(s, '.'); i >= 0 {
-			fraction = int64(len(s) - i - 1)
-			s = s[:i] + s[i+1:]
-		}
-		zeros := fraction - exponent
-		if zeros <= 0 {
-			return true
-		}
-		if zeros > int64(len(s)) {
-			return strings.Trim(s, "0") == ""
-		}
-		return strings.Trim(s[len(s)-int(zeros):], "0") == ""
-	}
-	return false
+	n, ok := decimalValue(v)
+	return ok && (n.sign == 0 || n.power >= 0)
 }
 func typeMatches(typ string, v any) bool {
 	switch typ {
@@ -198,11 +162,7 @@ func typeMatches(typ string, v any) bool {
 		_, s := v.(string)
 		return s || integer(v)
 	case "number":
-		switch v.(type) {
-		case json.Number, float64, int, int32, int64, uint, uint64:
-			return true
-		}
-		return false
+		return number(v)
 	case "string":
 		_, ok := v.(string)
 		return ok
@@ -235,6 +195,7 @@ func (d *Document) Check(ctx context.Context, obj map[string]any) (Report, error
 		}
 		r.Diagnostics = append(r.Diagnostics, Diagnostic{path, code, message})
 	}
+	constraints := constraintChecker{ctx: ctx, report: &r, add: add}
 	var visit func(map[string]any, any, string, int)
 	visit = func(raw map[string]any, value any, path string, depth int) {
 		if ctx.Err() != nil {
@@ -251,28 +212,49 @@ func (d *Document) Check(ctx context.Context, obj map[string]any) (Report, error
 			add(path, "unsupported", "Reference could not be inspected locally.")
 			return
 		}
-		typ := nodeType(n)
-		if value == nil && n["nullable"] == true {
-			return
-		}
-		if value == nil && typ != "null" && typ != "" {
-			add(path, "type", "Expected "+text(typ, 80)+"; null is not nullable.")
-			return
-		}
-		if !typeMatches(typ, value) {
-			add(path, "type", "Expected "+text(typ, 80)+".")
-			return
-		}
+		// Record uninspected semantics before a known type error can stop value
+		// inspection. A supported diagnostic must not hide a partial schema.
+		constraints.inspectKeywords(n)
 		isComposite := composite(n)
 		if isComposite {
 			r.Partial = true
 		}
-		switch typ {
-		case "", "integer", "integer|string", "number", "string", "boolean", "object", "array", "null":
-		default:
-			r.Partial = true
+		if raw, present := n["type"]; present {
+			value, valid := raw.(string)
+			if !valid {
+				r.Partial = true
+				return
+			}
+			switch value {
+			case "integer", "number", "string", "boolean", "object", "array", "null":
+			default:
+				r.Partial = true
+				return
+			}
+		}
+		typ := nodeType(n)
+		if raw, present := n["nullable"]; present {
+			if _, valid := raw.(bool); !valid {
+				r.Partial = true
+				return
+			}
+		}
+		if number(value) {
+			if _, ok := decimalValue(value); !ok {
+				r.Partial = true
+				return
+			}
+		}
+		nullable := value == nil && n["nullable"] == true
+		if value == nil && typ != "null" && typ != "" && !nullable {
+			add(path, "type", "Expected "+text(typ, 80)+"; null is not nullable.")
 			return
 		}
+		if !nullable && !typeMatches(typ, value) {
+			add(path, "type", "Expected "+text(typ, 80)+".")
+			return
+		}
+		constraints.check(n, value, path)
 		switch v := value.(type) {
 		case map[string]any:
 			if len(v) > MaxWork-r.Checked {

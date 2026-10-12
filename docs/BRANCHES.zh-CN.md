@@ -1,53 +1,72 @@
 # 分支与 PR 接续台账
 
-2026-10-12 接续核查：基线 main `1dfc816fff2653844fe74f587ee645cce823dcd4`，
-已合并 #38（发行方登出）、#39（MyGo 0.4.2）与 #40（空依赖看板自动关闭）。恢复时必须读取远端
-refs、Issues、PR 与精确提交的 CI；本文件记录本次变更范围，不替代实时状态。
+2026-10-12 接续基线为已验证 main
+`7bf17ddbfaf87fa8ecb720b1e5e95e913823345d`。#38/#41 均已完成，不重建其功能或
+依赖分支。本轮唯一新增范围为 #42 / `feat/native-schema-constraints`。
+恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
+历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
-## 已合并：#37 / #38
+## 已结项：#37 / #38
 
-#38 使用原有 `feat/native-oidc-signout`，已将审阅 HEAD
-`0231bd9654b39d377009e580ffd2f7430304ffb9` 合并到上述 main；没有新建重复 PR。
-整合时保留 MyGo 0.4.2 来源与终端补丁、四项 0.4 API 合约、普通/生产两种
-构建的 UI 与终端门槛，以及 #40 的看板审批和自动关闭策略。
+#38 复用了 `feat/native-oidc-signout`，审阅 HEAD
+`0231bd9654b39d377009e580ffd2f7430304ffb9` 合并为
+`1dfc816fff2653844fe74f587ee645cce823dcd4`。整合保留 #39/#40 的依赖来源、终端
+补丁及看板策略，并补足未开启/遗忘续期后仍独立显示原始发行方的路径。
+PR 与主干各四项验证及原始证据均通过，#37 已关闭。
 
-显式发行方登出使用最初审核过的发行方和同源 HTTPS 端点；精确工作区确认后先关闭
-本地连接、流和内存续期，再请求浏览器交接。不要求开启续期；忘记续期后仍独立显示
-原始发行方。URL 不传令牌，界面不把浏览器交接称为发行方完成或 Kubernetes JWT 撤销。
-最终 PR 及主干四项验证均通过，#37 已关闭。退役 `38184766687` 的 report 为 applied，
-恢复 Bundle 已验证，远端和本地功能分支已回收，`maintenance/completed-pr-38` 指向
-上述 main。早期 waiting-for-verification 只是保护等待，不能代替这份实际删除收据。
+[退役 38184766687](https://github.com/laojianzi/aster/actions/runs/38184766687)
+报告 **applied**，完整历史 `before.bundle` 已验证；远端和本地 feature 分支均已回收，
+`maintenance/completed-pr-38` 指向 `1dfc816…`。早期 waiting-for-verification
+只是保护等待，不能代替这份实际删除和恢复记录。
 
-## 本次接续：#11 / #41
+## 已结项：#11 / #41
 
-已批准 Dashboard 中 MyGo v0.4.5 的具体待办，Renovate 创建 #41，使用唯一
-`renovate/mygo-native-framework` 分组。基线已含 #38，禁止恢复 #33/#39 的旧更新
-或另开并行升级 PR。联合审查模块与原生来源，补充物理快捷键和跨行选择/历史测试，
-将所有新旧断言纳入三平台普通/生产模式；详情见
-[0.4.5 审查](dependency-review-mygo-0.4.5.md)。
+#41 复用了获批的 `renovate/mygo-native-framework`，没有与 #33/#39 并行升级。
+最终 PR HEAD `c1c743ef61c58136cf32e1f5d905ac2ae0c6df24` 合并为接续基线
+`7bf17dd…`，源码树一致。完整来源审查、五项 PR gate、五项主干 gate 和原始证据
+均已完成；[0.4.5 审查](dependency-review-mygo-0.4.5.md) 的验收前描述由
+#41/#13 的最终收据补全，不再把该更新当作活动 scope。
+
+#11 在 2026-10-11T23:49:15Z 由 `renovate[bot]` 自动关闭；机器人在 23:49:17Z
+删除已合并分组分支。全部五项主干门槛后的
+[退役 38186078349](https://github.com/laojianzi/aster/actions/runs/38186078349)
+报告 **already-absent**。该流程没有再次删除分支，也没有产生新的 `before.bundle`
+或 `maintenance/completed-pr-41`。PR HEAD 是接续 main 的直接第二父提交和祖先，
+完整实现历史仍在；不制造回收收据，也不重建分支以重新删除。
+
+Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真实依赖更新可重开同一
+#11，那是新的依赖 scope；保留正文中的已合并 #41 不代表当前队列仍未完成。
+
+## 本轮唯一范围：#42
+
+使用 `feat/native-schema-constraints` 和一个对应 PR，扩展当前 Check draft 的有界
+scalar enum、数值边界、Unicode 字符串长度与容器大小提示。复用 #14/#15 的身份和
+传输约束、#29/#30 的源码导航及 #35/#36 的增量缓冲；不新增刷新入口、补全事务、
+依赖升级或 Prepared/变更路径。
+
+本范围必须验证精确数字/不完整检查/预算/隐私、三平台原生历史与选择、普通/生产
+迁移及三版本真实 CRD admission 对照。注册退役时必须采用该唯一 PR 的实际编号与
+准确 branch，不能把 Issue #42 当作 PR 编号，也不能预猜下一个编号。
+精确 HEAD 的结果、合并提交和实际退役结果记录在该 PR、#42 和 #13，不能将本段
+实现范围或计划视为未来 CI 已通过。完成该子范围后，#13 的其他验收仍保持开放。
 
 ## 已完成，不得重复
 
 #40 空看板生命周期、#39 的 0.4.2 与 0.3→0.4 审计、#35/#36 增量缓冲、
-#32/#34 Find、#29/#30 诊断导航均已合并。#31/#33、#27/#28、#24/#25、
-#18/#19 及旧工作台能力均不重新实现。旧 #2 被 Prepared/SSA 替代，禁止重新合并。
-历史归档用于恢复，不能据此推定存在隐藏的未完产品工作。
-
-## 依赖队列与后续优先级
-
-#11 于 2026-10-11T12:13:10Z 被 Renovate 自动关闭，又于 21:10:47Z 因 MyGo
-**v0.4.5 更新**重新打开；空看板生命周期已经完成，更新批准后由 #41 接续。
-本次代码固定 v0.4.5，实际合并与验证情况以 #41 的精确 HEAD 收据为准。
-
-#13 持续跟踪编辑/交付、企业控制面和发布验收。完成一个里程碑不关闭 #13。
-#11 由真实待办驱动生命周期；队列为空允许机器人关闭，有待办必须保留。
+#32/#34 Find、#29/#30 诊断导航、#31/#33、#27/#28、#24/#25、#18/#19 及旧工作台
+能力均不重新实现。旧 #2 被不可变 Prepared/SSA 替代，保持 superseded/closed，
+禁止重新合并旧 mutable Executor。历史 archive/maintenance 标签用于恢复，
+不是隐藏的未完成实现分支。
 
 ## 退役条件
 
-#38/#41 在既有 `retire_completed_oidc.py` 登记准确 PR/branch 对应关系，沿用同一流程。
-仅最终提交所需门槛全部通过、合并且主干再次验证后退役：核对准确合并提交、分支
-未保护未移动、无活动 PR、历史在 main 可达，保存可恢复 Bundle，以精确 lease
-原子删除分支并建立 `maintenance/completed-pr-<PR编号>` 收据。未满足条件则保持分支。
-#41 作为依赖范围额外要求第五项 Renovate configuration 主干门槛。#33/#39 曾使用同一
-分组名称，但旧合并提交不能授权删除新的更新分支；活动 head/base PR、移动或不可达
-分支仍必须拒绝。旧登记、历史收据和恢复归档保持有效，不重新清理。
+复用既有 `retire_completed_oidc.py`，只接受已登记的准确 PR/branch 对应关系。
+退役须核对 PR 已合并至当前 main、准确 merge commit 与 branch tip、未保护未移动、
+无活动 head/base PR、完整历史在 main 可达，以及该 main 精确提交最新成功的
+CI、Source evidence、Native migration verification、OIDC qualification。
+
+分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
+`maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
+不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#42 是独立 Schema 功能，
+不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。

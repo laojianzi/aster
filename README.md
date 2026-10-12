@@ -46,6 +46,19 @@ while an input method composes, and cannot act on another draft or identity.
 This does not edit a resource or replace server-side preview. See
 [Find limits and lifecycle](docs/manifest-find.md).
 
+## Schema assistance
+
+In **Edit**, **Field help** explains a field and **Check draft** reports bounded
+structural hints, scalar enum/numeric constraints, Unicode string lengths and
+container sizes. Each explicit action uses the current connection's fresh
+OpenAPI v3 schema. Checks preserve the draft and native history, keep values out
+of diagnostics, and do not prepare or submit a resource change. Unsupported
+constraints and exhausted budgets are marked incomplete; server dry-run remains
+authoritative. See [supported constraints and limits](docs/schema-assistance.md).
+Scope #42 and its single PR carry the final commit-specific qualification;
+[the progress tracker](https://github.com/laojianzi/aster/issues/13) records the
+remaining editor and release goals.
+
 ## Reviewed issuer sign-out
 
 For an active browser-OIDC connection, **Browser sign-in** shows an optional issuer
