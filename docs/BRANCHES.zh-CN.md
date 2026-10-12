@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `387ee43bc4d39d657044785529203e60104e2842`，源码树
 `1a99815218dc662eccc2486a771576e0bde96612`。#38/#41/#43/#45 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #46 / `feat/native-schema-multipleof`。
+依赖分支。本轮唯一新增范围为 Issue #46 / PR #47 / `feat/native-schema-multipleof`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -67,7 +67,7 @@ Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真�
 13 个实际 Issues（仅 #13 open）、只余 main 分支、15 个恢复 tags、0 releases。
 #11 正文中的旧 #41 条目属于已关闭的历史快照，不代表新的待批准更新。
 
-## 本轮唯一范围：#46
+## 本轮唯一范围：Issue #46 / PR #47
 
 使用 `feat/native-schema-multipleof` 实现精确 decoded-number multipleOf 提示。
 复用已有 Schema transport、规范化数值、只读检查、诊断导航和原生历史合约；
@@ -75,8 +75,9 @@ Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真�
 生命周期及原生安全编辑器边界保留在 #13。
 
 要求数学对照、共享算术预算/取消/隐私测试、三平台原生交互与普通/生产迁移，
-以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。只有实际 PR 建立后，
-才把其准确 PR/branch 对应关系加入既有退役登记；Issue #46 不属于 PR 退役编号。
+以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。PR #47 已实际建立，
+既有退役登记新增准确 #47 / `feat/native-schema-multipleof` 对应关系，专属测试复用
+完整 inactive-completed-merge guards 并区分旧 PR #45；Issue #46 不属于退役编号。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。
 合并前正文各处保持中性 Issue 引用；精确 main 和实际清理核验后再完成 Issue 结项。
 本文件不预先宣称新 scope 的 CI、合并或退役成功。

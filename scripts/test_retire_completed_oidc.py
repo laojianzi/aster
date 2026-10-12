@@ -153,6 +153,10 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(APPROVED[45], 'feat/reviewed-manifest-delivery')
         self.assert_completion_scope_guards(45, 44, 43)
 
+    def test_schema_multipleof_retirement_requires_its_own_completed_inactive_merge(self):
+        self.assertEqual(APPROVED[47], 'feat/native-schema-multipleof')
+        self.assert_completion_scope_guards(47, 46, 45)
+
     def assert_completion_scope_guards(self, number, issue, previous):
         from retire_completed_oidc import DEPENDENCY_SCOPES
         branch = APPROVED[number]

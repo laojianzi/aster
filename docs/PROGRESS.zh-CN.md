@@ -4,7 +4,8 @@
 源码树 `1a99815218dc662eccc2486a771576e0bde96612`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #46 的
 有界精确 Schema `multipleOf` 提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 #46、其单一 PR 及 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
+状态以 #46、其单一 [PR #47](https://github.com/laojianzi/aster/pull/47) 及
+[#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
 
@@ -125,7 +126,7 @@ Helm release 或 GitOps reconcile。三平台原生生命周期及两模式迁�
 恢复检查后于 2026-10-12T04:17:21Z 明确关闭；远端和本地 feature 已回收。
 详见 [交付合约](manifest-delivery.md) 和 [最终 PR 收据](https://github.com/laojianzi/aster/pull/45)。
 
-## 本轮唯一范围：#46 精确 multipleOf 提示
+## 本轮唯一范围：#46 / PR #47 精确 multipleOf 提示
 
 复用 Check draft、已规范化的十进制值、共享预算与原始源码诊断导航。正数除数的
 整倍数条件按实际 decoded JSON number 精确判断；零、负值、超过 2^53 的整数和
@@ -136,7 +137,7 @@ Helm release 或 GitOps reconcile。三平台原生生命周期及两模式迁�
 Kubernetes 浮点容差可能接受某些局部 exact 提示的邻近小数；本地提示不能替代
 server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为数学对照；原生测试
 覆盖精确输入、Unicode 选区/原有 Undo/Redo、最小窗口和不完整输出；真实 CRD 比较
-二进制可精确表示的除数，并单独验证命名的容差边界。最终通过记录以 #46 单一 PR
+二进制可精确表示的除数，并单独验证命名的容差边界。最终通过记录以 #46 单一 PR #47
 及其精确 main 的原始证据为准。详见 [Schema 合约](schema-assistance.md)。
 
 ## 后续优先级
