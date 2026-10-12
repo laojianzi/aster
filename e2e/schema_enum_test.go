@@ -82,14 +82,16 @@ func TestRealSchemaEnumAgreeWithDryRun(t *testing.T) {
 		}
 		want := metav1.CauseTypeFieldValueNotSupported
 		if code == "type" {
-			want = metav1.CauseTypeFieldValueInvalid
+			want = metav1.CauseTypeTypeInvalid
 		}
+		causes := make([]string, 0, len(status.Status().Details.Causes))
 		for _, cause := range status.Status().Details.Causes {
+			causes = append(causes, string(cause.Type)+" at "+cause.Field)
 			if cause.Field == "spec."+field && cause.Type == want {
 				return
 			}
 		}
-		t.Fatal("server rejection did not identify the expected enum/type cause at the tested field")
+		t.Fatalf("server rejection did not identify %s at spec.%s; received cause types and fields: %v", want, field, causes)
 	}
 	assertLiveUnchanged := func(t *testing.T) {
 		t.Helper()
@@ -222,18 +224,27 @@ func TestRealSchemaEnumAgreeWithDryRun(t *testing.T) {
 			draft := f.Live.DeepCopy()
 			tc.mutate(draft)
 			check(t, draft, tc.field, tc.code)
-			// Patch the changed leaf for the object case. Sending its unchanged
-			// null child through JSON Merge Patch would request deletion and
-			// test patch semantics rather than the intended enum draft.
-			value := spec(draft)[tc.field]
+			// Keep the object patch at its changed leaf. The server's merge
+			// implementation also prunes null members inside replacement arrays;
+			// use the editor's JSON Patch approach for an identity-bound array
+			// replacement so the intended nullable child remains present.
+			patchType := types.MergePatchType
+			var patch any
 			if tc.field == "objectChoice" {
-				value = map[string]any{"label": object(draft)["label"]}
+				patch = map[string]any{"spec": map[string]any{tc.field: map[string]any{"label": object(draft)["label"]}}}
+			} else {
+				patchType = types.JSONPatchType
+				patch = []map[string]any{
+					{"op": "test", "path": "/metadata/uid", "value": f.Live.GetUID()},
+					{"op": "test", "path": "/metadata/resourceVersion", "value": f.Live.GetResourceVersion()},
+					{"op": "replace", "path": "/spec/" + tc.field, "value": spec(draft)[tc.field]},
+				}
 			}
-			body, err := json.Marshal(map[string]any{"spec": map[string]any{tc.field: value}})
+			body, err := json.Marshal(patch)
 			if err != nil {
 				t.Fatal(err)
 			}
-			result, err := f.Backend.PatchObject(ctx, f.GVR, f.Namespace, f.Live.GetName(), types.MergePatchType, body, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "schema-enum-dry-run", FieldValidation: "Strict"})
+			result, err := f.Backend.PatchObject(ctx, f.GVR, f.Namespace, f.Live.GetName(), patchType, body, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "schema-enum-dry-run", FieldValidation: "Strict"})
 			if tc.code != "" {
 				rejected(t, result, err, tc.field, tc.code)
 			} else if err != nil || result == nil || result.GetUID() != f.Live.GetUID() || result.GetName() != f.Live.GetName() || result.GetNamespace() != f.Namespace || result.GroupVersionKind() != f.GVK || !reflect.DeepEqual(result.Object["spec"], draft.Object["spec"]) {
