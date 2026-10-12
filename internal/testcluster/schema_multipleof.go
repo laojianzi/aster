@@ -117,8 +117,12 @@ func NewSchemaMultiples(t *testing.T) SchemaMultiplesFixture {
 		if obj.GetUID() != created.GetUID() {
 			return false, errors.New("multipleOf fixture CRD identity changed")
 		}
-		conditions, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
-		if err != nil || !found {
+		value, found, err := unstructured.NestedFieldNoCopy(obj.Object, "status", "conditions")
+		if err != nil || !found || value == nil {
+			return false, err
+		}
+		conditions, _, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
+		if err != nil {
 			return false, err
 		}
 		established := false
