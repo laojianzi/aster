@@ -152,9 +152,9 @@ func (c *constraintChecker) charge(size int) bool {
 	return c.chargeWork(1, size)
 }
 
-// Arithmetic, pattern/format inspection and traversal share one allowance. Primitive
-// input/program limits and weighted work prevent repeated bounded operations
-// from monopolizing one inspection.
+// Arithmetic, enum/pattern/format inspection and traversal share one allowance.
+// Primitive input/program limits and weighted work prevent repeated bounded
+// operations from monopolizing one inspection.
 func (c *constraintChecker) chargeWork(units, size int) bool {
 	if c.ctx.Err() != nil || c.exhausted || units < 1 || size < 0 || units > MaxWork-c.report.Checked || size > MaxConstraintBytes-c.bytes {
 		c.report.Partial, c.exhausted = true, true
@@ -212,6 +212,19 @@ func (c *constraintChecker) checkEnum(n map[string]any, value any, path string, 
 		c.report.Partial = true
 		return
 	}
+	structured := inspectValue && enumContainer(value)
+	for _, candidate := range values {
+		if enumContainer(candidate) {
+			structured = true
+			break
+		}
+	}
+	if structured {
+		c.checkStructuredEnum(values, value, path, inspectValue)
+		return
+	}
+	// Preserve the established scalar path, including its byte/work accounting.
+	// The additional per-value limits only apply to structured comparisons.
 	var want scalar
 	if inspectValue {
 		want, ok = c.scalar(value)
@@ -233,8 +246,8 @@ func (c *constraintChecker) checkEnum(n map[string]any, value any, path string, 
 			matched = true
 		}
 	}
-	// A complex or malformed entry makes a non-match uncertain. Do not turn a
-	// partial scan (including a late exhausted budget) into a constraint hint.
+	// A malformed entry makes a non-match uncertain. Do not turn a partial
+	// scan (including a late exhausted budget) into a constraint hint.
 	if inspectValue && complete && !matched {
 		c.add(path, "enum", "Value is outside the advertised scalar choices.")
 	}

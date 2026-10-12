@@ -2,7 +2,7 @@
 
 The field-help milestone (#14), source navigation (#29), bounded constraints
 (#42), exact multipleOf assistance (#46), portable string patterns (#48), and
-bounded string formats (#50)
+bounded string formats (#50), and structured enum assistance (#52)
 share production tracker #13.
 They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
@@ -33,7 +33,7 @@ advisory; it does not replace the API server's dry-run or admission decision.
 
 | Constraint | Local check |
 | --- | --- |
-| Scalar `enum` | Compare string, boolean, null and number alternatives. Numbers compare by numeric value; strings and booleans retain their own types. Object/array alternatives are outside this contract. |
+| Bounded `enum` | Compare decoded JSON values, including objects and arrays through #52. Numbers compare by numeric value; strings and booleans retain their own types. Object key sets and ordered array entries must match recursively. |
 | `minimum` / `maximum` | Compare decoded JSON numbers, including exact integers and `json.Number`, without routing them through `float64`. OpenAPI 3.0 boolean `exclusiveMinimum` / `exclusiveMaximum` choose strict bounds. |
 | `minLength` / `maxLength` | Count Unicode code points in the decoded string, including astral characters and combining marks. These are not byte, UTF-16-unit or grapheme counts. |
 | `minItems` / `maxItems` | Count array entries; this does not validate uniqueness or Kubernetes list/merge semantics. |
@@ -52,7 +52,7 @@ bytes, with a decimal exponent in the signed 32-bit range. Numeric comparison
 uses normalized coefficients and magnitude without expanding powers of ten.
 Charged schema/input strings and numeric operands share an 8 MiB constraint-byte
 budget. These are inspection limits, not a hard cap on total process memory.
-Unsupported or malformed constraints, complex enum alternatives and exhausted
+Unsupported or malformed constraints, out-of-contract enum values and exhausted
 budgets mark inspection **incomplete** through the existing report banner; they
 do not produce a guessed success or a fabricated field-specific violation.
 Supported checks may still produce advisory hints on an incomplete report.
@@ -113,7 +113,7 @@ Output includes only a field pointer, `multipleOf` category and fixed message.
 It does not echo a divisor, value or arithmetic error. Source, schema, selection
 and mounted history remain unchanged; no Prepared plan is created. Existing
 source-navigation and stale-result guards apply. Supported patterns are described
-below; other formats, complex enum, composition, list semantics and CEL remain separate work.
+below; other formats, composition, list semantics and CEL remain separate work.
 
 ## Bounded portable string patterns (#48)
 
@@ -215,6 +215,82 @@ and [UUID registration](https://github.com/kubernetes/kubernetes/blob/v1.37.0/ve
 The relevant string-validator files were compared across all three exact tags;
 real CRD create and live-update dry-run tests separately verify the named cases.
 
+## Bounded structured enum equality (#52)
+
+An enum alternative may be a decoded JSON object or array, with recursively
+supported scalar leaves. Objects compare their complete key sets and values;
+insertion order has no meaning. Arrays compare length and every position, so
+reordering or dropping a duplicate changes equality. An omitted object key,
+an explicit null, an empty object and an empty array are distinct. Decoded keys
+and string values compare their exact UTF-8 bytes, without Unicode normalization.
+Boolean and string types remain distinct from numbers.
+
+Nested numbers reuse the existing bounded exact-decimal representation. Exact
+integers above 2^53 and `json.Number` operands are not rounded through `float64`;
+an existing float uses its shortest JSON decimal. The manifest decoder and the
+object sent to Preview are unchanged. No earlier numeric spelling or lost
+precision is recovered, and no server floating-point epsilon is introduced.
+
+The existing pure-scalar enum path retains its behavior and budgets. A structured
+alternative or an applicable structured instance selects the new path. Each
+alternative and the instance independently allow depth 32 with the root at zero,
+1,024 JSON value nodes, and 16 KiB per decoded key or string. Keys are charged
+separately from value nodes. The existing 128-alternative, 512-number-byte,
+signed-32-bit-exponent, 20,000-work and 8 MiB constraint-byte limits still apply.
+Container width is checked and traversal/storage costs are charged before bounded
+allocation; UTF-8 scans, key hashing and comparison also consume the shared budgets.
+Each full comparison is prepaid using both bounded trees, so unordered map
+iteration cannot decide how much comparison work is charged. Repeated shared
+subtrees cost each occurrence; cycles cannot bypass the depth/node limits.
+
+Every alternative is validated before any comparison can return a match. A late
+malformed or over-budget candidate therefore makes inspection incomplete even
+beside an earlier matching candidate. Metadata is still checked alongside an
+independent type error, without traversing a wrong-type draft container. Non-JSON
+host values, invalid decoded UTF-8 and typed nil containers are outside this path;
+ordinary decoded JSON null is a nil interface and empty containers are non-nil.
+This does not add raw UTF-8 rejection to the unchanged JSON decoder, which can
+replace invalid source sequences before inspection. Limits and cancellation
+produce incomplete disclosure without inventing an enum mismatch.
+
+Output uses the original parent field pointer, `enum` category and a fixed generic
+message. Alternatives, nested keys/values, defaults, examples and parser errors
+are not inserted into diagnostics. Native source bytes, buffer and retained
+snapshots, selection, mounted Undo/Redo, operation plans and server state are
+unchanged by Check. Reference-wrapper resolution and freshness guards are unchanged.
+
+### Kubernetes admission boundary
+
+The three pinned servers decode CRD enum JSON and request JSON with integer
+preservation. Their common enum validator converts only the outer value to an
+alternative's Go type before `reflect.DeepEqual`; it does not recursively
+normalize nested numeric types. Exact local numeric equality therefore does not
+promise admission equality. The direct nullable-null enum path is another named
+boundary: the server can reject a null candidate that locally equals advertised
+null. A nullable child inside a matching object, without its own enum, is a
+different path and is covered by representative agreement cases.
+
+Real tests publish an isolated structural CRD on Kubernetes v1.35.8, v1.36.4 and
+v1.37.0. Fresh create dry-runs cover nested objects and arrays, key order, missing
+versus null, empty containers, ordered duplicate entries and exact large integers.
+The fixture declares relevant properties and uses no defaults or unknown-field
+preservation to keep these comparisons interpretable. A separate named nullable
+enum case records the actual server difference. Failed creates must remain absent;
+live UID, resourceVersion and the complete spec must remain unchanged by dry-run.
+
+Pruning, defaulting, nullable handling, update ratcheting, Kubernetes list
+semantics, CEL and webhooks remain server behavior. Aster does not simulate or
+adopt their transformations during local checking. Server dry-run remains the
+actual permission and admission decision; zero local hints is advisory.
+
+Primary contracts: [OpenAPI Schema Object](https://spec.openapis.org/oas/v3.0.3.html#schema-object),
+[JSON Schema enum](https://datatracker.ietf.org/doc/html/draft-wright-json-schema-validation-00#section-5.20),
+Kubernetes [common enum validator](https://github.com/kubernetes/kubernetes/blob/v1.37.0/vendor/k8s.io/kube-openapi/pkg/validation/validate/validator.go),
+[CRD JSON conversion](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/conversion.go),
+[enum transfer into validation](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/validation/validation.go),
+and [CRD pruning, defaults and nullability](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/).
+The relevant implementation paths were independently compared at all three tags.
+
 ## Transport and resource limits
 
 Every action obtains fresh OpenAPI v3 discovery and a group-version document
@@ -249,7 +325,7 @@ UI thread; only the finished bounded text is dispatched to the UI.
 
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
 Schema, CEL, webhook or admission behavior. Pattern syntax outside the subset above,
-formats outside `date`/`byte`/`uuid`, complex enum equality, unique/list semantics
+formats outside `date`/`byte`/`uuid`, unbounded or non-JSON enum values, unique/list semantics
 and CEL remain unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
@@ -317,6 +393,19 @@ pattern string on serialization, so empty-pattern metadata is qualified in the c
 tests; the published CRD uses `^$` to check an empty value. All prior required cases
 remain. The former unsupported literal-pattern regression now requires its known
 hint; the older native incomplete case retains an unsupported format annotation.
+
+The #52 contract adds structured equality, an independent JSON/rational oracle,
+complete metadata validation, per-value and shared budgets, cancellation, privacy
+and unchanged-input regressions. The three former complex-enum sentinel names and
+inputs remain, with the now-supported outcomes; new malformed and late-budget
+cases preserve their earlier incomplete-metadata intent. All older scalar cases,
+exact-number limits and required suites remain mandatory.
+`TestNativeSchemaEnumPreservesDraftAndHistory` and
+`TestNativeSchemaEnumMinimumWindowAndIncomplete` run on all three OSes and in both
+migration modes. `TestRealSchemaEnumAgreeWithDryRun` and
+`TestNativeSchemaEnumAgainstRealCluster` qualify published-schema behavior and
+actual editor corrections on all three Kubernetes versions. Original evidence
+must be reviewed independently at both the final PR head and exact new main.
 
 This document defines changes and required evidence, not future CI outcomes.
 Final PR/main commits, raw results and completion belong to each Issue, its single

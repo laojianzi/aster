@@ -1,10 +1,10 @@
 # Aster 实施状态
 
-2026-10-12 接续基线：已验证 main `b1bfdf867f6eca9a682bd92d8d40111f3a71f577`，
-源码树 `ab3be3be48593aa381de8b25ffac45e1ec1b9388`，Go 1.27.2 / MyGo v0.4.5。
-#38/#41/#43/#45/#47/#49 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #50 的
-有界 Schema 字符串 `date` / `byte` / `uuid` 格式提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#50](https://github.com/laojianzi/aster/issues/50)、其单一 [PR #51](https://github.com/laojianzi/aster/pull/51) 及
+2026-10-12 接续基线：已验证 main `2186a23cf118265ad853466474e5c9e3fe3cffb9`，
+源码树 `0f324efebc8ad71572d0112c9aaf5d11a0632af4`，Go 1.27.2 / MyGo v0.4.5。
+#38/#41/#43/#45/#47/#49/#51 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #52 的
+有界结构化 Schema enum 提示。这是开发预览。当前精确提交、CI 收据和 Issue
+状态以 [#52](https://github.com/laojianzi/aster/issues/52)、其实际创建的单一 PR 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -22,6 +22,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | 有界 scalar enum、精确数值边界、Unicode 长度与容器大小 Schema 提示 | #43 |
 | 有界精确 decoded-number multipleOf、数学对照与实际服务器容差边界 | #47 |
 | 有界可移植字符串 pattern、独立有限语言对照与真实 CRD 验证 | #49 |
+| 有界 date/byte/uuid 格式提示、独立公历/编码/语法对照与真实 CRD 验证 | #51 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -87,8 +88,9 @@ schema `json.Number` 不经 `float64` 比较；已有浮点 draft 值按其 JSON
 不宣称恢复 manifest 解码前已丢失的 YAML 数字词法或精度。
 
 诊断不回显 draft/enum 值、默认值或示例，不修改 draft，不生成 Prepared 计划或发起变更。
-不支持、格式错误、复杂 enum 和预算耗尽均显式标为检查不完整。其他 format、完整组合、
-列表语义与 CEL 等仍保留；multipleOf 已由 #46 完成，pattern 已由 #48 完成，server dry-run
+不支持、格式错误和预算耗尽均显式标为检查不完整。#42 当时不含的复杂 enum 由 #52
+继续有界扩展；其他 format、完整组合、列表语义与 CEL 等仍保留。multipleOf 已由 #46
+完成，pattern 已由 #48 完成，date/byte/uuid 已由 #50 完成，server dry-run
 继续决定实际准入。
 
 最终 PR HEAD `16fa04b7446a0975f4cc1e913d91452442510e6c` 合并为 `01089da…`，
@@ -172,9 +174,9 @@ server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为
 2026-10-12T08:41:55Z 明确关闭。
 详见 [PR #49](https://github.com/laojianzi/aster/pull/49) 和 [Schema 合约](schema-assistance.md)。
 
-## 本轮唯一范围：#50 / PR #51 有界字符串 format 提示
+## 已结项：#50 / PR #51 有界字符串 format 提示
 
-使用唯一 `feat/native-schema-format`，继续复用显式 Check、当前身份的新鲜 Schema、
+已通过 `feat/native-schema-format` 复用显式 Check、当前身份的新鲜 Schema、
 共享预算和原始源码/原生编辑历史。仅实现三个固定 Kubernetes 版本行为一致的字符串
 `date` / `byte` / `uuid`。格式名只删除 ASCII 连字符；date 验证真实公历并允许年 0000，
 byte 检查非空 Base64 形状且不解码内容，uuid 的四个连字符分别可选，不附加版本限制。
@@ -184,17 +186,41 @@ byte 检查非空 Base64 形状且不解码内容，uuid 的四个连字符分�
 元数据问题，也不产生次生 format 违规。值、格式元数据和解析错误不进入诊断。
 
 独立公历/编码/语法对照、预算/取消/隐私与输入不变、原生选择/Undo/Redo 和最小窗口、
-三个 Kubernetes 版本的真实 CRD create/live dry-run 均列为新增必跑门槛，保留原有全部
-pattern/multipleOf/来源/凭据库/OIDC/双模式迁移门槛。本轮没有新增依赖或长效缓存。
-最终 PR 和精确新主干各自重新审阅原始证据与完整二进制；实际可恢复退役及独立恢复
-核验后再明确关闭 #50，不用自动关闭关键字提前结项。
+三个 Kubernetes 版本的真实 CRD create/live dry-run 均通过新增必跑门槛，保留原有全部
+pattern/multipleOf/来源/凭据库/OIDC/双模式迁移门槛。没有新增依赖或长效缓存。
+最终 HEAD `0c10a56180658062352886fc63c6bf7336ec900c` 合并为 `2186a23…`。
+最终 PR 和精确新主干各自完成原始证据、完整二进制和实际截图的独立助手审阅。
+[退役 38231769807](https://github.com/laojianzi/aster/actions/runs/38231769807)
+返回 **applied**；完整历史 bundle 在新空 bare 仓库独立恢复并通过 strict fsck，
+旧 17 个 tag 指向未变，新增 `maintenance/completed-pr-51` 指向 merge。
+远端和本地 feature 已回收，#50 于 2026-10-12T09:59:21Z 明确关闭。
 详见 [Schema 合约](schema-assistance.md)。
+
+## 本轮唯一范围：#52 有界结构化 enum 提示
+
+唯一 `feat/native-schema-structured-enum` 将精确 decoded JSON 比较递归扩展到对象和数组。
+对象完整键集合与值相等、键顺序无关；数组保留顺序和重复次数。缺失、null、空对象和
+空数组保持区别，字符串与键不做 Unicode 归一化，嵌套数字复用既有精确十进制合约。
+纯 scalar 快路和旧预算保持；新路径每候选/实例限制深度 32（根为 0）、1,024 值节点和
+每键/字符串 16 KiB，共享 20,000 工作与 8 MiB 字节预算，分配/扫描/键查找/比较预收费。
+
+必须先完整检查所有候选元数据，早期匹配不能隐藏后续错误或超限。错误类型旁仍检查
+元数据，但不遍历错误类型的 draft 容器；取消/耗尽只披露 incomplete，不编造 enum 违规。
+提示只包含原始父字段指针和固定类别文字，不回显嵌套键值或改动 draft、选择、Undo/Redo、
+Prepared 与服务端。原有三个 complex-enum 测试保留名称和输入，更新为现已支持的结果，
+新增真正无效及晚出现的预算回归；其余旧门槛全部保留。
+
+独立 JSON/有理数对照、三平台原生交互和双模式迁移、三版本真实结构化 CRD/dry-run 是
+新增门槛。服务端只转换枚举最外层 Go 类型，不对嵌套数字归一化；nullable enum 的具名
+差异与一致案例分开。裁剪、默认值、ratcheting、列表/CEL/webhook 仍由实际 dry-run 决定。
+唯一 PR 必须实际创建后才登记准确退役编号；最终 PR 和精确 main 独立核验证据、实际
+可恢复退役及空仓库恢复后再明确关闭 #52，本文件不预先宣称这些阶段已经成功。
 
 ## 后续优先级
 
 P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
-#48/#49 已完成有界可移植 pattern，#50 推进 date/byte/uuid。该子集之外的 pattern/format、
-复杂 enum/组合/列表/CEL、编辑辅助、
+#48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52 推进有界结构化 enum。
+这些子集之外的 pattern/format、组合/列表/CEL、编辑辅助、
 真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，
 保留 Undo、IME 和不可变审阅边界。
