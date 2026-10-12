@@ -7,6 +7,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeSchemaFormatPreservesDraftAndHistory',
+    'TestNativeSchemaFormatMinimumWindowAndIncomplete',
     'TestNativeSchemaPatternPreservesDraftAndHistory',
     'TestNativeSchemaPatternMinimumWindowAndIncomplete',
     'TestNativeSchemaMultipleOfPreservesNumbersAndHistory',
