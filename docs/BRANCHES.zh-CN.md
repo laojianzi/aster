@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `01089da1e57ed6235a316d919a1cb7075dbb5e35`，源码树
 `cc5a680f507bdb8355911534bad1457e3eda3d7c`。#38/#41/#43 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 #44 / `feat/reviewed-manifest-delivery`。
+依赖分支。本轮唯一新增范围为 Issue #44 / PR #45 / `feat/reviewed-manifest-delivery`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -52,17 +52,17 @@ Dashboard 审批/自动关闭保持启用，automerge 保持禁用。将来真�
 12 个实际 Issues（仅 #13 open）、只余 main 分支、14 个恢复 tags、0 releases。
 这些是已完成基线的盘点，不是新 scope 的未来状态承诺。
 
-## 本轮唯一范围：#44
+## 本轮唯一范围：#44 / #45
 
-使用 `feat/reviewed-manifest-delivery` 和一个对应 PR，实现有界已渲染清单导入、当前
+使用 `feat/reviewed-manifest-delivery` 和 [PR #45](https://github.com/laojianzi/aster/pull/45)，实现有界已渲染清单导入、当前
 身份发现及逐对象审阅交付。复用已有不可变 Prepared、create-only、无 force SSA、
 真实资源详情与 UID 固定的只读 Health 入口；不另建重复的 apply/回滚/批量执行器。
 实际 Helm release、GitOps reconcile、CRD/Namespace 安装顺序不属于本范围。
 
 本范围必须验证来源/namespace/连接/epoch 绑定，三平台原生顺序/确认/取消/隔离、
 普通/生产迁移，以及三个 K8s 版本的多对象 create/update、真实竞态、所有权、RBAC、
-丢响应 Unknown、partial outcomes 与显式 fresh review。注册退役时采用该唯一 PR 的
-实际编号及准确 branch，不能把 Issue #44 当作 PR 编号，也不能预猜下一个编号。
+丢响应 Unknown、partial outcomes 与显式 fresh review。退役只登记已建立的 PR #45 与
+准确 branch，保留所有原有 scope guards；Issue #44 不属于 PR 退役编号。
 合并前 PR 正文各处使用中性 Issue 引用；main 资格与实际清理核验后再执行结项。
 精确 HEAD、原始结果、合并及实际退役由该 PR、#44 和 #13 记录，本段不是 CI 通过声明。
 

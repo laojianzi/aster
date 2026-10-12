@@ -3,7 +3,7 @@
 2026-10-12 接续基线：已验证 main `01089da1e57ed6235a316d919a1cb7075dbb5e35`，
 源码树 `cc5a680f507bdb8355911534bad1457e3eda3d7c`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围是 #44 的已渲染
-清单逐对象审阅交付。这是开发预览。当前精确提交、CI 收据和 Issue 状态以 #44、其单一 PR
+清单逐对象审阅交付。这是开发预览。当前精确提交、CI 收据和 Issue 状态以 #44、单一 PR #45
 及 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -95,9 +95,9 @@ multipleOf、完整组合、列表语义与 CEL 等仍保留；server dry-run �
 `maintenance/completed-pr-43` 指向 `01089da…`。不重做已完成的 CI、合并或清理。
 详见 [Schema 合约](schema-assistance.md) 和 [#43](https://github.com/laojianzi/aster/pull/43)。
 
-## 本轮唯一范围：#44 已渲染清单审阅交付
+## 本轮唯一范围：#44 / #45 已渲染清单审阅交付
 
-使用 `feat/reviewed-manifest-delivery` 和一个对应 PR。粘贴最多 32 个对象 / 2 MiB 的
+使用 `feat/reviewed-manifest-delivery` 和 [PR #45](https://github.com/laojianzi/aster/pull/45)。粘贴最多 32 个对象 / 2 MiB 的
 已渲染 YAML，以当前身份重新发现准确类型，明确解析到一个已存在的 namespace。
 完整有序清单逐对象执行 GET、strict dry-run、不可变预览、精确名称确认和单次提交；
 只有实际 NotFound 使用 POST/create-only，已有对象使用无 force SSA 与 UID/RV 约束。
