@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `45f897f17e89c463df78b288aa652ecf2f48032c`，源码树
 `643f2e3946c4f24bf66ddd37ea43d9b9ea63c8fc`。#38/#41/#43/#45/#47 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #48 / `feat/native-schema-pattern`。
+依赖分支。本轮唯一新增范围为 Issue #48 / PR #49 / `feat/native-schema-pattern`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -81,14 +81,14 @@ feature 分支在远端及本地均已回收。#46 于主干人工审阅及恢�
 新增 #48 前全量盘点为 33 个 PR（32 merged、#2 superseded/closed、0 open），
 14 个实际 Issues（仅 #13 open）、只余 main 分支、16 个恢复 tags、0 releases。
 
-## 本轮唯一范围：Issue #48
+## 本轮唯一范围：Issue #48 / PR #49
 
 使用 `feat/native-schema-pattern` 实现有界可移植字符串 pattern 提示。
 复用已有 Schema transport、只读检查、诊断导航和原生历史合约。要求独立有限语言
 对照、方言和 Unicode 边界、共享预算/取消/隐私、三平台原生交互与普通/生产迁移，
 以及三个 Kubernetes 版本上的实际 CRD/dry-run 与原生 E2E。
 
-仅在唯一 PR 实际创建后，将其准确编号和本 feature 对应关系加入既有退役登记；
+唯一 PR #49 已实际创建；本范围将准确 #49 与本 feature 对应关系加入既有退役登记。
 专属测试复用完整 inactive-completed-merge guards 并区分旧 PR #47，#48 是 Issue
 编号，不属于退役 PR 编号。实际 Helm/GitOps 和原生安全编辑器边界仍在 #13。
 保留全部原有 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档和历史 tags。

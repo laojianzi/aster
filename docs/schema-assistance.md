@@ -247,7 +247,7 @@ CRD on all supported Kubernetes versions. All prior #42 cases remain mandatory;
 the formerly-unsupported multipleOf regression retains its identity/input and now
 requires the exact known violation.
 
-The #48 contract adds portable matching and independent finite-language membership
+The #48 contract adds portable matching and 678 independent finite-language membership
 comparisons, malformed/dialect metadata, Unicode and anchor boundaries, pre-expansion
 and shared budgets, cancellation, privacy and concurrent input-immutability coverage.
 Mandatory native cases are `TestNativeSchemaPatternPreservesDraftAndHistory` and
@@ -268,6 +268,7 @@ Final PR/main commits, raw results and completion belong to each Issue, its sing
 PR and the live #13 checkpoint.
 
 Primary references:
+
 - https://kubernetes.io/docs/concepts/overview/kubernetes-api/#openapi-v3
 - https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 - https://spec.openapis.org/oas/v3.0.3.html

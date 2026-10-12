@@ -4,7 +4,7 @@
 源码树 `643f2e3946c4f24bf66ddd37ea43d9b9ea63c8fc`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45/#47 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #48 的
 有界可移植 Schema 字符串 `pattern` 提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#48](https://github.com/laojianzi/aster/issues/48)、其单一 PR 及
+状态以 [#48](https://github.com/laojianzi/aster/issues/48)、其单一 [PR #49](https://github.com/laojianzi/aster/pull/49) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -149,7 +149,7 @@ server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为
 本地 feature 已回收。#46 在主干人工审阅及恢复核验后于 2026-10-12T07:15:23Z
 明确关闭。详见 [Schema 合约](schema-assistance.md) 和 [PR #47](https://github.com/laojianzi/aster/pull/47)。
 
-## 本轮唯一范围：#48 有界可移植 pattern 提示
+## 本轮唯一范围：#48 / PR #49 有界可移植 pattern 提示
 
 使用唯一 `feat/native-schema-pattern`，复用每次显式 Check 的当前身份 OpenAPI 请求、
 共享预算、原始源码诊断和原生编辑历史。以 ECMA-262 5.1 与 Kubernetes 所用 Go regexp
@@ -159,7 +159,7 @@ server dry-run，也不改成 epsilon 比较。单测独立使用有理数作为
 
 模式限 512 字节、输入限 16 KiB、分组深度 32、编译指令 256，重复展开前先核保守上界。
 解析/编译/匹配共享 20,000 工作量和 8 MiB 输入预算；不暴露模式、值或解析器错误。
-独立有限语言对照、Unicode/锚点/空值/错误类型、原生修正与 mounted Undo/Redo、最小窗口、
+678 次独立有限语言对照、Unicode/锚点/空值/错误类型、原生修正与 mounted Undo/Redo、最小窗口、
 三版本实际 CRD/dry-run 及两模式迁移均列入本范围必跑门槛。
 
 新 PR 与精确合并主干各自需要新原始证据和完整二进制审阅；实际可恢复退役及独立恢复
