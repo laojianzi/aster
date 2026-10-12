@@ -4,7 +4,7 @@
 源码树 `460306069e410276ec1dda6124f077fc60f2c7fe`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45/#47/#49/#51/#53 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #54 的
 有界 Kubernetes map-list 字符串键身份提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#54](https://github.com/laojianzi/aster/issues/54)、其单一实现 PR 及
+状态以 [#54](https://github.com/laojianzi/aster/issues/54)、其单一 [PR #55](https://github.com/laojianzi/aster/pull/55) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -222,7 +222,7 @@ Prepared 与服务端。原有三个 complex-enum 测试保留名称和输入，
 原 18 个 tag 指向不变，新增 `maintenance/completed-pr-53` 指向 main。自动退役先于
 独立原始产物审查；恢复与本地清理在审查后完成，#52 于 2026-10-12T12:32:07Z 明确关闭。
 
-## 本轮唯一范围：#54 有界 map-list 字符串键身份提示
+## 本轮唯一范围：#54 / PR #55 有界 map-list 字符串键身份提示
 
 唯一 `feat/native-schema-list-map` 复用当前身份的新鲜 OpenAPI、Check draft、预算和原始
 父字段导航。仅检查 `x-kubernetes-list-type: map`、显式 required/nonnullable string keys；
@@ -237,6 +237,8 @@ uniqueItems 和完整列表合并仍属后续范围。CRD 本身禁止 `uniqueIt
 
 新增独立 tuple 对照、原生选择/历史/修正重查/最小窗口，以及三版本真实 CRD create/live
 dry-run。原有全部门槛和四项 PR/主干资格继续保留；本节不预先声称实现已完成验收。
+唯一 PR #55 已实际建立；退役映射准确登记 PR 55 / Issue 54 / 旧 PR 53，完整 guard 回归
+继续拒绝移动、保护、活动、不可达或错误范围的分支。精确主干与可恢复退役后才关闭 #54。
 
 ## 后续优先级
 

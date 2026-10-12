@@ -135,7 +135,7 @@ type Report struct {
 
 func (r Report) Text() string {
 	var b strings.Builder
-	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, bounded choices, numeric bounds, exact multiples, sizes and supported string patterns and formats. Not admission validation.\n")
+	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, bounded choices, numeric bounds, exact multiples, sizes, supported string patterns/formats and string-key map-list identities. Not admission validation.\n")
 	for _, d := range r.Diagnostics {
 		fmt.Fprintf(&b, "%s · %s: %s\n", text(d.Pointer, 160), d.Code, d.Message)
 	}
@@ -257,6 +257,7 @@ func (d *Document) Check(ctx context.Context, obj map[string]any) (Report, error
 		// Inspect constraint metadata even after a known type error, but never
 		// emit secondary value violations for a value of the wrong type.
 		constraints.check(n, value, path, !typeMismatch)
+		constraints.checkListMap(d, n, value, path, !typeMismatch)
 		if typeMismatch {
 			return
 		}

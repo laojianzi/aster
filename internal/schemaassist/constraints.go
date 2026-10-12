@@ -341,7 +341,8 @@ func (c *constraintChecker) inspectKeywords(n map[string]any) {
 			"allOf", "oneOf", "anyOf", "not", "enum", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
 			"minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties", "pattern", "format",
 			"x-kubernetes-int-or-string", "x-kubernetes-preserve-unknown-fields", "x-kubernetes-embedded-resource",
-			"x-kubernetes-group-version-kind", "x-kubernetes-patch-strategy", "x-kubernetes-patch-merge-key":
+			"x-kubernetes-group-version-kind", "x-kubernetes-patch-strategy", "x-kubernetes-patch-merge-key",
+			"x-kubernetes-list-type", "x-kubernetes-list-map-keys":
 		default:
 			c.report.Partial = true
 		}

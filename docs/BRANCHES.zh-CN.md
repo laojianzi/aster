@@ -3,7 +3,7 @@
 2026-10-12 接续基线为已验证 main
 `841745bf0b2dd0f52f994cae31a464c5dbc72a5c`，源码树
 `460306069e410276ec1dda6124f077fc60f2c7fe`。#38/#41/#43/#45/#47/#49/#51/#53 均已完成，不重建其功能或
-依赖分支。本轮唯一新增范围为 Issue #54 / `feat/native-schema-list-map`，使用一个实现 PR。
+依赖分支。本轮唯一新增范围为 Issue #54 / PR #55 / `feat/native-schema-list-map`。
 恢复工作时先读取远端 refs、Issues、PR 与精确提交的 CI；本文件描述范围和已核验
 历史，实时资格与结项收据以各 scope 的单一 PR 和 #13 为准。
 
@@ -131,13 +131,14 @@ Issue，不能当作退役 PR 编号。专属回归复用完整 inactive-complet
 新增 #54 前全页盘点为 36 个 PR（35 merged、#2 superseded/closed、0 open），17 个实际
 Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。没有并发待续接范围。
 
-## 本轮唯一范围：Issue #54
+## 本轮唯一范围：Issue #54 / PR #55
 
 `feat/native-schema-list-map` 只实现有界 map-list 字符串键 tuple 重复提示，复用现有
 Schema/原生历史/服务端 dry-run。MyGo 最新稳定版仍 0.4.5，未发布的布局缓存改动不等于
 安全编辑事务；不为补全或企业权限另建分支。实际 Helm/GitOps 和其他列表语义仍在 #13。
 
-建立唯一 PR 后登记其真实编号与准确 branch；#54 是 Issue，不能当作退役 PR 编号。
+唯一 [PR #55](https://github.com/laojianzi/aster/pull/55) 已实际创建，准确 branch 已登记；
+#54 是 Issue，不能当作退役 PR 编号。新增回归核对 PR 55 / Issue 54 / 旧 PR 53 的完整保护。
 保留全部原 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档与历史 tags。
 合并前保持中性 Issue 引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #54。
 本节不预先声称本轮实现、CI、合并或退役成功。

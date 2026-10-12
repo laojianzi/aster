@@ -76,7 +76,8 @@ entries and explicit null remain significant. Nested numbers keep the existing
 exact decimal contract. All enum metadata is checked before a match can succeed;
 malformed or over-budget content keeps the report incomplete. Server numeric
 types, nullable enum handling, pruning and defaults remain dry-run boundaries.
-The next bounded scope [#54](https://github.com/laojianzi/aster/issues/54) adds
+The next bounded scope [#54](https://github.com/laojianzi/aster/issues/54),
+[PR #55](https://github.com/laojianzi/aster/pull/55), adds
 map-list identity hints for explicitly required, nonnullable string keys. It
 compares complete key tuples, including empty strings and exact Unicode, while
 ignoring unrelated item payload for identity. Unsupported declarations or an
