@@ -57,6 +57,13 @@ Nullable values and canonical Kubernetes integer-or-string unions retain their
 explicit type rules; arbitrary compositions are not flattened into guessed
 constraints.
 
+Scalar null enum equality follows the published OpenAPI schema locally. A
+nullable null matching an enum here is not a promise of Kubernetes acceptance:
+server validators may handle nullable enums differently (see the
+[Kubernetes validator implementation](https://github.com/kubernetes/kube-openapi/blob/e2e80c32a35f5ad035a0e224c0e833edb25f01fc/pkg/validation/validate/validator.go#L58-L73)).
+The real-CRD comparison tests cover the named non-null scalar and size cases,
+not complete admission equivalence; nullable drafts still require server dry-run.
+
 Checking leaves the native buffer, draft revision, selection, Undo/Redo and IME
 composition untouched. It does not install editor completions or use synthetic
 input. The existing connection/detail/draft/pointer epochs and source digest
