@@ -146,17 +146,24 @@ class RetirementTests(unittest.TestCase):
                 with self.assertRaises(ValueError): candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch)
 
     def test_schema_constraints_retirement_requires_its_own_completed_inactive_merge(self):
+        self.assertEqual(APPROVED[43], 'feat/native-schema-constraints')
+        self.assert_completion_scope_guards(43, 42, 38)
+
+    def test_delivery_retirement_requires_its_own_completed_inactive_merge(self):
+        self.assertEqual(APPROVED[45], 'feat/reviewed-manifest-delivery')
+        self.assert_completion_scope_guards(45, 44, 43)
+
+    def assert_completion_scope_guards(self, number, issue, previous):
         from retire_completed_oidc import DEPENDENCY_SCOPES
-        number, branch = 43, APPROVED[43]
-        self.assertEqual(branch, 'feat/native-schema-constraints')
-        self.assertNotIn(42, APPROVED, 'the child Issue is not the implementation PR')
+        branch = APPROVED[number]
+        self.assertNotIn(issue, APPROVED, 'the child Issue is not the implementation PR')
         self.assertNotIn(number, DEPENDENCY_SCOPES)
         p = copy.deepcopy(self.pr); p['number'] = number; p['head']['ref'] = branch
         refs = {branch: dict(protected=False, commit=dict(sha=self.tip))}
         self.assertEqual(select_scope([p], self.head), number)
         self.assertEqual(candidate(p, self.head, refs, [], lambda _: True, number=number, branch=branch), self.tip)
         self.assertIsNone(candidate(p, self.head, {}, [], lambda _: True, number=number, branch=branch))
-        for other in (38, 42):
+        for other in (previous, issue):
             with self.subTest(other_scope=other), self.assertRaises(ValueError):
                 candidate(p, self.head, refs, [], lambda _: True, number=other, branch=branch)
         for mode in ('open', 'unmerged', 'other-merge', 'wrong-branch', 'wrong-base',
@@ -166,7 +173,7 @@ class RetirementTests(unittest.TestCase):
                 if mode == 'open': pr['state'] = 'open'
                 if mode == 'unmerged': pr['merged'] = False
                 if mode == 'other-merge': pr['merge_commit_sha'] = 'e'*40
-                if mode == 'wrong-branch': pr['head']['ref'] = APPROVED[38]
+                if mode == 'wrong-branch': pr['head']['ref'] = APPROVED[previous]
                 if mode == 'wrong-base': pr['base']['ref'] = 'other-main'
                 if mode == 'foreign-head': pr['head']['repo']['full_name'] = 'foreign/repo'
                 if mode == 'foreign-base': pr['base']['repo']['full_name'] = 'foreign/repo'
