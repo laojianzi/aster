@@ -69,13 +69,19 @@ The completed #50 / [PR #51](https://github.com/laojianzi/aster/pull/51) format
 increment checks bounded `date`, `byte` and `uuid` strings against
 the supported Kubernetes validators' behavior. Other formats remain incomplete;
 format hints do not decode, normalize or replace the draft.
-The #52 / [PR #53](https://github.com/laojianzi/aster/pull/53) enum increment extends
+The completed #52 / [PR #53](https://github.com/laojianzi/aster/pull/53) enum increment extends
 exact decoded JSON equality to bounded objects and
 arrays. Object key order is irrelevant; complete key sets, array order, repeated
 entries and explicit null remain significant. Nested numbers keep the existing
 exact decimal contract. All enum metadata is checked before a match can succeed;
 malformed or over-budget content keeps the report incomplete. Server numeric
 types, nullable enum handling, pruning and defaults remain dry-run boundaries.
+The next bounded scope [#54](https://github.com/laojianzi/aster/issues/54) adds
+map-list identity hints for explicitly required, nonnullable string keys. It
+compares complete key tuples, including empty strings and exact Unicode, while
+ignoring unrelated item payload for identity. Unsupported declarations or an
+incomplete identity scan remain explicit. This scope is being implemented and
+qualified; its issue records the actual PR, verification and completion state.
 [The progress tracker](https://github.com/laojianzi/aster/issues/13) records the
 remaining editor and release goals.
 

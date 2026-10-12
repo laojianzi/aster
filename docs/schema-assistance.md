@@ -2,7 +2,8 @@
 
 The field-help milestone (#14), source navigation (#29), bounded constraints
 (#42), exact multipleOf assistance (#46), portable string patterns (#48), and
-bounded string formats (#50), and structured enum assistance (#52)
+bounded string formats (#50), structured enum assistance (#52), and bounded
+map-list string-key identities (#54)
 share production tracker #13.
 They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
@@ -36,7 +37,7 @@ advisory; it does not replace the API server's dry-run or admission decision.
 | Bounded `enum` | Compare decoded JSON values, including objects and arrays through #52. Numbers compare by numeric value; strings and booleans retain their own types. Object key sets and ordered array entries must match recursively. |
 | `minimum` / `maximum` | Compare decoded JSON numbers, including exact integers and `json.Number`, without routing them through `float64`. OpenAPI 3.0 boolean `exclusiveMinimum` / `exclusiveMaximum` choose strict bounds. |
 | `minLength` / `maxLength` | Count Unicode code points in the decoded string, including astral characters and combining marks. These are not byte, UTF-16-unit or grapheme counts. |
-| `minItems` / `maxItems` | Count array entries; this does not validate uniqueness or Kubernetes list/merge semantics. |
+| `minItems` / `maxItems` | Count array entries; bounded string-key map-list identity is a separate check through #54. Full uniqueness and list/merge semantics remain outside these size checks. |
 | `minProperties` / `maxProperties` | Count object properties; this does not infer server defaults or mutation/pruning behavior. |
 
 Existing draft values already represented as `float64` are compared using their
@@ -291,6 +292,71 @@ Kubernetes [common enum validator](https://github.com/kubernetes/kubernetes/blob
 and [CRD pruning, defaults and nullability](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/).
 The relevant implementation paths were independently compared at all three tags.
 
+## Bounded Kubernetes map-list string identities (#54)
+
+For an array advertising `x-kubernetes-list-type: map`, an entry's identity is
+the complete tuple named by `x-kubernetes-list-map-keys`. This increment admits
+1–8 distinct, nonempty UTF-8 key names, each at most 256 bytes. Every key must
+be explicitly required and declared as a nonnullable string on a nonnullable
+object item schema. Existing bounded local reference resolution is reused for
+item and key schemas; unresolved/cyclic/external refs, composites and uninspected
+wrapper semantics keep this check incomplete. No new reference flattening is used.
+
+Empty string values are valid identities. Case and exact decoded Unicode bytes
+matter, without normalization. All tuple components participate, so `(ab, c)`
+and `(a, bc)` remain different, as do values containing separators or NULs. Two
+entries with the same identity remain duplicates when their other properties
+differ. Only identity fields are projected; whole-object enum equality is not
+substituted for map-list key semantics, and non-key payload is not copied.
+The ordinary structural and other-constraint traversal still checks each entry.
+
+The complete identity declaration and all entry identities are inspected before
+any duplicate hint is emitted. A missing, null, non-string or invalid-UTF-8 key,
+a non-object entry or an oversized value makes identity inspection incomplete.
+An early duplicate cannot hide a later invalid entry, cancellation or budget
+failure. Existing required/type diagnostics still apply. Nullable array null and
+wrong-type arrays do not produce secondary duplicate hints, but identity metadata
+is still inspected. Typed nil host containers are outside the decoded-JSON path.
+
+The local array limit is 256 entries, with at most 16 KiB per decoded key value.
+Bounded allocation, metadata/reference scans, UTF-8 validation, property lookups
+and tuple hashing are prepaid against the same 20,000-work / 8 MiB constraint-byte
+allowance. The tuple table uses fixed components rather than concatenated keys.
+Per-input limits do not promise that every combination fits the shared budget.
+The additional metered resolver uses the same existing resolution rules; ordinary
+Help/Check callers retain their previous resolver behavior.
+
+A duplicate produces at most one `list-map-keys` hint at the original parent
+array pointer with fixed generic wording. Identity key names, values and other
+payload are never interpolated into this diagnostic or its navigation label.
+Checking does not sort/remove entries, apply defaults, normalize the draft,
+change selection/mounted history, prepare an operation or submit a mutation.
+
+### Actual server boundaries
+
+The supported CRD servers forbid ordinary `uniqueItems: true`. Their map-list
+validator projects declared keys before duplicate detection; it does not compare
+the complete objects. The single-key path compares the scalar directly, while
+the multiple-key path serializes a projected map. The admitted string subset
+has the same identity equality for complete, valid decoded inputs.
+
+Default-only, nullable and non-string key declarations, set/atomic behavior and
+full list/SSA merge semantics remain unsupported here. Pruning and defaults may
+change what reaches server validation: a nonnullable null can become a missing
+key, and a default-only key can acquire an identity absent from the draft.
+The server's update strategy can skip new list checks when the old object already
+has list-map/set errors. Local duplicate hints do not emulate this update waiver
+or imply that an unchanged legacy object will be rejected. Independent fresh
+creates and valid-old-object dry-runs remain the main agreement checks; named
+default/null/legacy-update cases record the different outcomes separately.
+
+Primary contracts: [list identity validator](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/listtype/validation.go),
+[CRD schema declaration validation](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/validation/validation.go),
+[custom-resource create/update strategy](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/registry/customresource/strategy.go),
+and [nonnullable-null pruning](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting/prunenulls.go).
+The contract is compared at v1.35.8, v1.36.4 and v1.37.0; actual dry-run remains
+the permission and admission decision, including CEL and webhook behavior.
+
 ## Transport and resource limits
 
 Every action obtains fresh OpenAPI v3 discovery and a group-version document
@@ -325,8 +391,9 @@ UI thread; only the finished bounded text is dispatched to the UI.
 
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
 Schema, CEL, webhook or admission behavior. Pattern syntax outside the subset above,
-formats outside `date`/`byte`/`uuid`, unbounded or non-JSON enum values, unique/list semantics
-and CEL remain unsupported.
+formats outside `date`/`byte`/`uuid`, unbounded or non-JSON enum values, unique/list
+semantics outside the admitted string-key map-list identity subset, and CEL remain
+unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
 exhausted budgets remain explicitly incomplete. A report with zero hints does
@@ -406,6 +473,16 @@ migration modes. `TestRealSchemaEnumAgreeWithDryRun` and
 `TestNativeSchemaEnumAgainstRealCluster` qualify published-schema behavior and
 actual editor corrections on all three Kubernetes versions. Original evidence
 must be reviewed independently at both the final PR head and exact new main.
+
+The #54 contract adds independent per-component tuple comparisons, bounded local
+reference/identity metadata checks, adversarial late invalid entries, shared
+budgets, cancellation, privacy and unchanged-input cases. Existing enum and all
+other mandatory cases remain. `TestNativeSchemaListMapPreservesDraftAndHistory`
+and `TestNativeSchemaListMapMinimumWindowAndIncomplete` join all three OSes and
+both migration modes. `TestRealSchemaListMapAgreeWithDryRun` and
+`TestNativeSchemaListMapAgainstRealCluster` exercise real published CRD schemas,
+corrections and create/live dry-run behavior on the three pinned servers. Named
+server boundaries cannot replace the ordinary agreement cases.
 
 This document defines changes and required evidence, not future CI outcomes.
 Final PR/main commits, raw results and completion belong to each Issue, its single
