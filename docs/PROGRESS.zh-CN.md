@@ -4,7 +4,7 @@
 源码树 `08a9b21affa52f1ee234fe1ad684cc6fddbed7b1`，Go 1.27.2 / MyGo v0.4.5。
 #38/#41/#43/#45/#47/#49/#51/#53/#55 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #56 的
 有界 Kubernetes 字符串 set 列表提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#56](https://github.com/laojianzi/aster/issues/56)、其唯一 PR 及
+状态以 [#56](https://github.com/laojianzi/aster/issues/56)、其唯一 [PR #57](https://github.com/laojianzi/aster/pull/57) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -244,7 +244,7 @@ PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 �
 `maintenance/completed-pr-55` 指向实际 main，旧 tags 保留。自动退役早于独立产物审查；
 恢复核验和本地清理在审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。
 
-## 本轮唯一范围：#56 有界字符串 set 列表提示
+## 本轮唯一范围：#56 / PR #57 有界字符串 set 列表提示
 
 仅 `feat/native-schema-list-set` 推进显式 array / set、非 nullable string items 的
 精确重复值提示。最多 256 项、每值 16 KiB，复用既有共享预算、当前身份的新鲜 Schema、
@@ -254,7 +254,8 @@ PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 �
 
 真实三版本测试区分 fresh create、valid-old update、null/default 与 atomic→set 后旧重复
 对象的更新豁免；保留实际 live 对象身份与字节审阅边界。原生选择、Undo/Redo、最小窗口和
-修正重查纳入全部原 OS/迁移门槛；本节不预先声称 CI、合并或实际退役完成。
+修正重查纳入全部原 OS/迁移门槛。唯一 PR #57 已实际建立；退役登记精确核对
+PR 57 / Issue 56 / 旧 PR 55，保留全部既有 lease 与范围保护。本节不预先声称 CI、合并或实际退役完成。
 
 ## 后续优先级
 

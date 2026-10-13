@@ -141,7 +141,7 @@ Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。�
 `maintenance/completed-pr-55` 指向该 main。自动退役早于独立审查，恢复核验与本地清理在
 审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。旧 tags 和范围保护保持有效。
 
-## 本轮唯一范围：Issue #56
+## 本轮唯一范围：Issue #56 / PR #57
 
 2026-10-13 新增 #56 前，完整盘点为 37 个 PR（36 merged、#2 superseded/closed、0 open）、
 18 个实际 Issues（仅 #13 open）、仅 main、20 个 archive/maintenance tags、0 releases。
@@ -154,8 +154,8 @@ Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。�
 实际 Helm/GitOps、其他列表语义和发布资格仍在 #13。
 
 保留全部原 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档与历史 tags。
-新退役登记须使用实际建立的 PR 编号，不能把 Issue #56 当作 PR。合并前保持中性 Issue
-引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #56。
+新退役登记已绑定实际 [PR #57](https://github.com/laojianzi/aster/pull/57) 与准确 branch，
+回归完整核对 PR 57 / Issue 56 / 旧 PR 55，不把 Issue 当成 PR。合并前保持中性 Issue 引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #56。
 本节不预先声称本轮实现、CI、合并或退役成功。
 
 企业 Gateway/Connector、tenant/policy/approval/audit/session-revocation 已按用户决定
