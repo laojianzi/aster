@@ -131,16 +131,31 @@ Issue，不能当作退役 PR 编号。专属回归复用完整 inactive-complet
 新增 #54 前全页盘点为 36 个 PR（35 merged、#2 superseded/closed、0 open），17 个实际
 Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。没有并发待续接范围。
 
-## 本轮唯一范围：Issue #54 / PR #55
+## 已结项：Issue #54 / PR #55
 
-`feat/native-schema-list-map` 只实现有界 map-list 字符串键 tuple 重复提示，复用现有
-Schema/原生历史/服务端 dry-run。MyGo 最新稳定版仍 0.4.5，未发布的布局缓存改动不等于
-安全编辑事务；不为补全或企业权限另建分支。实际 Helm/GitOps 和其他列表语义仍在 #13。
+`feat/native-schema-list-map` 已交付有界 map-list 字符串键 tuple 重复提示；
+[PR #55](https://github.com/laojianzi/aster/pull/55) 合并至
+`9f7010fdfe23513985c22fc1a8feb8e9ed24f6f7`。PR 与实际 main 各自完成独立原始产物审查。
+[退役 38259896063](https://github.com/laojianzi/aster/actions/runs/38259896063) 实际 applied，
+完整 bundle 在新空 bare 仓库恢复、15 项 Git 检查通过，分支已删除；
+`maintenance/completed-pr-55` 指向该 main。自动退役早于独立审查，恢复核验与本地清理在
+审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。旧 tags 和范围保护保持有效。
 
-唯一 [PR #55](https://github.com/laojianzi/aster/pull/55) 已实际创建，准确 branch 已登记；
-#54 是 Issue，不能当作退役 PR 编号。新增回归核对 PR 55 / Issue 54 / 旧 PR 53 的完整保护。
+## 本轮唯一范围：Issue #56 / PR #57
+
+2026-10-13 新增 #56 前，完整盘点为 37 个 PR（36 merged、#2 superseded/closed、0 open）、
+18 个实际 Issues（仅 #13 open）、仅 main、20 个 archive/maintenance tags、0 releases。
+没有可复用的开放实现分支。唯一 `feat/native-schema-list-set` 从上述已验收 main 起步，
+只推进显式、非 nullable string set 的有界重复提示与真实 dry-run 边界。
+
+当前依赖仍锁定 MyGo 0.4.5；官方 0.4.8 已增加原生 editor 事务与补全入口，可独立评估，
+但直接迁移尚未满足程序加载的原始字节/混合换行契约，补全/IME 交叉行为也待实测。
+详见 [0.4.8 上游源码审查](editor-upstream-mygo-0.4.8-review.md)。安全补全仍未完成；
+实际 Helm/GitOps、其他列表语义和发布资格仍在 #13。
+
 保留全部原 scope guards、依赖范围第五门槛、精确 lease、完整恢复归档与历史 tags。
-合并前保持中性 Issue 引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #54。
+新退役登记已绑定实际 [PR #57](https://github.com/laojianzi/aster/pull/57) 与准确 branch，
+回归完整核对 PR 57 / Issue 56 / 旧 PR 55，不把 Issue 当成 PR。合并前保持中性 Issue 引用；独立精确 main、实际退役和恢复、本地清理核验后再完成 #56。
 本节不预先声称本轮实现、CI、合并或退役成功。
 
 企业 Gateway/Connector、tenant/policy/approval/audit/session-revocation 已按用户决定
@@ -164,5 +179,5 @@ CI、Source evidence、Native migration verification、OIDC qualification。
 分支仍存在且所有检查成立时，先保存恢复 Bundle，再以精确 lease 原子删除分支并建立
 `maintenance/completed-pr-<实际PR编号>`。分支已不存在则记录 already-absent，
 不假称该次工作流执行过删除或建立了 bundle/tag；已有收据则保持原记录。
-依赖范围另外要求 Renovate configuration 第五项主干门槛；#54 是独立 MVP Schema 功能，
+依赖范围另外要求 Renovate configuration 第五项主干门槛；#56 是独立 MVP Schema 功能，
 不会更改或放宽已有依赖范围的门槛。旧登记、历史收据和恢复归档保持有效。

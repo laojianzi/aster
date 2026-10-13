@@ -1,10 +1,10 @@
 # Aster 实施状态
 
-2026-10-12 接续基线：已验证 main `841745bf0b2dd0f52f994cae31a464c5dbc72a5c`，
-源码树 `460306069e410276ec1dda6124f077fc60f2c7fe`，Go 1.27.2 / MyGo v0.4.5。
-#38/#41/#43/#45/#47/#49/#51/#53 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #54 的
-有界 Kubernetes map-list 字符串键身份提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#54](https://github.com/laojianzi/aster/issues/54)、其单一 [PR #55](https://github.com/laojianzi/aster/pull/55) 及
+2026-10-13 接续基线：已验证 main `9f7010fdfe23513985c22fc1a8feb8e9ed24f6f7`，
+源码树 `08a9b21affa52f1ee234fe1ad684cc6fddbed7b1`，Go 1.27.2 / MyGo v0.4.5。
+#38/#41/#43/#45/#47/#49/#51/#53/#55 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #56 的
+有界 Kubernetes 字符串 set 列表提示。这是开发预览。当前精确提交、CI 收据和 Issue
+状态以 [#56](https://github.com/laojianzi/aster/issues/56)、其唯一 [PR #57](https://github.com/laojianzi/aster/pull/57) 及
 [#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
 
 ## 首版 MVP 范围
@@ -24,6 +24,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | 有界可移植字符串 pattern、独立有限语言对照与真实 CRD 验证 | #49 |
 | 有界 date/byte/uuid 格式提示、独立公历/编码/语法对照与真实 CRD 验证 | #51 |
 | 有界结构化 enum、完整对象/有序数组等值和实际服务端类型/nullable 边界 | #53 |
+| 有界 required-string map-list tuple 身份提示与真实 default/legacy 边界 | #55 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -39,7 +40,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | MyGo 0.4.5 全量来源审查、物理快捷键和跨行选择/历史合约 | #41 |
 
 #2 已被不可变 Prepared/SSA 替代，保持关闭而不合并其旧实现。
-#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44、#46、#48、#50、#52 已完成。
+#11、#14、#18、#21、#24、#27、#29、#32、#35、#37、#42、#44、#46、#48、#50、#52、#54 已完成。
 历史分支清理保留恢复归档，不恢复旧分支或重新提交已完成范围。
 
 ## 已结项：#37 / #38 显式发行方登出
@@ -222,7 +223,7 @@ Prepared 与服务端。原有三个 complex-enum 测试保留名称和输入，
 原 18 个 tag 指向不变，新增 `maintenance/completed-pr-53` 指向 main。自动退役先于
 独立原始产物审查；恢复与本地清理在审查后完成，#52 于 2026-10-12T12:32:07Z 明确关闭。
 
-## 本轮唯一范围：#54 / PR #55 有界 map-list 字符串键身份提示
+## 已结项：#54 / PR #55 有界 map-list 字符串键身份提示
 
 唯一 `feat/native-schema-list-map` 复用当前身份的新鲜 OpenAPI、Check draft、预算和原始
 父字段导航。仅检查 `x-kubernetes-list-type: map`、显式 required/nonnullable string keys；
@@ -235,22 +236,40 @@ uniqueItems 和完整列表合并仍属后续范围。CRD 本身禁止 `uniqueIt
 通用 JSON Schema 的这一关键词当作可发布 CRD 功能。默认、裁剪和旧错误对象的更新
 豁免由服务端决定；本地不会修改草稿或模拟转换。
 
-新增独立 tuple 对照、原生选择/历史/修正重查/最小窗口，以及三版本真实 CRD create/live
-dry-run。原有全部门槛和四项 PR/主干资格继续保留；本节不预先声称实现已完成验收。
-唯一 PR #55 已实际建立；退役映射准确登记 PR 55 / Issue 54 / 旧 PR 53，完整 guard 回归
-继续拒绝移动、保护、活动、不可达或错误范围的分支。精确主干与可恢复退役后才关闭 #54。
+PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 份完整二进制、
+24 份原始测试流和 105 张 PNG 的独立验收；新增 core 144 条记录、576 tuple oracle，
+三 pin backend 各 42 条记录。全部旧门槛继续通过。
+[退役 38259896063](https://github.com/laojianzi/aster/actions/runs/38259896063) 已实际 applied，
+完整 bundle 在新空 bare 仓库恢复并通过 15 项 Git 检查；新增
+`maintenance/completed-pr-55` 指向实际 main，旧 tags 保留。自动退役早于独立产物审查；
+恢复核验和本地清理在审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。
+
+## 本轮唯一范围：#56 / PR #57 有界字符串 set 列表提示
+
+仅 `feat/native-schema-list-set` 推进显式 array / set、非 nullable string items 的
+精确重复值提示。最多 256 项、每值 16 KiB，复用既有共享预算、当前身份的新鲜 Schema、
+原始父数组导航和只读草稿；完整 metadata/value 扫描后才至多给出一条通用 `list-set`。
+晚期 null/非字符串/非法 UTF-8/超限/取消不提前报重复。字符串大小写、空白、Unicode
+规范化形式和换行均不折叠；不以 enum 的数值/复合相等冒充 set 身份。
+
+真实三版本测试区分 fresh create、valid-old update、null/default 与 atomic→set 后旧重复
+对象的更新豁免；保留实际 live 对象身份与字节审阅边界。原生选择、Undo/Redo、最小窗口和
+修正重查纳入全部原 OS/迁移门槛。唯一 PR #57 已实际建立；退役登记精确核对
+PR 57 / Issue 56 / 旧 PR 55，保留全部既有 lease 与范围保护。本节不预先声称 CI、合并或实际退役完成。
 
 ## 后续优先级
 
 P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
 #48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52/#53 已完成结构化 enum；
-#54 推进有界 map-list 字符串键身份提示。
+#54/#55 已完成有界 map-list 字符串键身份；#56 推进有界字符串 set 提示。
 这些子集之外的 pattern/format、组合/列表/CEL、编辑辅助、
 真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，
 保留 Undo、IME 和不可变审阅边界。
-MyGo 0.4.5 的外部 `TextBuffer.Replace` 仍重置原生历史；不绕过该约束，
-也不以模拟按键、保留私有 handle 或第二套 history 实现补全。
+当前 pin 0.4.5 的外部 `TextBuffer.Replace` 仍重置原生历史；新发布的 0.4.8 已有真正的
+editor 事务/补全 API，但直接替换会重写程序加载的混合换行，补全/IME 交叉行为也待实际
+验收。见 [上游源码审查](editor-upstream-mygo-0.4.8-review.md)。原生输入本已允许 CRLF→LF；
+程序加载的原始字节契约不随之放宽。不以模拟按键、私有 handle 或第二套 history 绕过。
 巨型非剪贴板 Type/IME 段的同步布局阻塞也仍待上游公开契约解决；剪贴板预检和
 有界短行的原生输入预算回归不代表这一输入路径已具备完整发布资格。
 

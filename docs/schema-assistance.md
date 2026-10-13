@@ -3,7 +3,7 @@
 The field-help milestone (#14), source navigation (#29), bounded constraints
 (#42), exact multipleOf assistance (#46), portable string patterns (#48), and
 bounded string formats (#50), structured enum assistance (#52), and bounded
-map-list string-key identities (#54)
+map-list string-key identities (#54), and bounded string set-list values (#56)
 share production tracker #13.
 They reuse the same explicit,
 current-identity requests and read-only draft checks. This is not a complete
@@ -340,7 +340,7 @@ the complete objects. The single-key path compares the scalar directly, while
 the multiple-key path serializes a projected map. The admitted string subset
 has the same identity equality for complete, valid decoded inputs.
 
-Default-only, nullable and non-string key declarations, set/atomic behavior and
+Default-only, nullable and non-string key declarations, non-string set/atomic behavior and
 full list/SSA merge semantics remain unsupported here. Pruning and defaults may
 change what reaches server validation: a nonnullable null can become a missing
 key, and a default-only key can acquire an identity absent from the draft.
@@ -356,6 +356,62 @@ Primary contracts: [list identity validator](https://github.com/kubernetes/kuber
 and [nonnullable-null pruning](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting/prunenulls.go).
 The contract is compared at v1.35.8, v1.36.4 and v1.37.0; actual dry-run remains
 the permission and admission decision, including CEL and webhook behavior.
+
+## Bounded Kubernetes string set values (#56)
+
+`Check draft` additionally inspects explicit `type: array` schemas with
+`x-kubernetes-list-type: set` and explicit, nonnullable string `items`. Exact
+decoded UTF-8 strings determine membership: empty strings and embedded NUL are
+values; case, whitespace, Unicode normalization and line endings are not folded.
+JSON/YAML escape spelling is not identity. This does not reuse enum's mathematical
+numeric equality or compound-value comparator.
+
+The complete declaration and every member are inspected before a duplicate hint
+can be emitted. A list contains at most 256 entries, each string at most 16 KiB.
+Reference resolution, UTF-8 scans, allocation, hashing and equality share the
+existing 20,000-work / 8 MiB allowance; the individual maxima do not promise
+their Cartesian product fits that shared allowance. An early duplicate cannot
+skip later accounting. Null, non-string, invalid UTF-8, overlong or excess items,
+unresolved/composite identity metadata and exhausted budgets produce incomplete
+inspection with no speculative `list-set` hint for that array. Existing independent
+type/size/string hints remain available. A nullable parent null has no members;
+its advertised item declaration is still checked.
+
+At most one fixed `list-set` diagnostic points to the parent array. It includes
+no member value, defaults or schema examples. Source navigation still refers to
+the original draft; the checker neither sorts nor deduplicates it, changes the
+buffer/history/selection, applies a default, prepares an operation or sends a
+mutation. Numeric, boolean, object and nested-array sets, ordinary `uniqueItems`,
+full SSA/list merge, CEL and admission semantics remain separate scopes.
+
+### Server behavior remains authoritative
+
+The three fixed Kubernetes sources use scalar Go map keys for string set
+membership. Compound set members use JSON serialization and numeric runtime
+types have their own equality behavior; neither is inferred from this string
+subset. Array nulls are not removed by nonnullable-object-field pruning. An item
+default can nevertheless replace null before validation, so a local type hint
+and incomplete set inspection can coexist with a server defaulted success or
+duplicate rejection. Explicit empty strings stay explicit values.
+
+The actual update strategy checks the old object against the current structural
+schema and can skip the new object's list-map/set validation if the old object
+already has such errors. A general documentation statement about adding set
+topology cannot establish the outcome of this precise path. The regression
+creates an isolated legacy object while its list is atomic, changes that same
+CRD with UID/resourceVersion preconditions, and waits for both published OpenAPI
+and an actual fresh duplicate-create rejection. Only then does it compare legacy
+dry-run updates; it also verifies unchanged live identity and values. Fresh
+creates and updates of initially valid objects remain independent agreement
+checks. These are test requirements; actual outcomes are recorded with each
+PR/main run, never inferred from this document.
+
+Primary contracts: [string/scalar set validation](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/listtype/validation.go),
+[array defaulting](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting/algorithm.go),
+[null pruning](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting/prunenulls.go),
+and [update validation strategy](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiextensions-apiserver/pkg/registry/customresource/strategy.go).
+These paths were compared at v1.35.8, v1.36.4 and v1.37.0; real dry-run
+retains the final permission, defaulting, webhook and admission decision.
 
 ## Transport and resource limits
 
@@ -392,7 +448,7 @@ UI thread; only the finished bounded text is dispatched to the UI.
 This checks structural and bounded constraint hints, not full OpenAPI/JSON
 Schema, CEL, webhook or admission behavior. Pattern syntax outside the subset above,
 formats outside `date`/`byte`/`uuid`, unbounded or non-JSON enum values, unique/list
-semantics outside the admitted string-key map-list identity subset, and CEL remain
+semantics outside the admitted string-key map-list and string set-list subsets, and CEL remain
 unsupported.
 Compositions (`allOf`/`oneOf`/`anyOf`/`not`, except canonical integer-or-string
 structure and annotation-only single-ref wrappers), unresolved references and
@@ -407,7 +463,10 @@ The existing incremental TextBuffer, Find and source navigation are reused.
 Completion insertion still needs a supported native editor transaction that
 preserves history, selection, composition and document identity. MyGo v0.4.5
 external `TextBuffer.Replace` resets native history on synchronization; this
-milestone does not bypass that boundary. Full language-server assistance,
+milestone does not bypass that boundary. MyGo v0.4.8 now offers a separate native
+editor transaction API, but direct migration changes programmatically loaded
+mixed line endings and still needs explicit completion/IME acceptance. See the
+[upstream source review](editor-upstream-mygo-0.4.8-review.md). Full language-server assistance,
 long-lived schema caches and the remaining constraints stay in tracker #13.
 Current actions already fetch fresh schemas; no new refresh button or cache is
 introduced by #42.
@@ -483,6 +542,15 @@ both migration modes. `TestRealSchemaListMapAgreeWithDryRun` and
 `TestNativeSchemaListMapAgainstRealCluster` exercise real published CRD schemas,
 corrections and create/live dry-run behavior on the three pinned servers. Named
 server boundaries cannot replace the ordinary agreement cases.
+
+The string-set scope adds five named core gates for string equality, an independent
+576-case sorted-string oracle, unsupported metadata/values, shared budgets and
+cancellation, and concurrent input/privacy preservation. Native string-set
+selection/history and minimum-window/incomplete cases are mandatory on all three
+OSes and both migration modes. `TestRealSchemaListSetAgreeWithDryRun` and
+`TestNativeSchemaListSetAgainstRealCluster` add actual fresh/create/update/default/
+legacy boundaries and native correction/preview on each fixed server. All older
+mandatory cases remain required.
 
 This document defines changes and required evidence, not future CI outcomes.
 Final PR/main commits, raw results and completion belong to each Issue, its single
