@@ -35,10 +35,23 @@ func listIdentityNonnullable(node map[string]any) bool {
 	return !exists || value == false
 }
 
+type listMapKey struct {
+	name    string
+	integer bool
+}
+
+// Every component's type is fixed by the completely inspected key schema.
+// Keep signed integers as integers: neither float conversion nor serialization
+// is needed, and no integer can collide with an empty string component.
+type listMapKeyValue struct {
+	text    string
+	integer int64
+}
+
 // listMapKeys validates the complete advertised identity before examining the
 // draft. Non-key properties are not part of identity; their independent Schema
 // constraints are still inspected by the ordinary document traversal.
-func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]string, bool) {
+func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]listMapKey, bool) {
 	if node["x-kubernetes-list-type"] != "map" || nodeType(node) != "array" || node["type"] != "array" || composite(node) {
 		c.report.Partial = true
 		return nil, false
@@ -55,7 +68,7 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 	if !c.chargeWork(1+2*len(rawKeys), 0) {
 		return nil, false
 	}
-	keys := make([]string, len(rawKeys))
+	keys := make([]listMapKey, len(rawKeys))
 	positions := make(map[string]int, len(rawKeys))
 	for i, raw := range rawKeys {
 		key, valid := raw.(string)
@@ -75,7 +88,7 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 			c.report.Partial = true
 			return nil, false
 		}
-		keys[i], positions[key] = key, i
+		keys[i].name, positions[key] = key, i
 	}
 	item, valid := c.listIdentitySchema(d, node["items"])
 	if !valid {
@@ -112,7 +125,8 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 			found[index] = true
 		}
 	}
-	for i, key := range keys {
+	for i, descriptor := range keys {
+		key := descriptor.name
 		if !found[i] {
 			c.report.Partial = true
 			return nil, false
@@ -124,10 +138,12 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 		if !valid {
 			return nil, false
 		}
-		if nodeType(keySchema) != "string" || keySchema["type"] != "string" || !listIdentityNonnullable(keySchema) {
+		kind := nodeType(keySchema)
+		if (kind != "string" && kind != "integer") || keySchema["type"] != kind || !listIdentityNonnullable(keySchema) {
 			c.report.Partial = true
 			return nil, false
 		}
+		keys[i].integer = kind == "integer"
 	}
 	return keys, true
 }
@@ -157,7 +173,7 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 	}
 	// A fixed tuple preserves component boundaries, including empty strings,
 	// separators and embedded NULs. No serialized key or payload is allocated.
-	identities := make([][MaxListMapKeys]string, len(items))
+	identities := make([][MaxListMapKeys]listMapKeyValue, len(items))
 	identityBytes := make([]int, len(items))
 	complete := true
 	for i, raw := range items {
@@ -166,9 +182,26 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 			complete, c.report.Partial = false, true
 			continue
 		}
-		for j, key := range keys {
+		for j, descriptor := range keys {
+			key := descriptor.name
 			if !c.chargeWork(1, len(key)) {
 				return
+			}
+			if descriptor.integer {
+				// Unstructured's strict decoder preserves integer tokens as
+				// int64. Other runtime numeric representations are not this
+				// identity contract, even when mathematically integral.
+				integer, valid := item[key].(int64)
+				if !valid {
+					complete, c.report.Partial = false, true
+					continue
+				}
+				if !c.chargeWork(1, 8) {
+					return
+				}
+				identities[i][j].integer = integer
+				identityBytes[i] += 8
+				continue
 			}
 			text, stringValue := item[key].(string)
 			if !stringValue || len(text) > MaxListMapValueBytes {
@@ -182,14 +215,14 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 				complete, c.report.Partial = false, true
 				continue
 			}
-			identities[i][j] = text
+			identities[i][j].text = text
 			identityBytes[i] += len(text)
 		}
 	}
 	if !complete || !c.chargeWork(1+len(items)*MaxListMapKeys, 0) {
 		return
 	}
-	seen := make(map[[MaxListMapKeys]string]struct{}, len(items))
+	seen := make(map[[MaxListMapKeys]listMapKeyValue]struct{}, len(items))
 	duplicate := false
 	for i, identity := range identities {
 		// Reserve lookup, possible insertion and tuple comparison before hashing.
@@ -209,6 +242,13 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 		return
 	}
 	if duplicate {
-		c.add(path, "list-map-keys", "List entries repeat the advertised string-key identity.")
+		message := "List entries repeat the advertised string-key identity."
+		for _, key := range keys {
+			if key.integer {
+				message = "List entries repeat the advertised key identity."
+				break
+			}
+		}
+		c.add(path, "list-map-keys", message)
 	}
 }

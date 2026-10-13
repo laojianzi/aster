@@ -8,6 +8,32 @@ from pathlib import Path
 import sys
 
 
+# Scope-specific mandatory names supplement, never replace, workflow --require
+# arguments. Keep additions here so the three existing CI suites cannot report
+# success while omitting the integer identity increment.
+INTEGER_MAP_REQUIRED = {
+    "unit-native": (
+        "TestSchemaIntegerMapKeysExactIdentity",
+        "TestSchemaIntegerMapKeysRuntimeAndMetadataBoundaries",
+        "TestSchemaIntegerMapKeysBudgetsReferencesAndPreservation",
+        "TestNativeSchemaIntegerMapKeysHistoryAndNavigation",
+        "TestNativeSchemaIntegerMapKeysMinimumWindowIncomplete",
+    ),
+    "native-os-interactions": (
+        "TestNativeSchemaIntegerMapKeysHistoryAndNavigation",
+        "TestNativeSchemaIntegerMapKeysMinimumWindowIncomplete",
+    ),
+    "real-cluster-native": (
+        "TestRealSchemaIntegerMapKeysAgreeWithDryRun",
+        "TestNativeSchemaIntegerMapKeysAgainstRealCluster",
+    ),
+}
+
+
+def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ())]))
+
+
 def summarize(path: Path, required: list[str], suite: str) -> dict:
     started: set[tuple[str, str]] = set()
     completed: dict[tuple[str, str], str] = {}
@@ -66,7 +92,7 @@ def main() -> int:
     parser.add_argument("--require", action="append", default=[])
     args = parser.parse_args()
     try:
-        result = summarize(args.jsonl, args.require, args.suite)
+        result = summarize(args.jsonl, required_for_suite(args.suite, args.require), args.suite)
     except (OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
