@@ -18,7 +18,23 @@ import (
 )
 
 func TestNativeSchemaListMapAgainstRealCluster(t *testing.T) {
-	f := testcluster.NewSchemaListMaps(t)
+	runNativeSchemaListMapAgainstRealCluster(t, false)
+}
+
+func TestNativeSchemaIntegerMapKeysAgainstRealCluster(t *testing.T) {
+	runNativeSchemaListMapAgainstRealCluster(t, true)
+}
+
+func runNativeSchemaListMapAgainstRealCluster(t *testing.T, integerKeys bool) {
+	t.Helper()
+	var f testcluster.SchemaListMapsFixture
+	var first, correctedKey any = "api", "batch"
+	if integerKeys {
+		f = testcluster.NewSchemaIntegerListMaps(t)
+		first, correctedKey = int64(8080), int64(10000)
+	} else {
+		f = testcluster.NewSchemaListMaps(t)
+	}
 	h := newRelationshipHarness(t, 90*time.Second)
 	h.w.path = os.Getenv("KUBECONFIG")
 	h.w.currentContext = os.Getenv("ASTER_E2E_CONTEXT")
@@ -61,7 +77,7 @@ func TestNativeSchemaListMapAgainstRealCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	fields := obj.Object["spec"].(map[string]any)
-	fields["named"].([]any)[1].(map[string]any)["name"] = "api"
+	fields["named"].([]any)[1].(map[string]any)["name"] = first
 	fields["scoped"].([]any)[1].(map[string]any)["zone"] = "east"
 	// Retain all live metadata and every non-key field. Flow-style arrays
 	// allow correction at the reported parent pointer using ordinary input.
@@ -95,7 +111,7 @@ func TestNativeSchemaListMapAgainstRealCluster(t *testing.T) {
 	if !strings.Contains(h.w.schemaText, "/spec/named · list-map-keys") || !strings.Contains(h.w.schemaText, "/spec/scoped · list-map-keys") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published single-key and tuple-key list maps")
 	}
-	for _, private := range []string{"PRIVATE_NATIVE_LIST_MAP_SOURCE", "east", "west", "worker", `"api"`, `"one"`, `"two"`} {
+	for _, private := range []string{"PRIVATE_NATIVE_LIST_MAP_SOURCE", "east", "west", "worker", `"api"`, `"one"`, `"two"`, "8080", "9090", "10000"} {
 		if strings.Contains(h.w.schemaText+h.w.schemaStatus, private) {
 			t.Fatal("native list-map assistance echoed an identity tuple or non-key value")
 		}
@@ -126,7 +142,7 @@ func TestNativeSchemaListMapAgainstRealCluster(t *testing.T) {
 	}
 	assertLiveUnchanged()
 	validSpec := f.Draft("schema-list-map-preview-values").Object["spec"].(map[string]any)
-	validSpec["named"].([]any)[1].(map[string]any)["name"] = "batch"
+	validSpec["named"].([]any)[1].(map[string]any)["name"] = correctedKey
 	validSpec["scoped"].([]any)[1].(map[string]any)["zone"] = "north"
 	target := chooseDiagnostic(h, "/spec/scoped")
 	if !target.position.Exact || !strings.HasPrefix(string([]rune(draft)[target.position.RuneOffset:]), "scoped:") {

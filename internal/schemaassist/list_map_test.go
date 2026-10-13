@@ -248,8 +248,8 @@ func TestSchemaListMapRejectsMalformedAndUnsupported(t *testing.T) {
 		{"key-type-absent", func(n map[string]any) {
 			delete(n["items"].(map[string]any)["properties"].(map[string]any)["name"].(map[string]any), "type")
 		}, nil},
-		{"key-type-integer", func(n map[string]any) {
-			n["items"].(map[string]any)["properties"].(map[string]any)["name"].(map[string]any)["type"] = "integer"
+		{"key-type-number", func(n map[string]any) {
+			n["items"].(map[string]any)["properties"].(map[string]any)["name"].(map[string]any)["type"] = "number"
 		}, nil},
 		{"key-type-malformed", func(n map[string]any) {
 			n["items"].(map[string]any)["properties"].(map[string]any)["name"].(map[string]any)["type"] = []any{"string"}

@@ -30,27 +30,32 @@ const schemaListMapDescription = "Required non-nullable string list identities."
 // The optional defaulted list is a separate server transformation boundary:
 // Aster does not infer its optional key from the advertised default.
 type SchemaListMapsFixture struct {
-	Config    *rest.Config
-	Backend   *kube.Backend
-	Namespace string
-	GVK       schema.GroupVersionKind
-	GVR       schema.GroupVersionResource
-	Live      *unstructured.Unstructured
-	crd       *unstructured.Unstructured
+	Config      *rest.Config
+	Backend     *kube.Backend
+	Namespace   string
+	GVK         schema.GroupVersionKind
+	GVR         schema.GroupVersionResource
+	Live        *unstructured.Unstructured
+	crd         *unstructured.Unstructured
+	integerKeys bool
 }
 
 func (f SchemaListMapsFixture) Draft(name string) *unstructured.Unstructured {
+	var first, second any = "api", "worker"
+	if f.integerKeys {
+		first, second = int64(8080), int64(9090)
+	}
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": f.GVK.GroupVersion().String(), "kind": f.GVK.Kind,
 		"metadata": map[string]any{"name": name, "namespace": f.Namespace},
 		"spec": map[string]any{
 			"named": []any{
-				map[string]any{"name": "api", "value": "one"},
-				map[string]any{"name": "worker", "value": "two"},
+				map[string]any{"name": first, "value": "one"},
+				map[string]any{"name": second, "value": "two"},
 			},
 			"scoped": []any{
-				map[string]any{"zone": "east", "name": "api", "value": "one"},
-				map[string]any{"zone": "west", "name": "api", "value": "two"},
+				map[string]any{"zone": "east", "name": first, "value": "one"},
+				map[string]any{"zone": "west", "name": first, "value": "two"},
 			},
 		},
 	}}
@@ -67,7 +72,21 @@ func NewSchemaListMaps(t *testing.T) SchemaListMapsFixture {
 // has invalid identities; the ordinary fixture always starts from a valid object.
 func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 	t.Helper()
-	f := newSchemaListMaps(t, true)
+	return newSchemaListMapLegacy(t, false)
+}
+
+func NewSchemaIntegerListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
+	t.Helper()
+	return newSchemaListMapLegacy(t, true)
+}
+
+func newSchemaListMapLegacy(t *testing.T, integerKeys bool) SchemaListMapsFixture {
+	t.Helper()
+	f := newSchemaListMapsTyped(t, true, integerKeys)
+	description := schemaListMapDescription
+	if integerKeys {
+		description = "Exact decoded int64 list identities; strings distinguish mixed tuples."
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	crds := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
@@ -83,7 +102,7 @@ func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 		{"op": "test", "path": path + "x-kubernetes-list-type", "value": "atomic"},
 		{"op": "replace", "path": path + "x-kubernetes-list-type", "value": "map"},
 		{"op": "add", "path": path + "x-kubernetes-list-map-keys", "value": []any{"name"}},
-		{"op": "replace", "path": path + "description", "value": schemaListMapDescription},
+		{"op": "replace", "path": path + "description", "value": description},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +116,7 @@ func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 	// transition. A description marker checks publication without using the
 	// new local duplicate checker as a readiness oracle.
 	probe := f.Draft("schema-list-map-transition-probe")
-	probe.Object["spec"].(map[string]any)["named"].([]any)[1].(map[string]any)["name"] = "api"
+	probe.Object["spec"].(map[string]any)["named"].([]any)[1].(map[string]any)["name"] = probe.Object["spec"].(map[string]any)["named"].([]any)[0].(map[string]any)["name"]
 	err = wait.PollUntilContextTimeout(ctx, 150*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
 		doc, err := f.Backend.SchemaDocument(ctx, f.GVK)
 		if errors.Is(err, schemaassist.ErrNotFound) || errors.Is(err, schemaassist.ErrUnavailable) {
@@ -107,7 +126,7 @@ func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 			return false, err
 		}
 		help, err := doc.Help(ctx, "/spec/named")
-		if err != nil || help.Description != schemaListMapDescription {
+		if err != nil || help.Description != description {
 			return false, err
 		}
 		result, createErr := f.Backend.CreateObject(ctx, f.GVR, f.Namespace, probe, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "schema-list-map-probe", FieldValidation: "Strict"})
@@ -141,7 +160,19 @@ func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 	return f
 }
 
+// NewSchemaIntegerListMaps uses the same isolated fixture lifecycle and
+// published topology, with signed integer IDs and a mixed string/integer tuple.
+func NewSchemaIntegerListMaps(t *testing.T) SchemaListMapsFixture {
+	t.Helper()
+	return newSchemaListMapsTyped(t, false, true)
+}
+
 func newSchemaListMaps(t *testing.T, legacyDuplicates bool) SchemaListMapsFixture {
+	t.Helper()
+	return newSchemaListMapsTyped(t, legacyDuplicates, false)
+}
+
+func newSchemaListMapsTyped(t *testing.T, legacyDuplicates, integerKeys bool) SchemaListMapsFixture {
 	t.Helper()
 	cfg := Config(t)
 	client, err := kubernetes.NewForConfig(cfg)
@@ -170,7 +201,7 @@ func newSchemaListMaps(t *testing.T, legacyDuplicates bool) SchemaListMapsFixtur
 		}
 	})
 	group := ns.Name + ".aster.test"
-	f := SchemaListMapsFixture{Config: cfg, Backend: b, Namespace: ns.Name,
+	f := SchemaListMapsFixture{Config: cfg, Backend: b, Namespace: ns.Name, integerKeys: integerKeys,
 		GVK: schema.GroupVersionKind{Group: group, Version: "v1", Kind: "ListMapThing"},
 		GVR: schema.GroupVersionResource{Group: group, Version: "v1", Resource: "listmapthings"}}
 	raw := fmt.Sprintf(`{
@@ -191,6 +222,21 @@ func newSchemaListMaps(t *testing.T, legacyDuplicates bool) SchemaListMapsFixtur
 	crd := &unstructured.Unstructured{}
 	if err := crd.UnmarshalJSON([]byte(raw)); err != nil {
 		t.Fatal(err)
+	}
+	if integerKeys {
+		versions := crd.Object["spec"].(map[string]any)["versions"].([]any)
+		root := versions[0].(map[string]any)["schema"].(map[string]any)["openAPIV3Schema"].(map[string]any)
+		fields := root["properties"].(map[string]any)["spec"].(map[string]any)["properties"].(map[string]any)
+		for _, field := range []string{"named", "scoped", "defaulted"} {
+			list := fields[field].(map[string]any)
+			list["description"] = "Exact decoded int64 list identities; strings distinguish mixed tuples."
+			properties := list["items"].(map[string]any)["properties"].(map[string]any)
+			key := map[string]any{"type": "integer"}
+			if field == "defaulted" {
+				key["default"] = int64(8080)
+			}
+			properties["name"] = key
+		}
 	}
 	if legacyDuplicates {
 		versions := crd.Object["spec"].(map[string]any)["versions"].([]any)
@@ -271,7 +317,7 @@ func newSchemaListMaps(t *testing.T, legacyDuplicates bool) SchemaListMapsFixtur
 	}
 	draft := f.Draft("schema-list-map-live")
 	if legacyDuplicates {
-		draft.Object["spec"].(map[string]any)["named"].([]any)[1].(map[string]any)["name"] = "api"
+		draft.Object["spec"].(map[string]any)["named"].([]any)[1].(map[string]any)["name"] = draft.Object["spec"].(map[string]any)["named"].([]any)[0].(map[string]any)["name"]
 	}
 	f.Live, err = b.CreateObject(ctx, f.GVR, f.Namespace, draft, metav1.CreateOptions{FieldManager: "schema-list-map-fixture", FieldValidation: "Strict"})
 	if err != nil {
