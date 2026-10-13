@@ -9,10 +9,10 @@ const (
 	MaxListMapValueBytes = 16 << 10
 )
 
-// listMapSchema reuses the existing resolver, including its exact local-ref,
+// listIdentitySchema reuses the existing resolver, including its exact local-ref,
 // wrapper, cycle and depth rules, with shared-budget accounting for this extra
 // metadata inspection. A wrapper's uninspected semantics are never flattened.
-func (c *constraintChecker) listMapSchema(d *Document, raw any) (map[string]any, bool) {
+func (c *constraintChecker) listIdentitySchema(d *Document, raw any) (map[string]any, bool) {
 	node, valid := raw.(map[string]any)
 	if !valid || node == nil {
 		c.report.Partial = true
@@ -30,7 +30,7 @@ func (c *constraintChecker) listMapSchema(d *Document, raw any) (map[string]any,
 	return node, true
 }
 
-func listMapNonnullable(node map[string]any) bool {
+func listIdentityNonnullable(node map[string]any) bool {
 	value, exists := node["nullable"]
 	return !exists || value == false
 }
@@ -77,11 +77,11 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 		}
 		keys[i], positions[key] = key, i
 	}
-	item, valid := c.listMapSchema(d, node["items"])
+	item, valid := c.listIdentitySchema(d, node["items"])
 	if !valid {
 		return nil, false
 	}
-	if nodeType(item) != "object" || item["type"] != "object" || !listMapNonnullable(item) {
+	if nodeType(item) != "object" || item["type"] != "object" || !listIdentityNonnullable(item) {
 		c.report.Partial = true
 		return nil, false
 	}
@@ -120,11 +120,11 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]str
 		if !c.chargeWork(1, len(key)) {
 			return nil, false
 		}
-		keySchema, valid := c.listMapSchema(d, properties[key])
+		keySchema, valid := c.listIdentitySchema(d, properties[key])
 		if !valid {
 			return nil, false
 		}
-		if nodeType(keySchema) != "string" || keySchema["type"] != "string" || !listMapNonnullable(keySchema) {
+		if nodeType(keySchema) != "string" || keySchema["type"] != "string" || !listIdentityNonnullable(keySchema) {
 			c.report.Partial = true
 			return nil, false
 		}
