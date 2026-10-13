@@ -109,8 +109,9 @@ does not render Helm charts, manage Helm releases or reconcile Git repositories.
 
 Remaining P1 work includes advanced Schema semantics, reviewed Helm/GitOps lifecycle
 and safe completion. Completion still needs an upstream editor transaction that
-preserves Undo/Redo, selection and IME; MyGo v0.4.5 external `TextBuffer.Replace`
-does not provide that contract. Other identity policy, product-depth and release
+preserves Undo/Redo, selection and IME. MyGo v0.4.8 still does not provide that
+contract through external `TextBuffer.Replace`; its new editor also normalizes
+loaded mixed CRLF/LF bytes. See the [editor boundary review](docs/editor-upstream-mygo-0.4.8-review.md). Other identity policy, product-depth and release
 priorities remain in [the tracker](https://github.com/laojianzi/aster/issues/13).
 
 ## Reviewed issuer sign-out
@@ -124,8 +125,9 @@ the issuer logged out or revoked Kubernetes JWTs. See [sign-out boundaries](docs
 
 ## Development
 
-The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.5**, and Kubernetes Go libraries
-**v0.37.1**. Install the toolchain in `go.mod`, Python 3 and Git, then:
+The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.8**, and Kubernetes Go libraries
+**v0.37.1**. See the [MyGo upgrade review](docs/dependency-review-mygo-0.4.8.md).
+Install the toolchain in `go.mod`, Python 3 and Git, then:
 
 ```sh
 python scripts/dev.py build

@@ -7,6 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeMyGo048ChunkedBufferPreservesMixedBytesAndHistory',
     'TestNativeSchemaListSetPreservesDraftAndHistory',
     'TestNativeSchemaListSetMinimumWindowAndIncomplete',
     'TestNativeSchemaListMapPreservesDraftAndHistory',
@@ -90,6 +91,7 @@ REQUIRED = [
 ]
 
 TERMINAL_REQUIRED = [
+    'TestTerminalNativeMyGo048WheelRoutingAndClose',
     'TestTerminalNativeRemoteLinksCannotLaunchLocalApplications',
     'TestTerminalNativePasteCannotBypassInputBudget',
     'TestTerminalNativeUnicodeInputAndOSC52CannotWriteClipboard',
