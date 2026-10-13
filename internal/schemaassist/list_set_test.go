@@ -167,7 +167,7 @@ func TestSchemaListSetRejectsMalformedAndUnsupported(t *testing.T) {
 		{"tuple-items", func(n map[string]any) { n["items"] = []any{map[string]any{"type": "string"}} }, nil},
 		{"typed-nil-items", func(n map[string]any) { n["items"] = map[string]any(nil) }, nil},
 		{"unspecified-items", func(n map[string]any) { n["items"] = map[string]any{} }, nil},
-		{"integer-items", func(n map[string]any) { n["items"] = map[string]any{"type": "integer"} }, nil},
+		{"nullable-integer-items", func(n map[string]any) { n["items"] = map[string]any{"type": "integer", "nullable": true} }, nil},
 		{"number-items", func(n map[string]any) { n["items"] = map[string]any{"type": "number"} }, nil},
 		{"boolean-items", func(n map[string]any) { n["items"] = map[string]any{"type": "boolean"} }, nil},
 		{"object-items", func(n map[string]any) {

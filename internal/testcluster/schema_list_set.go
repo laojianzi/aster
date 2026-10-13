@@ -26,8 +26,8 @@ import (
 
 const schemaListSetDescription = "Non-nullable exact string set entries."
 
-// SchemaListSetsFixture publishes a string set, an item-default boundary, and
-// a nullable parent array whose individual string items remain non-nullable.
+// SchemaListSetsFixture publishes string or int64 sets, item defaults and
+// nullable parent arrays with nonnullable items under the same lifecycle.
 type SchemaListSetsFixture struct {
 	Config    *rest.Config
 	Backend   *kube.Backend
@@ -36,10 +36,11 @@ type SchemaListSetsFixture struct {
 	GVR       schema.GroupVersionResource
 	Live      *unstructured.Unstructured
 	crd       *unstructured.Unstructured
+	integer   bool
 }
 
 func (f SchemaListSetsFixture) Draft(name string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]any{
+	draft := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": f.GVK.GroupVersion().String(), "kind": f.GVK.Kind,
 		"metadata": map[string]any{"name": name, "namespace": f.Namespace},
 		"spec": map[string]any{
@@ -48,11 +49,40 @@ func (f SchemaListSetsFixture) Draft(name string) *unstructured.Unstructured {
 			"nullable":  nil,
 		},
 	}}
+	if f.integer {
+		draft.Object["spec"].(map[string]any)["values"] = []any{int64(0), int64(9007199254740993), int64(-1)}
+		draft.Object["spec"].(map[string]any)["defaulted"] = []any{int64(7)}
+	}
+	return draft
+}
+
+func (f SchemaListSetsFixture) description() string {
+	if f.integer {
+		return "Non-nullable exact int64 set entries."
+	}
+	return schemaListSetDescription
+}
+
+func (f SchemaListSetsFixture) duplicates() []any {
+	if f.integer {
+		return []any{int64(7), int64(7)}
+	}
+	return []any{"api", "api"}
+}
+
+func NewSchemaIntegerSets(t *testing.T) SchemaListSetsFixture {
+	t.Helper()
+	return newSchemaListSets(t, false, true)
+}
+
+func NewSchemaIntegerSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
+	t.Helper()
+	return newSchemaListSetsWithLegacyDuplicates(t, true)
 }
 
 func NewSchemaListSets(t *testing.T) SchemaListSetsFixture {
 	t.Helper()
-	return newSchemaListSets(t, false)
+	return newSchemaListSets(t, false, false)
 }
 
 // NewSchemaListSetsWithLegacyDuplicates stores duplicates under an isolated
@@ -60,7 +90,12 @@ func NewSchemaListSets(t *testing.T) SchemaListSetsFixture {
 // real fresh-create duplicate rejection must both observe the transition.
 func NewSchemaListSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
 	t.Helper()
-	f := newSchemaListSets(t, true)
+	return newSchemaListSetsWithLegacyDuplicates(t, false)
+}
+
+func newSchemaListSetsWithLegacyDuplicates(t *testing.T, integer bool) SchemaListSetsFixture {
+	t.Helper()
+	f := newSchemaListSets(t, true, integer)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	crds := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
@@ -75,7 +110,7 @@ func NewSchemaListSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
 		{"op": "test", "path": "/metadata/resourceVersion", "value": f.crd.GetResourceVersion()},
 		{"op": "test", "path": path + "x-kubernetes-list-type", "value": "atomic"},
 		{"op": "replace", "path": path + "x-kubernetes-list-type", "value": "set"},
-		{"op": "replace", "path": path + "description", "value": schemaListSetDescription},
+		{"op": "replace", "path": path + "description", "value": f.description()},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +121,7 @@ func NewSchemaListSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
 	}
 	f.crd = updated
 	probe := f.Draft("schema-list-set-transition-probe")
-	probe.Object["spec"].(map[string]any)["values"] = []any{"api", "api"}
+	probe.Object["spec"].(map[string]any)["values"] = f.duplicates()
 	err = wait.PollUntilContextTimeout(ctx, 150*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
 		doc, err := f.Backend.SchemaDocument(ctx, f.GVK)
 		if errors.Is(err, schemaassist.ErrNotFound) || errors.Is(err, schemaassist.ErrUnavailable) {
@@ -98,7 +133,7 @@ func NewSchemaListSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
 		// The description marker does not use the new local checker as a
 		// readiness oracle for its own test fixture.
 		help, err := doc.Help(ctx, "/spec/values")
-		if err != nil || help.Description != schemaListSetDescription {
+		if err != nil || help.Description != f.description() {
 			return false, err
 		}
 		result, createErr := f.Backend.CreateObject(ctx, f.GVR, f.Namespace, probe, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}, FieldManager: "schema-list-set-probe", FieldValidation: "Strict"})
@@ -131,7 +166,7 @@ func NewSchemaListSetsWithLegacyDuplicates(t *testing.T) SchemaListSetsFixture {
 	return f
 }
 
-func newSchemaListSets(t *testing.T, legacyDuplicates bool) SchemaListSetsFixture {
+func newSchemaListSets(t *testing.T, legacyDuplicates, integer bool) SchemaListSetsFixture {
 	t.Helper()
 	cfg := Config(t)
 	client, err := kubernetes.NewForConfig(cfg)
@@ -160,7 +195,7 @@ func newSchemaListSets(t *testing.T, legacyDuplicates bool) SchemaListSetsFixtur
 		}
 	})
 	group := ns.Name + ".aster.test"
-	f := SchemaListSetsFixture{Config: cfg, Backend: b, Namespace: ns.Name,
+	f := SchemaListSetsFixture{Config: cfg, Backend: b, Namespace: ns.Name, integer: integer,
 		GVK: schema.GroupVersionKind{Group: group, Version: "v1", Kind: "ListSetThing"},
 		GVR: schema.GroupVersionResource{Group: group, Version: "v1", Resource: "listsetthings"}}
 	raw := fmt.Sprintf(`{
@@ -174,10 +209,22 @@ func newSchemaListSets(t *testing.T, legacyDuplicates bool) SchemaListSetsFixtur
     "nullable":{"type":"array","nullable":true,"maxItems":256,"x-kubernetes-list-type":"set","items":{"type":"string"}}
    }}}
   }}}]}}
- `, group, group, schemaListSetDescription)
+ `, group, group, f.description())
 	crd := &unstructured.Unstructured{}
 	if err := crd.UnmarshalJSON([]byte(raw)); err != nil {
 		t.Fatal(err)
+	}
+	if integer {
+		versions := crd.Object["spec"].(map[string]any)["versions"].([]any)
+		root := versions[0].(map[string]any)["schema"].(map[string]any)["openAPIV3Schema"].(map[string]any)
+		fields := root["properties"].(map[string]any)["spec"].(map[string]any)["properties"].(map[string]any)
+		for _, name := range []string{"values", "defaulted", "nullable"} {
+			item := fields[name].(map[string]any)["items"].(map[string]any)
+			item["type"] = "integer"
+			if name == "defaulted" {
+				item["default"] = int64(42)
+			}
+		}
 	}
 	if legacyDuplicates {
 		versions := crd.Object["spec"].(map[string]any)["versions"].([]any)
@@ -257,14 +304,14 @@ func newSchemaListSets(t *testing.T, legacyDuplicates bool) SchemaListSetsFixtur
 		if legacyDuplicates {
 			return help.Description == "Initial atomic list for an isolated set update-validation boundary.", nil
 		}
-		return help.Description == schemaListSetDescription, nil
+		return help.Description == f.description(), nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	draft := f.Draft("schema-list-set-live")
 	if legacyDuplicates {
-		draft.Object["spec"].(map[string]any)["values"] = []any{"api", "api"}
+		draft.Object["spec"].(map[string]any)["values"] = f.duplicates()
 	}
 	f.Live, err = b.CreateObject(ctx, f.GVR, f.Namespace, draft, metav1.CreateOptions{FieldManager: "schema-list-set-fixture", FieldValidation: "Strict"})
 	if err != nil {

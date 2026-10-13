@@ -30,8 +30,27 @@ INTEGER_MAP_REQUIRED = {
 }
 
 
+INTEGER_SET_REQUIRED = {
+    "unit-native": (
+        "TestSchemaIntegerSetExactIdentity",
+        "TestSchemaIntegerSetRuntimeAndMetadataBoundaries",
+        "TestSchemaIntegerSetBudgetsReferencesAndPreservation",
+        "TestNativeSchemaIntegerSetHistoryAndNavigation",
+        "TestNativeSchemaIntegerSetMinimumWindowIncomplete",
+    ),
+    "native-os-interactions": (
+        "TestNativeSchemaIntegerSetHistoryAndNavigation",
+        "TestNativeSchemaIntegerSetMinimumWindowIncomplete",
+    ),
+    "real-cluster-native": (
+        "TestRealSchemaIntegerSetAgreeWithDryRun",
+        "TestNativeSchemaIntegerSetAgainstRealCluster",
+    ),
+}
+
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

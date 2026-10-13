@@ -18,7 +18,21 @@ import (
 )
 
 func TestNativeSchemaListSetAgainstRealCluster(t *testing.T) {
-	f := testcluster.NewSchemaListSets(t)
+	runNativeSchemaListSetAgainstRealCluster(t, false)
+}
+
+func TestNativeSchemaIntegerSetAgainstRealCluster(t *testing.T) {
+	runNativeSchemaListSetAgainstRealCluster(t, true)
+}
+
+func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
+	t.Helper()
+	var f testcluster.SchemaListSetsFixture
+	if integer {
+		f = testcluster.NewSchemaIntegerSets(t)
+	} else {
+		f = testcluster.NewSchemaListSets(t)
+	}
 	h := newRelationshipHarness(t, 90*time.Second)
 	h.w.path = os.Getenv("KUBECONFIG")
 	h.w.currentContext = os.Getenv("ASTER_E2E_CONTEXT")
@@ -63,6 +77,10 @@ func TestNativeSchemaListSetAgainstRealCluster(t *testing.T) {
 	fields := obj.Object["spec"].(map[string]any)
 	fields["values"].([]any)[1] = "api"
 	fields["defaulted"] = []any{"PRIVATE_DEFAULTED", "PRIVATE_DEFAULTED"}
+	if integer {
+		fields["values"].([]any)[1] = int64(0)
+		fields["defaulted"] = []any{int64(42), int64(42)}
+	}
 	// Retain all live metadata and the nullable parent. Flow-style arrays
 	// allow correction at the reported parent pointer using ordinary input.
 	delete(obj.Object, "spec")
@@ -95,7 +113,10 @@ func TestNativeSchemaListSetAgainstRealCluster(t *testing.T) {
 	if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || !strings.Contains(h.w.schemaText, "/spec/defaulted · list-set") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published string set lists")
 	}
-	for _, private := range []string{"PRIVATE_NATIVE_LIST_SET_SOURCE", "PRIVATE_DEFAULTED", "中文船🚢", `"api"`} {
+	if integer && !strings.Contains(h.w.schemaText, "string/int64 set-list values") {
+		t.Fatal("integer set report scope is missing")
+	}
+	for _, private := range []string{"9007199254740993", "9223372036854775807", "PRIVATE_NATIVE_LIST_SET_SOURCE", "PRIVATE_DEFAULTED", "中文船🚢", `"api"`} {
 		if strings.Contains(h.w.schemaText+h.w.schemaStatus, private) {
 			t.Fatal("native list-set assistance echoed a string value")
 		}
@@ -128,6 +149,10 @@ func TestNativeSchemaListSetAgainstRealCluster(t *testing.T) {
 	validSpec := f.Draft("schema-list-set-preview-values").Object["spec"].(map[string]any)
 	validSpec["values"] = []any{"api", "中文船🚢", "", "é", "e\u0301", "x\x00y"}
 	validSpec["defaulted"] = []any{"explicit", "fallback"}
+	if integer {
+		validSpec["values"] = []any{int64(0), int64(9007199254740992), int64(9007199254740993), int64(-9223372036854775808), int64(9223372036854775807)}
+		validSpec["defaulted"] = []any{int64(7), int64(42)}
+	}
 	target := chooseDiagnostic(h, "/spec/defaulted")
 	if !target.position.Exact || !strings.HasPrefix(string([]rune(draft)[target.position.RuneOffset:]), "defaulted:") {
 		t.Fatal("defaulted-string diagnostic did not retain its original parent array's Unicode source coordinate")
