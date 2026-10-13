@@ -465,7 +465,7 @@ index bab81c8..1605ba4 100644
 +				t.in.push(out)
  			}
  		}
- 	case t.term.AltScreen() && t.term.Mode(vt.ModeAltScroll):
+ 	case v.wheelArrows():
 @@ -737,7 +733,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  			key = vt.KeyArrowUp
  		}
