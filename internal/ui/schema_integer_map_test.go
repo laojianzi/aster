@@ -25,6 +25,9 @@ func TestNativeSchemaIntegerMapKeysHistoryAndNavigation(t *testing.T) {
 	snapshot, identity := h.w.editor.Snapshot(), h.w.draftIdentity()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
+	if !strings.Contains(h.w.schemaText, "required string/int64 map-list identities") || strings.Contains(h.w.schemaText, "string-key map-list identities") {
+		t.Fatal("native report advertises an outdated map-list identity scope")
+	}
 	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/named · list-map-keys") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised key identity.") != 1 {
 		t.Fatal("integer map inspection missed the repeated mixed tuple")
 	}
@@ -58,6 +61,9 @@ func TestNativeSchemaIntegerMapKeysHistoryAndNavigation(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
+	if !strings.Contains(h.w.schemaText, "required string/int64 map-list identities") || strings.Contains(h.w.schemaText, "string-key map-list identities") {
+		t.Fatal("native report advertises an outdated map-list identity scope")
+	}
 	if len(h.w.schemaLocations) != 0 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || !strings.Contains(h.w.schemaText, "No supported structural or constraint hints found.") || h.w.plan != nil {
 		t.Fatal("integer correction conflated adjacent integers or mixed tuples")
 	}
@@ -108,6 +114,9 @@ func TestNativeSchemaIntegerMapKeysMinimumWindowIncomplete(t *testing.T) {
 			identity := h.w.draftIdentity()
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
+			if !strings.Contains(h.w.schemaText, "required string/int64 map-list identities") || strings.Contains(h.w.schemaText, "string-key map-list identities") {
+				t.Fatal("native report advertises an outdated map-list identity scope")
+			}
 			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "· list-map-keys") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {
 				t.Fatal("incomplete integer list produced an early hint or disclosed input")
 			}
