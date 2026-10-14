@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -198,7 +199,7 @@ func TestHelmEnvironmentAndOutputBudgets(t *testing.T) {
 		}
 	}
 	joined := strings.Join(env, "\n")
-	for _, key := range []string{"HOME=", "KUBECONFIG=", "HELM_PLUGINS=", "HELM_DRIVER=memory", "HELM_MEMORY_DRIVER_DATA=" + filepath.Join(root, "memory-releases.yaml"), "GOMEMLIMIT=256MiB"} {
+	for _, key := range []string{"HOME=", "KUBECONFIG=", "HELM_PLUGINS=", "HELM_DRIVER=memory", "HELM_MEMORY_DRIVER_DATA=memory-releases.yaml", "GOMEMLIMIT=256MiB"} {
 		if !strings.Contains(joined, key) {
 			t.Fatal("missing isolation", key)
 		}
@@ -228,6 +229,16 @@ func TestHelmRealTemplateSnapshotAndFailure(t *testing.T) {
 	// the startup failure by using the caller's release database or credentials.
 	t.Setenv("HELM_MEMORY_DRIVER_DATA", writeTestFile(t, "private-releases.yaml", []byte("PRIVATE_RELEASE_DATABASE: invalid\n")))
 	t.Setenv("KUBECONFIG", writeTestFile(t, "private-kubeconfig", []byte("PRIVATE_CLUSTER_CREDENTIAL: invalid\n")))
+	// Unix also exercises a colon-bearing temporary directory. On Windows the
+	// ordinary drive-qualified temp path already triggers the upstream delimiter
+	// bug unless memory data is a fixed basename relative to the private cmd.Dir.
+	if runtime.GOOS != "windows" {
+		colonRoot := filepath.Join(t.TempDir(), "drive:like")
+		if err := os.Mkdir(colonRoot, 0700); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("TMPDIR", colonRoot)
+	}
 	entries := minimalEntries()
 	entries[2].text += "  missing: {{ lookup \"v1\" \"Secret\" \"team\" \"PRIVATE_NAME\" | empty | quote }}\n"
 	chart := writeTestFile(t, "chart.tgz", chartArchive(t, entries...))

@@ -231,6 +231,9 @@ func isolatedEnvironment(root string) ([]string, error) {
 	// overrides. Registry/config/plugin locations are fresh and empty each time.
 	// Helm v4.3.0 initializes its memory driver by loading this explicit empty
 	// release list. Omitting it aborts the CLI before client-side template runs.
+	// Its loader splits paths on a literal colon, even on Windows. Use only a
+	// fixed basename resolved from the private cmd.Dir, never a drive-qualified
+	// path (or a temp-directory name containing a colon).
 	dirs := []string{"config", "cache", "data", "plugins", "repositories", "tmp"}
 	for _, dir := range dirs {
 		if err := os.Mkdir(filepath.Join(root, dir), 0700); err != nil {
@@ -243,11 +246,11 @@ func isolatedEnvironment(root string) ([]string, error) {
 			return nil, err
 		}
 	}
-	env := []string{"HOME=" + root, "USERPROFILE=" + root, "PATH=" + root, "LANG=C.UTF-8", "HELM_DRIVER=memory", "HELM_NO_PLUGINS=1", "GOMEMLIMIT=256MiB", "GOMAXPROCS=2", "GOTRACEBACK=none"}
+	env := []string{"HOME=" + root, "USERPROFILE=" + root, "PATH=" + root, "LANG=C.UTF-8", "HELM_DRIVER=memory", "HELM_MEMORY_DRIVER_DATA=memory-releases.yaml", "HELM_NO_PLUGINS=1", "GOMEMLIMIT=256MiB", "GOMAXPROCS=2", "GOTRACEBACK=none"}
 	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
 		env = append(env, key+"="+filepath.Join(root, "tmp"))
 	}
-	for key, name := range map[string]string{"HELM_CONFIG_HOME": "config", "HELM_CACHE_HOME": "cache", "HELM_DATA_HOME": "data", "HELM_PLUGINS": "plugins", "HELM_REPOSITORY_CACHE": "repositories", "HELM_REGISTRY_CONFIG": "registry.json", "HELM_REPOSITORY_CONFIG": "repositories.yaml", "KUBECONFIG": "kubeconfig", "HELM_MEMORY_DRIVER_DATA": "memory-releases.yaml", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache", "XDG_DATA_HOME": "data", "APPDATA": "config", "LOCALAPPDATA": "data"} {
+	for key, name := range map[string]string{"HELM_CONFIG_HOME": "config", "HELM_CACHE_HOME": "cache", "HELM_DATA_HOME": "data", "HELM_PLUGINS": "plugins", "HELM_REPOSITORY_CACHE": "repositories", "HELM_REGISTRY_CONFIG": "registry.json", "HELM_REPOSITORY_CONFIG": "repositories.yaml", "KUBECONFIG": "kubeconfig", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache", "XDG_DATA_HOME": "data", "APPDATA": "config", "LOCALAPPDATA": "data"} {
 		env = append(env, key+"="+filepath.Join(root, name))
 	}
 	if runtime.GOOS == "windows" {

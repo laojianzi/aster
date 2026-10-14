@@ -109,7 +109,8 @@ class HelmRenderScopeTests(unittest.TestCase):
         source = (prepare.ROOT / 'internal/helmrender/render.go').read_text()
         self.assertIn('hex.EncodeToString(digest[:]) != d.SHA256', source)
         self.assertIn('"--dry-run=client"', source)
-        self.assertIn('"HELM_MEMORY_DRIVER_DATA": "memory-releases.yaml"', source)
+        self.assertIn('"HELM_MEMORY_DRIVER_DATA=memory-releases.yaml"', source)
+        self.assertNotIn('"HELM_MEMORY_DRIVER_DATA":', source)
         self.assertIn('"memory-releases.yaml": "[]\\n"', source)
         for flag in ('"--dry-run=server"', '"--no-hooks"', '"--skip-tests"',
                      '"--enable-dns"', '"--dependency-update"', '"--post-renderer"'):
