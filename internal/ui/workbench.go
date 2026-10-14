@@ -138,6 +138,7 @@ type Workbench struct {
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
 	delivery      deliveryState
+	helmReleases  helmReleaseState
 
 	vaultMutation, vaultUncertain                             bool
 	vaultOpen, vaultPending                                   bool
@@ -207,6 +208,7 @@ func Open(parent context.Context, options WindowOptions) *Workbench {
 	win := mygo.NewWindow(mygo.WindowOptions{Title: fmt.Sprintf("Aster · Workspace %d", options.Number), Width: 1440, Height: 900, MinWidth: 1100, MinHeight: 700, StateKey: fmt.Sprintf("workspace-%d", options.Number), Content: ui.View(w.View)})
 	w.attach(parent, func(fn func()) { win.Update(fn) })
 	win.OnClosed(func() {
+		w.clearHelmReleases()
 		w.clearDelivery()
 		w.cancel()
 		if options.Closed != nil {
@@ -277,6 +279,7 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearHelmReleases()
 	w.editorRetainedPaste = ""
 	w.editorPasteEpoch++
 	w.clearDelivery()

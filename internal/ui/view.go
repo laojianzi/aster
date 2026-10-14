@@ -10,6 +10,7 @@ func (w *Workbench) View(c *ui.Context) {
 	w.syncEditor()
 	w.syncFind()
 	w.syncDelivery()
+	w.syncHelmReleases()
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Fill().Background(t.Background).Children(func() {
@@ -43,6 +44,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.loadContexts()
 			})
 			ui.Button(c, "Credentials").OnClick(func() {
+				w.clearHelmReleases()
 				if w.delivery.open {
 					w.closeDelivery()
 				}
@@ -52,6 +54,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.clearVault()
 			})
 			ui.Button(c, "Browser sign-in").OnClick(func() {
+				w.clearHelmReleases()
 				if w.delivery.open {
 					w.closeDelivery()
 				}
@@ -80,6 +83,10 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+			if w.helmReleases.open {
+				w.helmReleasesView(c)
+				return
+			}
 			if w.delivery.open {
 				w.deliveryView(c)
 				return
@@ -118,6 +125,9 @@ func (w *Workbench) View(c *ui.Context) {
 						w.beginCreate()
 					})
 					ui.Button(c, "Deliver manifests").Disabled(w.backend == nil || w.pendingWrites != 0).OnClick(w.openDelivery)
+					if w.detail == nil {
+						ui.Button(c, "Helm releases").Disabled(w.backend == nil || w.pendingWrites != 0).OnClick(w.openHelmReleases)
+					}
 				})
 				labels := make([]string, 0, len(w.kinds))
 				for _, k := range w.kinds {

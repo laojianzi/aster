@@ -48,6 +48,7 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+	w.clearHelmReleases()
 	w.clearDelivery()
 	w.clearOIDCSignOut()
 	w.clearOIDCRenewal()
