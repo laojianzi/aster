@@ -6,6 +6,9 @@ existing [immutable operation boundary](apply.md), direct Kubernetes identity an
 detail views. Scope [#44](https://github.com/laojianzi/aster/issues/44) tracks its final
 commit-specific qualification; local compilation or an implementation plan is not that evidence.
 
+An optional [trusted local Helm renderer](local-helm-rendering.md) can supply captured text
+through a separate explicit replacement boundary. It does not bypass any import or write step below.
+
 ## Workflow
 
 1. Select a context and one **already-existing namespace**, then **Connect**. Wildcard or
@@ -103,8 +106,8 @@ The rejected annotation keys/prefixes are `helm.sh/hook*`, `helm.sh/resource-pol
 `kubectl.kubernetes.io/last-applied-configuration` is also rejected: the existing resource
 review hides that historical annotation, so importing it would not provide a complete value
 review. This is a bounded recognition policy, not a universal detector of every controller
-convention. The desktop does not fetch URLs/repositories or invoke a renderer, shell,
-hook or plugin. A reviewed Kubernetes workload can run its declared containers;
+convention. This import/write layer does not fetch URLs/repositories or invoke a renderer, shell,
+hook or plugin. The optional local Helm entry is separately bounded and still feeds this policy. A reviewed Kubernetes workload can run its declared containers;
 that is governed by the submitted manifest and server admission.
 Inputs that require template rendering or lifecycle orchestration need a separate workflow.
 
@@ -132,7 +135,7 @@ selection and native Undo/Redo. The cross-view history limitation above still ap
 
 Direct native text input that exceeds the total byte/newline budget is retained in full and
 import is disabled once the application observes it; **Clear oversized manifests** explicitly
-clears that draft. This does not bound every native input path before layout. MyGo v0.4.5 can
+clears that draft. This does not bound every native input path before layout. MyGo v0.4.8 can
 still block synchronously on a sufficiently large single text segment delivered through direct
 typing or an IME commit, before the next application budget check. Clipboard preflight does not
 cover those events. Resolving that upstream editor boundary remains part of safe-editor and
@@ -201,8 +204,9 @@ attempt without granting a new approval. Session history is bounded, in memory a
 
 ## MVP scope and evidence
 
-This is reviewed delivery of **already-rendered manifests**. Actual Helm rendering and release
-lifecycle, Git credentials/repository synchronization, GitOps reconciliation, dependency-driven
+This is reviewed delivery of **already-rendered manifests**, including an explicitly accepted
+[local Helm capture](local-helm-rendering.md). Helm release lifecycle, Git credentials/repository
+synchronization, GitOps reconciliation, dependency-driven
 CRD/namespace installation, rollback and pruning remain separate work. It does not complete
 the advanced Schema backlog or the upstream safe-completion transaction.
 

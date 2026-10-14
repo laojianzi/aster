@@ -64,6 +64,8 @@ type deliveryBinding struct {
 // The window owns progress. The imported Set and issued Prepared never expose
 // mutable payloads, and workers receive only captured immutable inputs.
 type deliveryState struct {
+	helm                                     helmRenderState
+	origin                                   string
 	open, halted, acknowledged, showOutcomes bool
 	editor                                   *ui.TextBuffer
 	observed                                 ui.TextSnapshot
@@ -131,6 +133,8 @@ func (w *Workbench) stopDeliveryReview() {
 		d.cancel = nil
 	}
 	d.epoch++
+	d.helm.result = nil
+	d.helm.replace = false
 	d.plan, d.planBinding = nil, deliveryBinding{}
 	d.confirmation, d.diff = "", ""
 	d.confirmationComposing = false
@@ -244,6 +248,7 @@ func (w *Workbench) syncDelivery() {
 	d.observed = snapshot
 	if !equal {
 		d.revision++
+		d.origin = ""
 		w.stopDeliveryReview()
 		d.set = nil
 		d.acknowledged = false
@@ -517,7 +522,13 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 		}
 		ui.Text(c, "Context: "+w.activeContext+" · Delivery namespace: "+namespace).Label("Delivery identity").FontSize(12).SingleLine()
 		ui.Text(c, "Rendered YAML · 2 MiB / 160000 newlines / 32 objects · one namespace. Back pauses and retains this set.").FontSize(11).SingleLine()
+		if d.origin != "" {
+			ui.Text(c, d.origin).Label("Delivery render origin").FontSize(10).SingleLine()
+		}
 		if d.set == nil {
+			if d.helm.open {
+				w.helmRenderView(c)
+			}
 			if d.retainedPaste != "" {
 				ui.Text(c, fmt.Sprintf("Clipboard paste retained separately (%d bytes); original draft unchanged. Import is paused. Clipboard preflight also limits potential lines to 8192 bytes.", len(d.retainedPaste))).Label("Delivery retained paste").FontSize(12)
 				ui.Button(c, "Discard retained paste").OnClick(func() {
@@ -542,7 +553,12 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 					w.syncDelivery()
 				}
 			}
-			ui.PrimaryButton(c, "Import manifests").Disabled(d.busy != "" || d.composing || d.retainedPaste != "" || w.pendingWrites != 0 || d.editor.Snapshot().ByteLen() == 0 || !deliverySnapshotWithinBudget(d.editor.Snapshot())).OnClick(w.importDelivery)
+			ui.Row(c).Gap(8).Children(func() {
+				ui.PrimaryButton(c, "Import manifests").Disabled(d.busy != "" || d.composing || d.retainedPaste != "" || w.pendingWrites != 0 || d.editor.Snapshot().ByteLen() == 0 || !deliverySnapshotWithinBudget(d.editor.Snapshot())).OnClick(w.importDelivery)
+				if !d.helm.open {
+					w.helmRenderView(c)
+				}
+			})
 		} else {
 			items := d.set.Items()
 			cols := []ui.TableColumn{{ID: "object", Title: "Source order / object"}, {ID: "kind", Title: "Kind", Width: 180}, {ID: "namespace", Title: "Namespace", Width: 140}, {ID: "state", Title: "State", Width: 125}}

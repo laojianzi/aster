@@ -91,8 +91,11 @@ BOOLEAN_COLLECTIONS_REQUIRED = {
 }
 
 
+HELM_RENDER_REQUIRED = {'unit-native': ('TestHelmChartSnapshotBoundaries', 'TestHelmDistributionAndLocalFileBoundaries', 'TestHelmEnvironmentAndOutputBudgets', 'TestHelmRealTemplateSnapshotAndFailure', 'TestRenderHelperPipeLimitsCancellationAndPrivacy', 'TestNativeHelmRenderRequiresImportAndPerObjectReview', 'TestNativeHelmDiscardFailureAndMountedHistory', 'TestNativeHelmMinimumWindowStaleResultsAndTeardown', 'TestNativeHelmLifecycleOutputRemainsRejected'), 'native-os-interactions': ('TestNativeHelmRenderRequiresImportAndPerObjectReview', 'TestNativeHelmDiscardFailureAndMountedHistory', 'TestNativeHelmMinimumWindowStaleResultsAndTeardown', 'TestNativeHelmLifecycleOutputRemainsRejected'), 'real-cluster-native': ('TestNativeHelmRenderedDeliveryAgainstRealCluster', 'TestNativeHelmRenderRequiresImportAndPerObjectReview', 'TestNativeHelmDiscardFailureAndMountedHistory', 'TestNativeHelmMinimumWindowStaleResultsAndTeardown', 'TestNativeHelmLifecycleOutputRemainsRejected')}
+
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

@@ -1,14 +1,17 @@
 # Aster 实施状态
 
-2026-10-14 接续基线：已验证 main `fd8677734a5707cce02b1cf74d75722aa97962bc`，
-源码树 `7a0f0de9f7c5859a86f1422e2e4b28717807f0a0`，Go 1.27.2 / MyGo v0.4.8。
-#56/#57 字符串 set、#11/#58 依赖升级、#59/#60 整数 map、#61/#62 整数 set、
-#63/#64 资源 Edit/Create 剪贴板预检均已完成；不得依据下文历史检查点重复实现。
-接续审计时只有 `main`、开放 PR 为 0，唯一未关闭功能总进度为 #13。
-本轮唯一新增范围为 [#65](https://github.com/laojianzi/aster/issues/65) 的有界布尔列表身份提示，
-只使用 `feat/native-schema-boolean-collections` 和该 Issue 关联的唯一 PR。
-当前精确提交、CI 原始证据、合并及退役状态以 #65 和 [#13](https://github.com/laojianzi/aster/issues/13)
-的实时检查点为准；本文件不预先宣称本轮已合并、已退役或已完成整个 MVP。
+2026-10-14 接续基线：已验证 main `7044c68f4005ebdbd401ee0038b6eae27bfac70d`，
+源码树 `ccaf94290a5c528357b990301563eda47c9fa23e`，Go 1.27.2 / MyGo v0.4.8。
+#65/#66 布尔集合身份提示已完成 PR/main 验证、恢复核验及退役；
+#11/#58、#59/#60、#61/#62、#63/#64 等旧范围均不重复实施。
+
+中断续作发现唯一 [PR #68](https://github.com/laojianzi/aster/pull/68) / [Issue #67](https://github.com/laojianzi/aster/issues/67)，
+只沿用 `feat/local-helm-render-delivery`。当前切片是可信本地 Helm 渲染接入既有逐对象审阅交付，
+不是 Helm release install/upgrade/rollback，也不是 GitOps sync/reconcile。
+初版真实测试暴露 Helm memory driver 缺少初始化数据，已补每次新建的空 release list，
+不改用宿主配置或集群凭据；新增隔离回归、分阶段截图及精确退役登记。
+本文件不预先声称最终 PR/main 验证、合并、退役或整个 MVP 已完成；
+实际状态以 #67 与 [#13](https://github.com/laojianzi/aster/issues/13) 的最新记录为准。
 
 ## 首版 MVP 范围
 
@@ -33,6 +36,7 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | 有界 required int64 / 混合 map-list 身份提示 | #60 |
 | 有界 int64 set-list 身份提示 | #62 |
 | 资源 Edit/Create 剪贴板预检、暂存丢弃与当前历史保护 | #64 |
+| 有界 boolean set / required boolean map 及混合 tuple 身份提示 | #66 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -265,7 +269,7 @@ PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 �
 修正重查纳入全部原 OS/迁移门槛。唯一 PR #57 已实际建立；退役登记精确核对
 PR 57 / Issue 56 / 旧 PR 55，保留全部既有 lease 与范围保护。本节不预先声称 CI、合并或实际退役完成。
 
-## 本轮唯一范围：#65 有界布尔集合身份提示
+## 历史检查点：#65 / #66 布尔集合身份提示（已结束）
 
 允许显式非 nullable boolean set 项及 required / 非 nullable boolean map 键，支持与
 string / int64 组合的固定类型 tuple；严格区分 `false`、缺失、null、字符串和数值。
@@ -280,14 +284,30 @@ Kubernetes create/live dry-run、默认/null、legacy 更新对照。旧字符�
 不放宽超时、不将模拟事件或编译通过当作真实集群验收。源码、最终 PR、合并 main
 及分支退役仍须按各自精确提交独立验证后收尾。
 
+## 本轮唯一范围：#67 / PR #68 可信本地 Helm 渲染
+
+只执行用户提供且全包 SHA-256 符合内置 pin 的 Helm v4.3.0；限制为无依赖本地 application chart。
+Chart/values 先快照和有界预检；私有临时环境、空 kubeconfig/registry/plugins 与空 memory-driver
+release list，不继承凭据、代理或 loader override。固定 client-side template 不下载 chart/依赖、
+不启用 DNS、插件、shell 或 post-renderer。保留 hooks 输出，由既有交付策略拒绝生命周期语义。
+
+渲染/丢弃/失败不覆盖当前输入；用户明确同意重置输入和 Undo 边界后，接受唯一已捕获结果，
+不重新渲染。之后仍须单独 Import、当前身份 discovery/Namespace GET、不可变 dry-run 和逐对象
+精确名称确认。过期结果、原稿变动和 teardown 清除对应能力。时间/资源限制不是 OS 沙箱或硬 RSS 保证。
+
+真实 pinned Helm、子进程取消/输出上限、原生历史/最小窗口/过期结果与三版本真实 Kubernetes
+逐对象交付纳入既有强制门槛。初版失败记录保留，最终 PR 与 fresh main 的原始证据和恢复
+验收仍分开处理。操作、输入上限与安全边界见 [本地 Helm 契约](local-helm-rendering.md)。
+
 ## 后续优先级
 
 P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
 #48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52/#53 已完成结构化 enum；
 #54/#55、#56/#57、#59/#60、#61/#62 已完成字符串/整数 map 与 set 身份；
-#63/#64 已完成资源粘贴预检，#65 推进布尔 map 与 set 身份。
+#63/#64 已完成资源粘贴预检，#65/#66 已完成布尔 map 与 set 身份；
+#67/#68 推进本地 Helm 渲染接入，不重复已渲染 manifest 导入。
 这些子集之外的 pattern/format、组合/列表/CEL、编辑辅助、
-真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
+本地切片之外的 Helm 渲染能力、release 生命周期与 GitOps 同步/reconcile 仍为独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，
 保留 Undo、IME 和不可变审阅边界。
 当前 pin 0.4.8 的外部 `TextBuffer.Replace` 仍重置原生历史；0.4.8 已有真正的
