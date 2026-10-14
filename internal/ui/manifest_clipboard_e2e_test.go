@@ -54,7 +54,7 @@ func TestNativeManifestClipboardAgainstRealCluster(t *testing.T) {
 		h.click("Edit")
 		buffer, original := h.w.editor, h.w.editor.Snapshot()
 		h.click("Manifest editor")
-		h.tt.Key(ui.Cmd, ui.KeyEnd)
+		clipboardDocumentBoundary(h.tt, true)
 		h.tt.SetClipboard("# native clipboard 中文 🚢\r\n")
 		h.tt.Key(ui.Cmd, ui.KeyV)
 		edited := h.w.editorText()

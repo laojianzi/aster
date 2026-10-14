@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,26 @@ import (
 	"github.com/laojianzi/aster/internal/delivery"
 	"github.com/laojianzi/aster/internal/manifest"
 )
+
+// Use the platform's native document-edge gestures. Cmd+Home/End on macOS
+// reaches only a visual line edge in the pinned editor, which made the paired
+// composition fixture start at different offsets in different-sized windows.
+// This test helper uses public key events, never a private caret/history handle.
+func clipboardDocumentBoundary(tt *ui.Tester, end bool) {
+	if runtime.GOOS == "darwin" {
+		key := ui.KeyUp
+		if end {
+			key = ui.KeyDown
+		}
+		tt.Key(ui.Cmd, key)
+		return
+	}
+	key := ui.KeyHome
+	if end {
+		key = ui.KeyEnd
+	}
+	tt.Key(ui.Ctrl, key)
+}
 
 func TestClipboardBudgetConservativeBounds(t *testing.T) {
 	for _, limits := range []struct {
@@ -92,7 +113,7 @@ func TestNativeManifestClipboardPreservesHistoryAndSelection(t *testing.T) {
 	h.tt.Frame()
 	buffer, original := h.w.editor, h.w.editor.Snapshot()
 	h.click("Manifest editor")
-	h.tt.Key(ui.Cmd, ui.KeyEnd)
+	clipboardDocumentBoundary(h.tt, true)
 	h.tt.SetClipboard("# clipboard é\r\n")
 	h.tt.Key(ui.Cmd, ui.KeyV)
 	before := base + "# clipboard é\n"
@@ -163,7 +184,7 @@ func TestNativeManifestClipboardMinimumWindowAndComposition(t *testing.T) {
 			h.w.creating = create
 			h.tt.SetSize(1100, 700)
 			h.click("Manifest editor")
-			h.tt.Key(ui.Cmd, ui.KeyHome)
+			clipboardDocumentBoundary(h.tt, false)
 			before, id := h.w.editorText(), h.w.draftIdentity()
 			h.tt.Compose("未提交", 3)
 			incoming := strings.Repeat("PRIVATE_CLIPBOARD_", 600)
@@ -206,7 +227,7 @@ func TestNativeManifestClipboardMinimumWindowAndComposition(t *testing.T) {
 			reference.w.creating = create
 			for _, r := range []*relationshipHarness{h, reference} {
 				r.click("Manifest editor")
-				r.tt.Key(ui.Cmd, ui.KeyHome)
+				clipboardDocumentBoundary(r.tt, false)
 				r.tt.Compose("未提交", 3)
 			}
 			h.tt.SetClipboard(incoming)
