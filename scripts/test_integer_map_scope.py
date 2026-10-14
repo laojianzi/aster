@@ -32,7 +32,7 @@ class IntegerMapScopeTests(unittest.TestCase):
         for suite, names in evidence.INTEGER_MAP_REQUIRED.items():
             got = evidence.required_for_suite(suite, ['TestOldContract', names[0]])
             self.assertEqual(got[0], 'TestOldContract')
-            self.assertEqual(set(got), {'TestOldContract', *names})
+            self.assertEqual(set(got), {'TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ())})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])
@@ -44,7 +44,7 @@ class IntegerMapScopeTests(unittest.TestCase):
                 with self.subTest(suite=suite, excluded=excluded), tempfile.TemporaryDirectory() as temp:
                     path = Path(temp) / 'tests.jsonl'
                     events = []
-                    for name in ['TestOldContract', *names]:
+                    for name in ['TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ())]:
                         if name != excluded:
                             for action in ('run', 'pass'):
                                 events.append({'Action': action, 'Package': 'fixture', 'Test': name})
