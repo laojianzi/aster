@@ -7,6 +7,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    "TestNativeHelmMetadataReadOnlyAndMinimumWindow",
+    "TestNativeHelmMetadataScopeCancellationAndStaleResults",
+    "TestNativeHelmMetadataFailureClearsPreviousSnapshot",
     'TestNativeHelmRenderRequiresImportAndPerObjectReview',
     'TestNativeHelmDiscardFailureAndMountedHistory',
     'TestNativeHelmMinimumWindowStaleResultsAndTeardown',
