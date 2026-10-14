@@ -92,7 +92,7 @@ func (w *Workbench) manifestEditorView(c *ui.Context) {
 	if w.manifestBudgetView(c) {
 		return
 	}
-	editor := ui.TextAreaBuffer(c.Key("field.editor"), w.editor).Label("Manifest editor").Grow(1)
+	editor := ui.TextAreaBuffer(c.Key("field.editor"), w.editor).Label("Manifest editor").Grow(1).OnPaste(w.manifestPasteHandler())
 	// Native input may be committed before this frame or while building the
 	// control. Observe both boundaries, not Changed's root-publication flag.
 	w.syncEditor()

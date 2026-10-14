@@ -98,6 +98,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 		if w.detailMessage != "" {
 			ui.Text(c, w.detailMessage).FontSize(12).TextColor(t.TextMuted)
 		}
+		w.manifestPasteView(c)
 		w.syncFind()
 		switch w.detailMode {
 		case "Apply":
@@ -110,16 +111,16 @@ func (w *Workbench) detailView(c *ui.Context) {
 			w.schemaView(c)
 			if w.creating {
 				w.findButton(c)
-				ui.PrimaryButton(c, "Preview create").Disabled(w.preparing).OnClick(func() {
+				ui.PrimaryButton(c, "Preview create").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 					w.prepare("create")
 				})
 			} else {
 				ui.Row(c).Gap(6).Children(func() {
 					w.findButton(c)
-					ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing).OnClick(func() {
+					ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 						w.prepare("edit")
 					})
-					ui.Button(c, "Apply").Disabled(w.preparing).OnClick(func() {
+					ui.Button(c, "Apply").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 						w.beginApply()
 					})
 				})
@@ -128,7 +129,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 			ui.Text(c, "Server dry-run preview · live state is rechecked at execution").FontSize(12)
 			ui.TextArea(c.Key("field.diff"), &w.diff).Label("Change diff").ReadOnly(true).Grow(1)
 			ui.TextInput(c.Key("field.confirmation"), &w.confirmation).Label("Confirm resource name").Placeholder("Type the resource name to confirm")
-			ui.PrimaryButton(c, "Execute reviewed change").Disabled(w.plan == nil || w.confirmation != w.confirmationName() || w.pendingWrites > 0).OnClick(func() {
+			ui.PrimaryButton(c, "Execute reviewed change").Disabled(w.editorRetainedPaste != "" || w.plan == nil || w.confirmation != w.confirmationName() || w.pendingWrites > 0).OnClick(func() {
 				w.execute()
 			})
 		case "Metrics":
@@ -172,13 +173,13 @@ func (w *Workbench) detailView(c *ui.Context) {
 		if w.detail != nil && !w.creating && w.detailMode != "Diff" {
 			ui.Row(c).Gap(6).Children(func() {
 				ui.TextInput(c.Key("field.replicas"), &w.replicas).Label("Replica count").Width(70)
-				ui.Button(c, "Preview scale").Disabled(w.preparing).OnClick(func() {
+				ui.Button(c, "Preview scale").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 					w.prepare("scale")
 				})
-				ui.Button(c, "Preview restart").Disabled(w.preparing).OnClick(func() {
+				ui.Button(c, "Preview restart").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 					w.prepare("restart")
 				})
-				ui.Button(c, "Preview delete").Disabled(w.preparing).OnClick(func() {
+				ui.Button(c, "Preview delete").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 					w.prepare("delete")
 				})
 			})

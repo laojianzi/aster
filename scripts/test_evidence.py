@@ -10,7 +10,7 @@ import sys
 
 # Scope-specific mandatory names supplement, never replace, workflow --require
 # arguments. Keep additions here so the three existing CI suites cannot report
-# success while omitting the integer identity increment.
+# success while omitting an admitted feature increment.
 INTEGER_MAP_REQUIRED = {
     "unit-native": (
         "TestSchemaIntegerMapKeysExactIdentity",
@@ -49,8 +49,28 @@ INTEGER_SET_REQUIRED = {
 }
 
 
+MANIFEST_CLIPBOARD_REQUIRED = {
+    "unit-native": (
+        "TestClipboardBudgetConservativeBounds",
+        "TestNativeManifestClipboardPreservesHistoryAndSelection",
+        "TestNativeManifestClipboardMinimumWindowAndComposition",
+        "TestNativeManifestClipboardStaleCallbacksAndTeardown",
+        "TestNativeManifestClipboardRevokesUnsentPreview",
+    ),
+    "native-os-interactions": (
+        "TestNativeManifestClipboardPreservesHistoryAndSelection",
+        "TestNativeManifestClipboardMinimumWindowAndComposition",
+        "TestNativeManifestClipboardStaleCallbacksAndTeardown",
+        "TestNativeManifestClipboardRevokesUnsentPreview",
+    ),
+    "real-cluster-native": (
+        "TestNativeManifestClipboardAgainstRealCluster",
+    ),
+}
+
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

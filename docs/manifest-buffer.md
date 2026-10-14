@@ -32,10 +32,18 @@ plaintext persistence layer. This is not an application-wide native/Go memory ca
 
 ## Oversized input
 
+Resource Edit/Create clipboard pastes now pass through the shared conservative
+[clipboard preflight](manifest-clipboard.md) before native insertion. Risky input
+is retained separately and requires explicit discard before another resource
+preview. The editor remains mounted; native preedit may commit before the hook.
+The fallback below still covers programmatic and direct-input oversize, not a
+claim that arbitrary giant Type/IME input is safe.
+
 An oversized draft is retained in full, not flattened, truncated or converted to
 an empty successful export. Its expensive layout and content consumers are
 suspended. **Restore prior draft** explicitly discards the oversized edit and
-adopts the last supported snapshot with a new document/Undo identity. It cannot
+adopts the last supported snapshot with a new document/Undo identity, also
+discarding any separately retained clipboard input. It cannot
 restore another resource's text. Without such a snapshot, Refresh detail is the
 explicit discard/reload path; Create can be closed and restarted. No background
 request can silently discard an oversized draft.
