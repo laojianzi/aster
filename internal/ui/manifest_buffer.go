@@ -17,6 +17,8 @@ type draftIdentity struct {
 // setEditor deliberately replaces a document, including its Undo/IME identity.
 // Ordinary input must edit the stable TextBuffer, never call this setter.
 func (w *Workbench) setEditor(text string) {
+	w.editorRetainedPaste = ""
+	w.editorPasteEpoch++
 	w.editor = ui.NewTextBuffer(text)
 	w.editorObserved = w.editor.Snapshot()
 	w.editorIdentity++
@@ -126,11 +128,13 @@ func (w *Workbench) manifestBudgetView(c *ui.Context) bool {
 			}
 			buffer := ui.NewTextBuffer("")
 			buffer.Restore(w.editorLastSafe)
+			w.editorRetainedPaste = ""
+			w.editorPasteEpoch++
 			w.editor, w.editorObserved = buffer, buffer.Snapshot()
 			w.editorIdentity++
 			w.invalidateDraft()
 		})
-		ui.Text(c, "Restore discards the oversized edit. Refresh detail discards all local edits.").FontSize(11)
+		ui.Text(c, "Restore discards the oversized edit and any retained paste. Refresh detail discards all local edits.").FontSize(11)
 	})
 	return true
 }

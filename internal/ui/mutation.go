@@ -23,6 +23,9 @@ func (w *Workbench) stopPreview() {
 
 func (w *Workbench) prepare(kind string) {
 	w.syncEditor()
+	if w.blockRetainedManifestPaste() {
+		return
+	}
 	if w.detail == nil || w.ops == nil || w.preparing {
 		return
 	}
@@ -126,6 +129,9 @@ func (w *Workbench) prepare(kind string) {
 }
 func (w *Workbench) execute() {
 	w.syncEditor()
+	if w.blockRetainedManifestPaste() {
+		return
+	}
 	if w.plan == nil || w.ops == nil || w.pendingWrites > 0 {
 		return
 	}

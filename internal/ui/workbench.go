@@ -125,13 +125,15 @@ type Workbench struct {
 	schemaJump            *schemaJump
 	find                  manifestFind
 
-	editor         *ui.TextBuffer
-	editorObserved ui.TextSnapshot
-	editorLastSafe ui.TextSnapshot
-	editorHasSafe  bool
-	editorIdentity uint64
-	schemaBinding  draftIdentity
-	planBinding    draftIdentity
+	editor              *ui.TextBuffer
+	editorObserved      ui.TextSnapshot
+	editorLastSafe      ui.TextSnapshot
+	editorHasSafe       bool
+	editorIdentity      uint64
+	editorRetainedPaste string
+	editorPasteEpoch    uint64
+	schemaBinding       draftIdentity
+	planBinding         draftIdentity
 
 	previewCancel context.CancelFunc
 	previewEpoch  uint64
@@ -275,6 +277,8 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.editorRetainedPaste = ""
+	w.editorPasteEpoch++
 	w.clearDelivery()
 	w.editor = nil
 	w.editorObserved, w.editorLastSafe = ui.TextSnapshot{}, ui.TextSnapshot{}

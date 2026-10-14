@@ -213,17 +213,6 @@ func deliverySnapshotWithinBudget(snapshot ui.TextSnapshot) bool {
 	return snapshot.ByteLen() <= delivery.MaxBytes && snapshot.LineCount() <= delivery.MaxNewlines+1
 }
 
-func longestDeliveryLine(text string) int {
-	longest, start := 0, 0
-	for i := range len(text) {
-		if text[i] == '\n' {
-			longest = max(longest, i-start)
-			start = i + 1
-		}
-	}
-	return max(longest, len(text)-start)
-}
-
 // Clipboard preflight is deliberately conservative: it uses insertion bounds
 // without reconstructing a native selection. A taken paste leaves the control's
 // buffer, selection and undo history alone, and retains one complete incoming
@@ -233,15 +222,7 @@ func (w *Workbench) preflightDeliveryPaste(binding deliveryBinding, editor *ui.T
 	if binding != w.deliveryBinding() || d.editor != editor || !d.open || d.set != nil || d.busy != "" || d.retainedPaste != "" {
 		return true
 	}
-	snapshot := editor.Snapshot()
-	risky := snapshot.ByteLen() > delivery.MaxBytes || len(text) > delivery.MaxBytes-snapshot.ByteLen()
-	if !risky {
-		risky = snapshot.LineCount()-1+strings.Count(text, "\n") > delivery.MaxNewlines
-	}
-	if !risky {
-		risky = longestDeliveryLine(snapshot.String())+longestDeliveryLine(text) > maxDeliveryClipboardLine
-	}
-	if !risky || text == "" {
+	if !clipboardPasteExceedsBudget(editor.Snapshot(), text, delivery.MaxBytes, delivery.MaxNewlines, maxDeliveryClipboardLine) {
 		return false
 	}
 	w.stopDeliveryReview()
