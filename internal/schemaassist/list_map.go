@@ -38,6 +38,7 @@ func listIdentityNonnullable(node map[string]any) bool {
 type listMapKey struct {
 	name    string
 	integer bool
+	boolean bool
 }
 
 // Every component's type is fixed by the completely inspected key schema.
@@ -46,6 +47,7 @@ type listMapKey struct {
 type listMapKeyValue struct {
 	text    string
 	integer int64
+	boolean bool
 }
 
 // listMapKeys validates the complete advertised identity before examining the
@@ -139,11 +141,12 @@ func (c *constraintChecker) listMapKeys(d *Document, node map[string]any) ([]lis
 			return nil, false
 		}
 		kind := nodeType(keySchema)
-		if (kind != "string" && kind != "integer") || keySchema["type"] != kind || !listIdentityNonnullable(keySchema) {
+		if (kind != "string" && kind != "integer" && kind != "boolean") || keySchema["type"] != kind || !listIdentityNonnullable(keySchema) {
 			c.report.Partial = true
 			return nil, false
 		}
 		keys[i].integer = kind == "integer"
+		keys[i].boolean = kind == "boolean"
 	}
 	return keys, true
 }
@@ -203,6 +206,19 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 				identityBytes[i] += 8
 				continue
 			}
+			if descriptor.boolean {
+				boolean, valid := item[key].(bool)
+				if !valid {
+					complete, c.report.Partial = false, true
+					continue
+				}
+				if !c.chargeWork(1, 1) {
+					return
+				}
+				identities[i][j].boolean = boolean
+				identityBytes[i]++
+				continue
+			}
 			text, stringValue := item[key].(string)
 			if !stringValue || len(text) > MaxListMapValueBytes {
 				complete, c.report.Partial = false, true
@@ -244,7 +260,7 @@ func (c *constraintChecker) checkListMap(d *Document, node map[string]any, value
 	if duplicate {
 		message := "List entries repeat the advertised string-key identity."
 		for _, key := range keys {
-			if key.integer {
+			if key.integer || key.boolean {
 				message = "List entries repeat the advertised key identity."
 				break
 			}

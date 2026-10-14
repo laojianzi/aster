@@ -1,11 +1,14 @@
 # Aster 实施状态
 
-2026-10-13 接续基线：已验证 main `9f7010fdfe23513985c22fc1a8feb8e9ed24f6f7`，
-源码树 `08a9b21affa52f1ee234fe1ad684cc6fddbed7b1`，Go 1.27.2 / MyGo v0.4.5。
-#38/#41/#43/#45/#47/#49/#51/#53/#55 已完成各自 PR、主干和实际分支结项；本轮唯一新增范围为 #56 的
-有界 Kubernetes 字符串 set 列表提示。这是开发预览。当前精确提交、CI 收据和 Issue
-状态以 [#56](https://github.com/laojianzi/aster/issues/56)、其唯一 [PR #57](https://github.com/laojianzi/aster/pull/57) 及
-[#13](https://github.com/laojianzi/aster/issues/13) 的实时检查点为准。
+2026-10-14 接续基线：已验证 main `fd8677734a5707cce02b1cf74d75722aa97962bc`，
+源码树 `7a0f0de9f7c5859a86f1422e2e4b28717807f0a0`，Go 1.27.2 / MyGo v0.4.8。
+#56/#57 字符串 set、#11/#58 依赖升级、#59/#60 整数 map、#61/#62 整数 set、
+#63/#64 资源 Edit/Create 剪贴板预检均已完成；不得依据下文历史检查点重复实现。
+接续审计时只有 `main`、开放 PR 为 0，唯一未关闭功能总进度为 #13。
+本轮唯一新增范围为 [#65](https://github.com/laojianzi/aster/issues/65) 的有界布尔列表身份提示，
+只使用 `feat/native-schema-boolean-collections` 和该 Issue 关联的唯一 PR。
+当前精确提交、CI 原始证据、合并及退役状态以 #65 和 [#13](https://github.com/laojianzi/aster/issues/13)
+的实时检查点为准；本文件不预先宣称本轮已合并、已退役或已完成整个 MVP。
 
 ## 首版 MVP 范围
 
@@ -25,6 +28,11 @@ Gateway/Connector、租户隔离、可信策略/审批/审计与企业会话撤�
 | 有界 date/byte/uuid 格式提示、独立公历/编码/语法对照与真实 CRD 验证 | #51 |
 | 有界结构化 enum、完整对象/有序数组等值和实际服务端类型/nullable 边界 | #53 |
 | 有界 required-string map-list tuple 身份提示与真实 default/legacy 边界 | #55 |
+| 有界字符串 set-list 身份提示 | #57 |
+| MyGo v0.4.8 升级、跨块原始换行/历史及终端滚轮回归 | #58 |
+| 有界 required int64 / 混合 map-list 身份提示 | #60 |
+| 有界 int64 set-list 身份提示 | #62 |
+| 资源 Edit/Create 剪贴板预检、暂存丢弃与当前历史保护 | #64 |
 | 已渲染清单有序导入、逐对象审阅交付与部分结果核对 | #45 |
 | 原生有界 Unicode 字面 Find、选择/Undo/组合保护 | #34 |
 | 原生资源/CRD、日志、转发、命令、安全变更与故障恢复 | #1、#3、#4 |
@@ -244,7 +252,7 @@ PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 �
 `maintenance/completed-pr-55` 指向实际 main，旧 tags 保留。自动退役早于独立产物审查；
 恢复核验和本地清理在审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。
 
-## 本轮唯一范围：#56 / PR #57 有界字符串 set 列表提示
+## 历史检查点：#56 / PR #57 有界字符串 set 列表提示（已结束）
 
 仅 `feat/native-schema-list-set` 推进显式 array / set、非 nullable string items 的
 精确重复值提示。最多 256 项、每值 16 KiB，复用既有共享预算、当前身份的新鲜 Schema、
@@ -257,16 +265,32 @@ PR #55 已合并至上述 main，PR 与实际 main 各自保留 14 份 ZIP、6 �
 修正重查纳入全部原 OS/迁移门槛。唯一 PR #57 已实际建立；退役登记精确核对
 PR 57 / Issue 56 / 旧 PR 55，保留全部既有 lease 与范围保护。本节不预先声称 CI、合并或实际退役完成。
 
+## 本轮唯一范围：#65 有界布尔集合身份提示
+
+允许显式非 nullable boolean set 项及 required / 非 nullable boolean map 键，支持与
+string / int64 组合的固定类型 tuple；严格区分 `false`、缺失、null、字符串和数值。
+复用完整 metadata/value 预检、256 项/8 键上限、共享工作/字节预算、取消和原始父数组导航。
+布尔 set 使用两个槽位而非值序列化；有限值域不允许跳过后续输入和预算检查。
+整个身份检查完成前不报告早期重复，诊断不回显键值。不会补默认值、裁剪、重写草稿、
+建立 Prepared 或发送变更；真实 dry-run 仍决定默认转换、准入及旧非法对象更新边界。
+
+新增独立有限域 core、原生 Unicode 定位/选区/Undo/Redo/最小窗口/过期结果测试及真实
+Kubernetes create/live dry-run、默认/null、legacy 更新对照。旧字符串、整数与粘贴保护
+测试全部保留；通过 `test_evidence.py` 和双构建迁移脚本增加必测名称，不减旧门槛、
+不放宽超时、不将模拟事件或编译通过当作真实集群验收。源码、最终 PR、合并 main
+及分支退役仍须按各自精确提交独立验证后收尾。
+
 ## 后续优先级
 
 P1 编辑/交付：#44/#45 已交付已渲染清单的逐对象审阅；#46/#47 已完成精确 multipleOf，
 #48/#49 已完成有界可移植 pattern，#50/#51 已完成 date/byte/uuid，#52/#53 已完成结构化 enum；
-#54/#55 已完成有界 map-list 字符串键身份；#56 推进有界字符串 set 提示。
+#54/#55、#56/#57、#59/#60、#61/#62 已完成字符串/整数 map 与 set 身份；
+#63/#64 已完成资源粘贴预检，#65 推进布尔 map 与 set 身份。
 这些子集之外的 pattern/format、组合/列表/CEL、编辑辅助、
 真正的 Helm 渲染/release 与 GitOps 同步/reconcile 仍为后续独立范围。
 受支持的安全显式补全事务继续等待原生编辑器契约，复用 TextBuffer/Find/Schema/Prepared，
 保留 Undo、IME 和不可变审阅边界。
-当前 pin 0.4.5 的外部 `TextBuffer.Replace` 仍重置原生历史；新发布的 0.4.8 已有真正的
+当前 pin 0.4.8 的外部 `TextBuffer.Replace` 仍重置原生历史；0.4.8 已有真正的
 editor 事务/补全 API，但直接替换会重写程序加载的混合换行，补全/IME 交叉行为也待实际
 验收。见 [上游源码审查](editor-upstream-mygo-0.4.8-review.md)。原生输入本已允许 CRLF→LF；
 程序加载的原始字节契约不随之放宽。不以模拟按键、私有 handle 或第二套 history 绕过。

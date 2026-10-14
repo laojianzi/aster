@@ -26,26 +26,29 @@ import (
 
 const schemaListMapDescription = "Required non-nullable string list identities."
 
-// SchemaListMapsFixture publishes one-key and two-key structural map lists.
+// SchemaListMapsFixture publishes one-key and mixed-key structural map lists.
 // The optional defaulted list is a separate server transformation boundary:
 // Aster does not infer its optional key from the advertised default.
 type SchemaListMapsFixture struct {
-	Config      *rest.Config
-	Backend     *kube.Backend
-	Namespace   string
-	GVK         schema.GroupVersionKind
-	GVR         schema.GroupVersionResource
-	Live        *unstructured.Unstructured
-	crd         *unstructured.Unstructured
-	integerKeys bool
+	Config    *rest.Config
+	Backend   *kube.Backend
+	Namespace string
+	GVK       schema.GroupVersionKind
+	GVR       schema.GroupVersionResource
+	Live      *unstructured.Unstructured
+	crd       *unstructured.Unstructured
+	keyKind   string
 }
 
 func (f SchemaListMapsFixture) Draft(name string) *unstructured.Unstructured {
 	var first, second any = "api", "worker"
-	if f.integerKeys {
+	if f.keyKind == "integer" {
 		first, second = int64(8080), int64(9090)
 	}
-	return &unstructured.Unstructured{Object: map[string]any{
+	if f.keyKind == "boolean" {
+		first, second = false, true
+	}
+	draft := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": f.GVK.GroupVersion().String(), "kind": f.GVK.Kind,
 		"metadata": map[string]any{"name": name, "namespace": f.Namespace},
 		"spec": map[string]any{
@@ -59,6 +62,12 @@ func (f SchemaListMapsFixture) Draft(name string) *unstructured.Unstructured {
 			},
 		},
 	}}
+	if f.keyKind == "boolean" {
+		for _, raw := range draft.Object["spec"].(map[string]any)["scoped"].([]any) {
+			raw.(map[string]any)["port"] = int64(9007199254740993)
+		}
+	}
+	return draft
 }
 
 func NewSchemaListMaps(t *testing.T) SchemaListMapsFixture {
@@ -72,20 +81,20 @@ func NewSchemaListMaps(t *testing.T) SchemaListMapsFixture {
 // has invalid identities; the ordinary fixture always starts from a valid object.
 func NewSchemaListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 	t.Helper()
-	return newSchemaListMapLegacy(t, false)
+	return newSchemaListMapLegacy(t, "string")
 }
 
 func NewSchemaIntegerListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
 	t.Helper()
-	return newSchemaListMapLegacy(t, true)
+	return newSchemaListMapLegacy(t, "integer")
 }
 
-func newSchemaListMapLegacy(t *testing.T, integerKeys bool) SchemaListMapsFixture {
+func newSchemaListMapLegacy(t *testing.T, keyKind string) SchemaListMapsFixture {
 	t.Helper()
-	f := newSchemaListMapsTyped(t, true, integerKeys)
+	f := newSchemaListMapsTyped(t, true, keyKind)
 	description := schemaListMapDescription
-	if integerKeys {
-		description = "Exact decoded int64 list identities; strings distinguish mixed tuples."
+	if keyKind != "string" {
+		description = scalarListMapDescription(keyKind)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -164,15 +173,15 @@ func newSchemaListMapLegacy(t *testing.T, integerKeys bool) SchemaListMapsFixtur
 // published topology, with signed integer IDs and a mixed string/integer tuple.
 func NewSchemaIntegerListMaps(t *testing.T) SchemaListMapsFixture {
 	t.Helper()
-	return newSchemaListMapsTyped(t, false, true)
+	return newSchemaListMapsTyped(t, false, "integer")
 }
 
 func newSchemaListMaps(t *testing.T, legacyDuplicates bool) SchemaListMapsFixture {
 	t.Helper()
-	return newSchemaListMapsTyped(t, legacyDuplicates, false)
+	return newSchemaListMapsTyped(t, legacyDuplicates, "string")
 }
 
-func newSchemaListMapsTyped(t *testing.T, legacyDuplicates, integerKeys bool) SchemaListMapsFixture {
+func newSchemaListMapsTyped(t *testing.T, legacyDuplicates bool, keyKind string) SchemaListMapsFixture {
 	t.Helper()
 	cfg := Config(t)
 	client, err := kubernetes.NewForConfig(cfg)
@@ -201,7 +210,7 @@ func newSchemaListMapsTyped(t *testing.T, legacyDuplicates, integerKeys bool) Sc
 		}
 	})
 	group := ns.Name + ".aster.test"
-	f := SchemaListMapsFixture{Config: cfg, Backend: b, Namespace: ns.Name, integerKeys: integerKeys,
+	f := SchemaListMapsFixture{Config: cfg, Backend: b, Namespace: ns.Name, keyKind: keyKind,
 		GVK: schema.GroupVersionKind{Group: group, Version: "v1", Kind: "ListMapThing"},
 		GVR: schema.GroupVersionResource{Group: group, Version: "v1", Resource: "listmapthings"}}
 	raw := fmt.Sprintf(`{
@@ -223,19 +232,27 @@ func newSchemaListMapsTyped(t *testing.T, legacyDuplicates, integerKeys bool) Sc
 	if err := crd.UnmarshalJSON([]byte(raw)); err != nil {
 		t.Fatal(err)
 	}
-	if integerKeys {
+	if keyKind != "string" {
 		versions := crd.Object["spec"].(map[string]any)["versions"].([]any)
 		root := versions[0].(map[string]any)["schema"].(map[string]any)["openAPIV3Schema"].(map[string]any)
 		fields := root["properties"].(map[string]any)["spec"].(map[string]any)["properties"].(map[string]any)
 		for _, field := range []string{"named", "scoped", "defaulted"} {
 			list := fields[field].(map[string]any)
-			list["description"] = "Exact decoded int64 list identities; strings distinguish mixed tuples."
+			list["description"] = scalarListMapDescription(keyKind)
 			properties := list["items"].(map[string]any)["properties"].(map[string]any)
-			key := map[string]any{"type": "integer"}
+			key := map[string]any{"type": keyKind}
 			if field == "defaulted" {
 				key["default"] = int64(8080)
+				if keyKind == "boolean" {
+					key["default"] = true
+				}
 			}
 			properties["name"] = key
+			if keyKind == "boolean" && field == "scoped" {
+				list["x-kubernetes-list-map-keys"] = []any{"zone", "name", "port"}
+				list["items"].(map[string]any)["required"] = []any{"zone", "name", "port"}
+				properties["port"] = map[string]any{"type": "integer"}
+			}
 		}
 	}
 	if legacyDuplicates {
@@ -327,4 +344,19 @@ func newSchemaListMapsTyped(t *testing.T, legacyDuplicates, integerKeys bool) Sc
 		t.Fatal("list-map fixture live object has an incomplete identity or changed spec")
 	}
 	return f
+}
+
+func scalarListMapDescription(kind string) string {
+	if kind == "integer" {
+		return "Exact decoded int64 list identities; strings distinguish mixed tuples."
+	}
+	return "Exact decoded boolean list identities; strings distinguish mixed tuples."
+}
+func NewSchemaBooleanListMaps(t *testing.T) SchemaListMapsFixture {
+	t.Helper()
+	return newSchemaListMapsTyped(t, false, "boolean")
+}
+func NewSchemaBooleanListMapsWithLegacyDuplicates(t *testing.T) SchemaListMapsFixture {
+	t.Helper()
+	return newSchemaListMapLegacy(t, "boolean")
 }

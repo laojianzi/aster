@@ -69,8 +69,30 @@ MANIFEST_CLIPBOARD_REQUIRED = {
 }
 
 
+BOOLEAN_COLLECTIONS_REQUIRED = {
+    "unit-native": (
+        "TestSchemaBooleanCollectionsFiniteIdentity",
+        "TestSchemaBooleanCollectionsRuntimeAndMetadataBoundaries",
+        "TestSchemaBooleanCollectionsBudgetsReferencesAndPreservation",
+        "TestNativeSchemaBooleanCollectionsHistoryAndNavigation",
+        "TestNativeSchemaBooleanCollectionsMinimumWindowIncomplete",
+        "TestNativeSchemaBooleanCollectionsStaleResults",
+    ),
+    "native-os-interactions": (
+        "TestNativeSchemaBooleanCollectionsHistoryAndNavigation",
+        "TestNativeSchemaBooleanCollectionsMinimumWindowIncomplete",
+        "TestNativeSchemaBooleanCollectionsStaleResults",
+    ),
+    "real-cluster-native": (
+        "TestRealSchemaBooleanCollectionsAgreeWithDryRun",
+        "TestNativeSchemaBooleanSetAgainstRealCluster",
+        "TestNativeSchemaBooleanMapKeysAgainstRealCluster",
+    ),
+}
+
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

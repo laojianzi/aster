@@ -7,7 +7,7 @@ const (
 	MaxListSetValueBytes = 16 << 10
 )
 
-// Only explicit, non-nullable string or decoded int64 items are inspected.
+// Only explicit, non-nullable string, decoded int64 or boolean items are inspected.
 // Server defaulting, numeric runtime types and compound-value serialization are
 // separate contracts; the structured-enum comparator is not a set comparator.
 func (c *constraintChecker) listSetSchema(d *Document, node map[string]any) (string, bool) {
@@ -22,7 +22,7 @@ func (c *constraintChecker) listSetSchema(d *Document, node map[string]any) (str
 		return "", false
 	}
 	kind := nodeType(item)
-	if (kind != "string" && kind != "integer") || item["type"] != kind || !listIdentityNonnullable(item) {
+	if (kind != "string" && kind != "integer" && kind != "boolean") || item["type"] != kind || !listIdentityNonnullable(item) {
 		c.report.Partial = true
 		return "", false
 	}
@@ -52,6 +52,10 @@ func (c *constraintChecker) checkListSet(d *Document, node map[string]any, value
 	}
 	if kind == "integer" {
 		c.checkIntegerSet(items, path)
+		return
+	}
+	if kind == "boolean" {
+		c.checkBooleanSet(items, path)
 		return
 	}
 	complete := true
@@ -132,5 +136,45 @@ func (c *constraintChecker) checkIntegerSet(items []any, path string) {
 	}
 	if duplicate {
 		c.add(path, "list-set", "List entries repeat the advertised integer value.")
+	}
+}
+
+// Boolean identity uses the two decoded boolean values, not truthiness. The
+// finite domain does not permit skipping any late value or budget check.
+func (c *constraintChecker) checkBooleanSet(items []any, path string) {
+	complete := true
+	for _, raw := range items {
+		if !c.chargeWork(1, 1) {
+			return
+		}
+		if _, valid := raw.(bool); !valid {
+			complete, c.report.Partial = false, true
+		}
+	}
+	if !complete || !c.chargeWork(1+len(items), 0) {
+		return
+	}
+	var seen [2]bool
+	duplicate := false
+	for _, raw := range items {
+		// Reserve lookup, possible insertion and comparison for every item.
+		if !c.chargeWork(4, 3) {
+			return
+		}
+		index := 0
+		if raw.(bool) {
+			index = 1
+		}
+		if seen[index] {
+			duplicate = true
+		}
+		seen[index] = true
+	}
+	if c.ctx.Err() != nil {
+		c.report.Partial, c.exhausted = true, true
+		return
+	}
+	if duplicate {
+		c.add(path, "list-set", "List entries repeat the advertised boolean value.")
 	}
 }
