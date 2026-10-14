@@ -31,6 +31,9 @@ jobs:
       - name: Prepare hash-verified native terminal source and library
         shell: bash
         run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
+      - name: Prepare approved Helm and preserve original tool archive
+        shell: bash
+        run: python scripts/prepare_helm.py --github-env "$GITHUB_ENV" --evidence-dir artifacts/unit/helm --archive-evidence
       - name: Record environment and verify modules
         run: |
           mkdir -p artifacts/unit
@@ -102,6 +105,9 @@ jobs:
       - name: Prepare hash-verified native terminal source and library
         shell: bash
         run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
+      - name: Prepare approved Helm for actual native rendering
+        shell: bash
+        run: python scripts/prepare_helm.py --github-env "$GITHUB_ENV" --evidence-dir artifacts/helm
       - name: Install Linux credential provider for isolated OS tests
         if: runner.os == 'Linux'
         run: |
@@ -190,6 +196,9 @@ jobs:
       - name: Prepare hash-verified native terminal source and library
         shell: bash
         run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
+      - name: Prepare approved Helm for real-cluster delivery
+        shell: bash
+        run: python scripts/prepare_helm.py --github-env "$GITHUB_ENV" --evidence-dir artifacts/e2e/helm
       - name: Initialize isolated kubeconfig path
         shell: bash
         run: echo "KUBECONFIG=$RUNNER_TEMP/aster-e2e-kubeconfig" >> "$GITHUB_ENV"

@@ -53,6 +53,9 @@ jobs:
       - name: Prepare pinned native source and library
         shell: bash
         run: python scripts/prepare_terminal.py --github-env "$GITHUB_ENV"
+      - name: Prepare approved Helm for both migration modes
+        shell: bash
+        run: python scripts/prepare_helm.py --github-env "$GITHUB_ENV" --evidence-dir artifacts/helm
       - name: Mandatory ordinary and production-tag migration regressions
         run: python scripts/run_migration_tests.py
       - name: Build the production-tag desktop
