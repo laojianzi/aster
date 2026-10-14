@@ -18,20 +18,23 @@ import (
 )
 
 func TestNativeSchemaListMapAgainstRealCluster(t *testing.T) {
-	runNativeSchemaListMapAgainstRealCluster(t, false)
+	runNativeSchemaListMapAgainstRealCluster(t, "string")
 }
 
 func TestNativeSchemaIntegerMapKeysAgainstRealCluster(t *testing.T) {
-	runNativeSchemaListMapAgainstRealCluster(t, true)
+	runNativeSchemaListMapAgainstRealCluster(t, "integer")
 }
 
-func runNativeSchemaListMapAgainstRealCluster(t *testing.T, integerKeys bool) {
+func runNativeSchemaListMapAgainstRealCluster(t *testing.T, kind string) {
 	t.Helper()
 	var f testcluster.SchemaListMapsFixture
 	var first, correctedKey any = "api", "batch"
-	if integerKeys {
+	if kind == "integer" {
 		f = testcluster.NewSchemaIntegerListMaps(t)
 		first, correctedKey = int64(8080), int64(10000)
+	} else if kind == "boolean" {
+		f = testcluster.NewSchemaBooleanListMaps(t)
+		first, correctedKey = false, true
 	} else {
 		f = testcluster.NewSchemaListMaps(t)
 	}
@@ -144,6 +147,11 @@ func runNativeSchemaListMapAgainstRealCluster(t *testing.T, integerKeys bool) {
 	validSpec := f.Draft("schema-list-map-preview-values").Object["spec"].(map[string]any)
 	validSpec["named"].([]any)[1].(map[string]any)["name"] = correctedKey
 	validSpec["scoped"].([]any)[1].(map[string]any)["zone"] = "north"
+	if kind == "boolean" {
+		// Only two boolean identities exist. Keep the correction valid while
+		// making a separate, explicitly typed non-key edit visible in Diff.
+		validSpec["named"].([]any)[1].(map[string]any)["value"] = "reviewed"
+	}
 	target := chooseDiagnostic(h, "/spec/scoped")
 	if !target.position.Exact || !strings.HasPrefix(string([]rune(draft)[target.position.RuneOffset:]), "scoped:") {
 		t.Fatal("tuple-key diagnostic did not retain its original parent array's Unicode source coordinate")
@@ -221,4 +229,8 @@ func runNativeSchemaListMapAgainstRealCluster(t *testing.T, integerKeys bool) {
 	if h.w.backend != nil || h.w.plan != nil || h.w.schemaSource != nil || h.w.schemaJump != nil || len(h.w.schemaLocations) != 0 || h.w.schemaText != "" {
 		t.Fatal("disconnect retained list-map assistance or its reviewed plan")
 	}
+}
+
+func TestNativeSchemaBooleanMapKeysAgainstRealCluster(t *testing.T) {
+	runNativeSchemaListMapAgainstRealCluster(t, "boolean")
 }

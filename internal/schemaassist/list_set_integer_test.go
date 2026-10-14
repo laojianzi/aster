@@ -30,7 +30,7 @@ func integerSetWant(t testing.TB, r Report, partial, duplicate bool, codes ...st
 			t.Fatalf("integer set lost fixed parent hint: %+v", d)
 		}
 	}
-	for _, text := range []string{"string/int64 set-list values", "Not admission validation.", "Server dry-run remains required."} {
+	for _, text := range []string{"string/int64/boolean set-list values", "Not admission validation.", "Server dry-run remains required."} {
 		if !strings.Contains(r.Text(), text) {
 			t.Fatalf("missing scope/boundary: %s", text)
 		}
@@ -113,7 +113,7 @@ func TestSchemaIntegerSetRuntimeAndMetadataBoundaries(t *testing.T) {
 			integerSetWant(t, *r, true, false)
 		})
 	}
-	for _, kind := range []string{"number", "boolean", "object", "array"} {
+	for _, kind := range []string{"number", "object", "array"} {
 		n := integerSetSchema()
 		n["items"] = map[string]any{"type": kind}
 		integerSetWant(t, listSetTestCheck(t, n, []any{}), true, false)

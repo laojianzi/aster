@@ -25,7 +25,7 @@ func integerMapSchema(keys ...string) map[string]any {
 func integerMapWant(t testing.TB, r Report, partial, duplicate bool, codes ...string) {
 	t.Helper()
 	reportText := r.Text()
-	for _, scope := range []string{"required string/int64 map-list identities", "string/int64 set-list values", "Not admission validation.", "Server dry-run remains required."} {
+	for _, scope := range []string{"required string/int64/boolean map-list identities", "string/int64/boolean set-list values", "Not admission validation.", "Server dry-run remains required."} {
 		if !strings.Contains(reportText, scope) {
 			t.Fatalf("report omits supported identity scope or server boundary: %q", scope)
 		}

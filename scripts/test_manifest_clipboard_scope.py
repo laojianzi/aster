@@ -38,7 +38,8 @@ class ManifestClipboardScopeTests(unittest.TestCase):
             self.assertEqual(got[0], 'TestOldContract')
             self.assertEqual(set(got), {'TestOldContract', *names,
                                       *evidence.INTEGER_MAP_REQUIRED.get(suite, ()),
-                                      *evidence.INTEGER_SET_REQUIRED.get(suite, ())})
+                                      *evidence.INTEGER_SET_REQUIRED.get(suite, ()),
+                                      *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ())})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])

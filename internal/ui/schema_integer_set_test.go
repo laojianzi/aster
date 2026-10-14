@@ -25,7 +25,7 @@ func TestNativeSchemaIntegerSetHistoryAndNavigation(t *testing.T) {
 	snapshot, identity := h.w.editor.Snapshot(), h.w.draftIdentity()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "string/int64 set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
+	if !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
 		t.Fatal("native report advertises an outdated set-list value scope")
 	}
 	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/values · list-set") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised integer value.") != 1 {
@@ -61,7 +61,7 @@ func TestNativeSchemaIntegerSetHistoryAndNavigation(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "string/int64 set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
+	if !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
 		t.Fatal("native report advertises an outdated set-list value scope")
 	}
 	if len(h.w.schemaLocations) != 0 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || !strings.Contains(h.w.schemaText, "No supported structural or constraint hints found.") || h.w.plan != nil {
@@ -115,7 +115,7 @@ func TestNativeSchemaIntegerSetMinimumWindowIncomplete(t *testing.T) {
 			identity := h.w.draftIdentity()
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
-			if !strings.Contains(h.w.schemaText, "string/int64 set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
+			if !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
 				t.Fatal("native report advertises an outdated set-list value scope")
 			}
 			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "· list-set") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {

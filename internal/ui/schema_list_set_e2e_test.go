@@ -18,18 +18,20 @@ import (
 )
 
 func TestNativeSchemaListSetAgainstRealCluster(t *testing.T) {
-	runNativeSchemaListSetAgainstRealCluster(t, false)
+	runNativeSchemaListSetAgainstRealCluster(t, "string")
 }
 
 func TestNativeSchemaIntegerSetAgainstRealCluster(t *testing.T) {
-	runNativeSchemaListSetAgainstRealCluster(t, true)
+	runNativeSchemaListSetAgainstRealCluster(t, "integer")
 }
 
-func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
+func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 	t.Helper()
 	var f testcluster.SchemaListSetsFixture
-	if integer {
+	if kind == "integer" {
 		f = testcluster.NewSchemaIntegerSets(t)
+	} else if kind == "boolean" {
+		f = testcluster.NewSchemaBooleanSets(t)
 	} else {
 		f = testcluster.NewSchemaListSets(t)
 	}
@@ -77,9 +79,13 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
 	fields := obj.Object["spec"].(map[string]any)
 	fields["values"].([]any)[1] = "api"
 	fields["defaulted"] = []any{"PRIVATE_DEFAULTED", "PRIVATE_DEFAULTED"}
-	if integer {
+	if kind == "integer" {
 		fields["values"].([]any)[1] = int64(0)
 		fields["defaulted"] = []any{int64(42), int64(42)}
+	}
+	if kind == "boolean" {
+		fields["values"] = []any{false, false}
+		fields["defaulted"] = []any{true, true}
 	}
 	// Retain all live metadata and the nullable parent. Flow-style arrays
 	// allow correction at the reported parent pointer using ordinary input.
@@ -113,7 +119,7 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
 	if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || !strings.Contains(h.w.schemaText, "/spec/defaulted · list-set") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published string set lists")
 	}
-	if integer && !strings.Contains(h.w.schemaText, "string/int64 set-list values") {
+	if kind != "string" && !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") {
 		t.Fatal("integer set report scope is missing")
 	}
 	for _, private := range []string{"9007199254740993", "9223372036854775807", "PRIVATE_NATIVE_LIST_SET_SOURCE", "PRIVATE_DEFAULTED", "中文船🚢", `"api"`} {
@@ -149,9 +155,13 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
 	validSpec := f.Draft("schema-list-set-preview-values").Object["spec"].(map[string]any)
 	validSpec["values"] = []any{"api", "中文船🚢", "", "é", "e\u0301", "x\x00y"}
 	validSpec["defaulted"] = []any{"explicit", "fallback"}
-	if integer {
+	if kind == "integer" {
 		validSpec["values"] = []any{int64(0), int64(9007199254740992), int64(9007199254740993), int64(-9223372036854775808), int64(9223372036854775807)}
 		validSpec["defaulted"] = []any{int64(7), int64(42)}
+	}
+	if kind == "boolean" {
+		validSpec["values"] = []any{true, false}
+		validSpec["defaulted"] = []any{false, true}
 	}
 	target := chooseDiagnostic(h, "/spec/defaulted")
 	if !target.position.Exact || !strings.HasPrefix(string([]rune(draft)[target.position.RuneOffset:]), "defaulted:") {
@@ -230,4 +240,8 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, integer bool) {
 	if h.w.backend != nil || h.w.plan != nil || h.w.schemaSource != nil || h.w.schemaJump != nil || len(h.w.schemaLocations) != 0 || h.w.schemaText != "" {
 		t.Fatal("disconnect retained list-set assistance or its reviewed plan")
 	}
+}
+
+func TestNativeSchemaBooleanSetAgainstRealCluster(t *testing.T) {
+	runNativeSchemaListSetAgainstRealCluster(t, "boolean")
 }
