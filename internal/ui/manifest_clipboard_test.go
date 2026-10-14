@@ -209,10 +209,17 @@ func TestNativeManifestClipboardMinimumWindowAndComposition(t *testing.T) {
 			} else {
 				labels = append(labels, "Preview edit", "Preview delete")
 			}
+			footer, ok := h.tt.Find("Connection status")
+			if !ok || footer.Y <= 0 {
+				t.Fatal("missing footer geometry")
+			}
+			// View's footer has six pixels of top padding. Controls must remain
+			// above the footer row, not merely inside the overall window bounds.
+			contentBottom := footer.Y - 6
 			for _, label := range labels {
 				r, ok := h.tt.Find(label)
-				if !ok || r.W <= 0 || r.H <= 0 || r.X < 0 || r.Y < 0 || r.X+r.W > 1088 || r.Y+r.H > 700 {
-					t.Errorf("control %s outside minimum window: %+v", label, r)
+				if !ok || r.W <= 0 || r.H <= 0 || r.X < 0 || r.Y < 0 || r.X+r.W > 1088 || r.Y+r.H > contentBottom {
+					t.Errorf("control %s outside minimum content area above footer %v: %+v", label, contentBottom, r)
 				}
 			}
 			saveNativeScreenshot(t, h.tt)

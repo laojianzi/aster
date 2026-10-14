@@ -95,7 +95,10 @@ func (w *Workbench) detailView(c *ui.Context) {
 		if w.detailMode != "Metrics" && w.metricsCancel != nil {
 			w.stopMetrics()
 		}
-		if w.detailMessage != "" {
+		// The retained-paste panel already explains the pause. Do not render the
+		// identical status twice: at minimum size it displaces actions into the
+		// footer on platforms with taller native fonts. Other outcomes stay visible.
+		if w.detailMessage != "" && !(w.editorRetainedPaste != "" && w.detailMessage == manifestPastePendingMessage) {
 			ui.Text(c, w.detailMessage).FontSize(12).TextColor(t.TextMuted)
 		}
 		w.manifestPasteView(c)
