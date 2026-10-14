@@ -1,9 +1,5 @@
 # Aster
 
-构建与测试入口：`python scripts/dev.py build` / `python scripts/dev.py test`。
-原生终端依赖需先校验并准备，运行时不下载；详见 [Terminal](docs/terminal.md) 和
-[分支接续台账](docs/BRANCHES.zh-CN.md)。
-
 A native Kubernetes workbench built with Go and [MyGo Native UI](https://github.com/egoist/mygo).
 No browser UI or embedded web dashboard is used.
 
@@ -127,6 +123,11 @@ the issuer logged out or revoked Kubernetes JWTs. See [sign-out boundaries](docs
 
 The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.4.8**, and Kubernetes Go libraries
 **v0.37.1**. See the [MyGo upgrade review](docs/dependency-review-mygo-0.4.8.md).
+
+The `scripts/dev.py` wrapper verifies and prepares pinned native terminal sources and
+libraries before each build or test; the application does not download them at runtime.
+See [terminal preparation and offline options](docs/terminal.md).
+
 Install the toolchain in `go.mod`, Python 3 and Git, then:
 
 ```sh
@@ -183,6 +184,8 @@ A green matrix is evidence for these tests and versions, not full production cer
 
 Start with [architecture invariants](docs/architecture.md). Changes should include regression
 coverage at the appropriate boundary; mock coverage cannot replace real-cluster or OS testing.
+For maintainer handoffs and branch-retirement records, see the
+[branch continuity ledger](docs/BRANCHES.zh-CN.md).
 
 ## Native workspaces and metrics
 
@@ -204,3 +207,11 @@ limit and a maximum 15-minute connection lifetime (or earlier returned expiry). 
 stdout/stderr and an explicit environment policy. Disconnect cancels authentication; expiration
 clears private workbench state and streams. Reconnect explicitly; no silent renewal or legacy
 auth-provider fallback. See [authentication contract](docs/authentication.md) before using a cloud CLI.
+
+## License
+
+Aster is licensed under the [Apache License, Version 2.0](LICENSE), except for
+third-party components governed by their own licenses. Bundled terminal code
+retains the [MyGo](third_party/native-terminal/LICENSE.mygo) and
+[Ghostty](third_party/native-terminal/LICENSE.ghostty) license terms;
+other dependencies remain subject to their respective upstream licenses.
