@@ -83,6 +83,28 @@ func TestSchemaIntegerSetExactIdentity(t *testing.T) {
 	integerSetWant(t, listSetTestCheck(t, n, []any{int64(0), int64(0), int64(42)}), false, true)
 }
 func TestSchemaIntegerSetRuntimeAndMetadataBoundaries(t *testing.T) {
+	// Exercise the complete document walk, not just the identity helper. Its
+	// independent type diagnostics must not revive an early duplicate hint.
+	for _, tc := range []struct {
+		name  string
+		value any
+		codes []string
+	}{
+		{"float32", float32(42), nil},
+		{"host-int32", int32(42), nil},
+		{"unsigned-endpoint", uint64(math.MaxUint64), nil},
+		{"quoted-item", "PRIVATE_REVIEW_VALUE", []string{"type"}},
+		{"null-item", nil, []string{"type"}},
+		{"fractional-item", float64(42.5), []string{"type"}},
+	} {
+		t.Run("whole-document-"+tc.name, func(t *testing.T) {
+			values := []any{int64(42), int64(42), tc.value}
+			integerSetWant(t, listSetTestCheck(t, integerSetSchema(), values), true, false, tc.codes...)
+			if !reflect.DeepEqual(values, []any{int64(42), int64(42), tc.value}) {
+				t.Fatal("whole-document inspection changed an integer-set item")
+			}
+		})
+	}
 	for i, raw := range []any{nil, float64(1), float64(1.5), math.Inf(1), math.NaN(), json.Number("1"), int(1), uint64(1), "PRIVATE_INTEGER", true, map[string]any{}, []any{}} {
 		t.Run("late-runtime-"+strconv.Itoa(i), func(t *testing.T) {
 			n := integerSetSchema()
@@ -128,6 +150,23 @@ func TestSchemaIntegerSetBudgetsReferencesAndPreservation(t *testing.T) {
 	baseline, br := listMapTestChecker(context.Background())
 	baseline.checkListSet(d, n, values, "/value", true)
 	integerSetWant(t, *br, false, true)
+	// The exact remaining allowance must succeed as well as the one-unit-
+	// shorter allowance below failing. Avoid an off-by-one over-rejection.
+	for _, meter := range []string{"work", "bytes"} {
+		t.Run("exact-"+meter, func(t *testing.T) {
+			c, r := listMapTestChecker(context.Background())
+			if meter == "work" {
+				r.Checked = MaxWork - br.Checked
+			} else {
+				c.bytes = MaxConstraintBytes - baseline.bytes
+			}
+			c.checkListSet(d, n, values, "/value", true)
+			integerSetWant(t, *r, false, true)
+			if c.exhausted || c.bytes > MaxConstraintBytes || r.Checked > MaxWork {
+				t.Fatal("exact integer-set budget was rejected or exceeded")
+			}
+		})
+	}
 	for _, meter := range []string{"work", "bytes"} {
 		t.Run("late-"+meter, func(t *testing.T) {
 			c, r := listMapTestChecker(context.Background())

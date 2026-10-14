@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,12 +19,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 )
 
 func TestRealSchemaIntegerSetAgreeWithDryRun(t *testing.T) {
 	f := testcluster.NewSchemaIntegerSets(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	// Bind the exact cause oracle to the actual isolated API server, not to
+	// client-go's version or an environment hint. Unknown versions fail closed.
+	versionConfig := rest.CopyConfig(f.Config)
+	versionConfig.Timeout = 5 * time.Second
+	versionHTTP, err := rest.HTTPClientFor(versionConfig)
+	if err != nil {
+		t.Fatalf("server-version transport failed; error type %T", err)
+	}
+	versionHTTP.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	versionClient, err := discovery.NewDiscoveryClientForConfigAndClient(versionConfig, versionHTTP)
+	if err != nil {
+		t.Fatalf("server-version client failed; error type %T", err)
+	}
+	server, err := versionClient.ServerVersion()
+	if err != nil || server == nil {
+		t.Fatalf("actual server version unavailable; error type %T", err)
+	}
+	fractionCauses, err := integerSetFractionCauses(server.GitVersion)
+	if err != nil {
+		t.Fatal("integer-set rejection oracle requires a reviewed Kubernetes version")
+	}
 	kinds, _, err := f.Backend.Discover(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -42,10 +66,7 @@ func TestRealSchemaIntegerSetAgreeWithDryRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	type hint struct{ pointer, code string }
-	type cause struct {
-		kind  metav1.CauseType
-		field string
-	}
+	type cause = integerSetServerCause
 	duplicate := func(field string) []hint { return []hint{{"/spec/" + field, "list-set"}} }
 	serverDuplicate := func(field string, index int) []cause {
 		return []cause{{metav1.CauseTypeFieldValueDuplicate, fmt.Sprintf("spec.%s[%d]", field, index)}}
@@ -148,7 +169,7 @@ func TestRealSchemaIntegerSetAgreeWithDryRun(t *testing.T) {
 		{name: "256-last-duplicate", mutate: set("values", manyDuplicate), local: duplicate("values"), server: serverDuplicate("values", 255)},
 		{name: "integral-float-wire-integer", mutate: set("values", []any{float64(8080)}), incomplete: true, serverSpec: set("values", []any{int64(8080)})},
 		{name: "integral-float-wire-collision", mutate: set("values", []any{float64(7), int64(7)}), incomplete: true, server: serverDuplicate("values", 1)},
-		{name: "fraction-is-not-an-integer", mutate: set("values", []any{float64(7.5)}), local: []hint{{"/spec/values/0", "type"}}, incomplete: true, server: []cause{{metav1.CauseTypeTypeInvalid, "spec.values[0]"}}},
+		{name: "fraction-is-not-an-integer", mutate: set("values", []any{float64(7.5)}), local: []hint{{"/spec/values/0", "type"}}, incomplete: true, server: fractionCauses},
 		{name: "quoted-integer", mutate: set("values", []any{"PRIVATE_INTEGER_SET"}), local: []hint{{"/spec/values/0", "type"}}, incomplete: true, server: []cause{{metav1.CauseTypeTypeInvalid, "spec.values[0]"}}},
 		{name: "late-invalid-suppresses-hint", mutate: set("values", []any{int64(7), int64(7), false}), local: []hint{{"/spec/values/2", "type"}}, incomplete: true, server: []cause{{metav1.CauseTypeTypeInvalid, "spec.values[2]"}, {metav1.CauseTypeFieldValueDuplicate, "spec.values[1]"}}},
 		{name: "parent-null-pruning", mutate: set("values", nil), local: []hint{{"/spec/values", "type"}}, server: []cause{{metav1.CauseTypeFieldValueRequired, "spec.values"}}},
