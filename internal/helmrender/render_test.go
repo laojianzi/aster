@@ -184,6 +184,7 @@ func TestHelmDistributionAndLocalFileBoundaries(t *testing.T) {
 func TestHelmEnvironmentAndOutputBudgets(t *testing.T) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "PRIVATE_CREDENTIAL")
 	t.Setenv("HELM_KUBETOKEN", "PRIVATE_TOKEN")
+	t.Setenv("HELM_MEMORY_DRIVER_DATA", "PRIVATE_RELEASE_DATABASE")
 	t.Setenv("HTTP_PROXY", "http://private.invalid")
 	t.Setenv("LD_PRELOAD", "PRIVATE_LOADER")
 	root := t.TempDir()
@@ -197,10 +198,14 @@ func TestHelmEnvironmentAndOutputBudgets(t *testing.T) {
 		}
 	}
 	joined := strings.Join(env, "\n")
-	for _, key := range []string{"HOME=", "KUBECONFIG=", "HELM_PLUGINS=", "HELM_DRIVER=memory", "GOMEMLIMIT=256MiB"} {
+	for _, key := range []string{"HOME=", "KUBECONFIG=", "HELM_PLUGINS=", "HELM_DRIVER=memory", "HELM_MEMORY_DRIVER_DATA=" + filepath.Join(root, "memory-releases.yaml"), "GOMEMLIMIT=256MiB"} {
 		if !strings.Contains(joined, key) {
 			t.Fatal("missing isolation", key)
 		}
+	}
+	memoryData, err := os.ReadFile(filepath.Join(root, "memory-releases.yaml"))
+	if err != nil || string(memoryData) != "[]\n" {
+		t.Fatal("memory driver must start from a private empty release list", err)
 	}
 	for _, data := range [][]byte{nil, []byte(" "), {0xff}, {'a', 0}, []byte(strings.Repeat("a", MaxOutputLine+1)), []byte(strings.Repeat("\n", MaxOutputNewlines+1) + "x"), []byte(strings.Repeat("x\n", MaxOutputBytes/2+1))} {
 		if outputWithinBudget(data) {
@@ -219,6 +224,10 @@ func TestHelmRealTemplateSnapshotAndFailure(t *testing.T) {
 	if archive == "" {
 		t.Skip("requires approved Helm archive; CI makes this test mandatory")
 	}
+	// The renderer must replace hostile inherited driver/kube paths, not repair
+	// the startup failure by using the caller's release database or credentials.
+	t.Setenv("HELM_MEMORY_DRIVER_DATA", writeTestFile(t, "private-releases.yaml", []byte("PRIVATE_RELEASE_DATABASE: invalid\n")))
+	t.Setenv("KUBECONFIG", writeTestFile(t, "private-kubeconfig", []byte("PRIVATE_CLUSTER_CREDENTIAL: invalid\n")))
 	entries := minimalEntries()
 	entries[2].text += "  missing: {{ lookup \"v1\" \"Secret\" \"team\" \"PRIVATE_NAME\" | empty | quote }}\n"
 	chart := writeTestFile(t, "chart.tgz", chartArchive(t, entries...))

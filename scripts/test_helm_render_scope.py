@@ -1,4 +1,5 @@
 """Helm tool trust and executable evidence remain additive and fail closed."""
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -6,12 +7,54 @@ import tempfile
 import unittest
 from unittest import mock
 
+import retire_completed_oidc as retirement
 import prepare_helm as prepare
 import run_migration_tests as migration
 import test_evidence as evidence
 
 
 class HelmRenderScopeTests(unittest.TestCase):
+    def test_retirement_requires_exact_completed_inactive_reachable_pr(self):
+        number, branch, head, tip = 68, 'feat/local-helm-render-delivery', 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(67, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        self.assertIsNone(retirement.candidate(pr, head, {}, [], lambda _: True,
+                                              number=number, branch=branch))
+        for mode in ('open', 'unmerged', 'other-merge', 'wrong-branch', 'wrong-base',
+                     'foreign-head', 'foreign-base', 'invalid-tip', 'moved', 'protected',
+                     'unreachable', 'active-head', 'active-base', 'issue', 'previous-pr'):
+            with self.subTest(mode=mode):
+                p, branches, active = copy.deepcopy(pr), copy.deepcopy(refs), []
+                n = number
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'other-merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'wrong-branch': p['head']['ref'] = retirement.APPROVED[66]
+                if mode == 'wrong-base': p['base']['ref'] = 'other-main'
+                if mode == 'foreign-head': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'foreign-base': p['base']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'invalid-tip': p['head']['sha'] = 'invalid'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'c' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                if mode in ('active-head', 'active-base'):
+                    other = copy.deepcopy(pr)
+                    other['head']['ref'], other['base']['ref'] = 'unrelated-head', 'unrelated-base'
+                    other[mode.removeprefix('active-')]['ref'] = branch
+                    active = [other]
+                if mode == 'issue': n = 67
+                if mode == 'previous-pr': n = 66
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, active, lambda _: mode != 'unreachable',
+                                         number=n, branch=branch)
+
     def test_mandatory_new_names_preserve_all_previous_scopes(self):
         for suite, names in evidence.HELM_RENDER_REQUIRED.items():
             required = evidence.required_for_suite(suite, ['TestPrior'])
@@ -66,6 +109,8 @@ class HelmRenderScopeTests(unittest.TestCase):
         source = (prepare.ROOT / 'internal/helmrender/render.go').read_text()
         self.assertIn('hex.EncodeToString(digest[:]) != d.SHA256', source)
         self.assertIn('"--dry-run=client"', source)
+        self.assertIn('"HELM_MEMORY_DRIVER_DATA": "memory-releases.yaml"', source)
+        self.assertIn('"memory-releases.yaml": "[]\\n"', source)
         for flag in ('"--dry-run=server"', '"--no-hooks"', '"--skip-tests"',
                      '"--enable-dns"', '"--dependency-update"', '"--post-renderer"'):
             self.assertNotIn(flag, source)

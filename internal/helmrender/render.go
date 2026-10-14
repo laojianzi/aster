@@ -42,7 +42,7 @@ var (
 	ErrOutput       = errors.New("Helm output exceeds the byte, line or display budget, or is not valid UTF-8")
 	ErrBusy         = errors.New("another Helm render is still running or being reclaimed")
 	// Admission is process-wide, not per workspace. Cancellation does not release
-	// it until the renderer has joined and private temporary input is removed.
+	// it until the renderer has joined and private temporary cleanup has run.
 	admission   = make(chan struct{}, 1)
 	label       = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 	kubeVersion = regexp.MustCompile(`^1\.(35|36|37)\.[0-9]{1,3}$`)
@@ -88,7 +88,7 @@ func (r *Result) Summary() string {
 	if r == nil {
 		return ""
 	}
-	return fmt.Sprintf("Helm %s · %s · namespace %s · Kubernetes capability assumption %s · %d captured bytes · chart SHA256 %s. No Helm release or cluster write.", r.version, r.release, r.namespace, r.kubeVersion, len(r.manifest), r.chartDigest)
+	return fmt.Sprintf("Helm %s · %s · namespace %s · Kubernetes capability assumption %s · %d captured bytes · chart SHA256 %s. Rendering performed no Helm release or cluster write.", r.version, r.release, r.namespace, r.kubeVersion, len(r.manifest), r.chartDigest)
 }
 
 func ApprovedArchive() string {
@@ -229,13 +229,15 @@ func outputWithinBudget(data []byte) bool {
 func isolatedEnvironment(root string) ([]string, error) {
 	// No inherited HOME/PATH, cloud credentials, proxy, Helm, loader or runtime
 	// overrides. Registry/config/plugin locations are fresh and empty each time.
+	// Helm v4.3.0 initializes its memory driver by loading this explicit empty
+	// release list. Omitting it aborts the CLI before client-side template runs.
 	dirs := []string{"config", "cache", "data", "plugins", "repositories", "tmp"}
 	for _, dir := range dirs {
 		if err := os.Mkdir(filepath.Join(root, dir), 0700); err != nil {
 			return nil, err
 		}
 	}
-	files := map[string]string{"kubeconfig": "apiVersion: v1\nkind: Config\nclusters: []\ncontexts: []\nusers: []\n", "registry.json": "{\"auths\":{}}", "repositories.yaml": "repositories: []\n"}
+	files := map[string]string{"kubeconfig": "apiVersion: v1\nkind: Config\nclusters: []\ncontexts: []\nusers: []\n", "registry.json": "{\"auths\":{}}", "repositories.yaml": "repositories: []\n", "memory-releases.yaml": "[]\n"}
 	for name, data := range files {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0600); err != nil {
 			return nil, err
@@ -245,7 +247,7 @@ func isolatedEnvironment(root string) ([]string, error) {
 	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
 		env = append(env, key+"="+filepath.Join(root, "tmp"))
 	}
-	for key, name := range map[string]string{"HELM_CONFIG_HOME": "config", "HELM_CACHE_HOME": "cache", "HELM_DATA_HOME": "data", "HELM_PLUGINS": "plugins", "HELM_REPOSITORY_CACHE": "repositories", "HELM_REGISTRY_CONFIG": "registry.json", "HELM_REPOSITORY_CONFIG": "repositories.yaml", "KUBECONFIG": "kubeconfig", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache", "XDG_DATA_HOME": "data", "APPDATA": "config", "LOCALAPPDATA": "data"} {
+	for key, name := range map[string]string{"HELM_CONFIG_HOME": "config", "HELM_CACHE_HOME": "cache", "HELM_DATA_HOME": "data", "HELM_PLUGINS": "plugins", "HELM_REPOSITORY_CACHE": "repositories", "HELM_REGISTRY_CONFIG": "registry.json", "HELM_REPOSITORY_CONFIG": "repositories.yaml", "KUBECONFIG": "kubeconfig", "HELM_MEMORY_DRIVER_DATA": "memory-releases.yaml", "XDG_CONFIG_HOME": "config", "XDG_CACHE_HOME": "cache", "XDG_DATA_HOME": "data", "APPDATA": "config", "LOCALAPPDATA": "data"} {
 		env = append(env, key+"="+filepath.Join(root, name))
 	}
 	if runtime.GOOS == "windows" {

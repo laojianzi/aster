@@ -114,7 +114,7 @@ func TestNativeHelmRenderRequiresImportAndPerObjectReview(t *testing.T) {
 	if a, b, c := f.counts(); a != 0 || b != 0 || c != 0 || h.w.delivery.set != nil || h.w.delivery.plan != nil {
 		t.Fatal("render created discovery, a plan, or a write")
 	}
-	saveNativeScreenshot(t, h.tt)
+	t.Run("captured", func(t *testing.T) { saveNativeScreenshot(t, h.tt) })
 	// Source files changing after capture cannot change the accepted immutable output.
 	if err := os.WriteFile(chart, []byte("changed after capture"), 0600); err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestNativeHelmRenderRequiresImportAndPerObjectReview(t *testing.T) {
 	if _, _, writes := f.counts(); writes != 2 {
 		t.Fatal("separate confirmation did not submit second object")
 	}
-	saveNativeScreenshot(t, h.tt)
+	t.Run("delivered", func(t *testing.T) { saveNativeScreenshot(t, h.tt) })
 }
 
 func TestNativeHelmDiscardFailureAndMountedHistory(t *testing.T) {

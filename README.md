@@ -72,13 +72,15 @@ entries and explicit null remain significant. Nested numbers keep the existing
 exact decimal contract. All enum metadata is checked before a match can succeed;
 malformed or over-budget content keeps the report incomplete. Server numeric
 types, nullable enum handling, pruning and defaults remain dry-run boundaries.
-The next bounded scope [#54](https://github.com/laojianzi/aster/issues/54),
-[PR #55](https://github.com/laojianzi/aster/pull/55), adds
-map-list identity hints for explicitly required, nonnullable string keys. It
-compares complete key tuples, including empty strings and exact Unicode, while
-ignoring unrelated item payload for identity. Unsupported declarations or an
-incomplete identity scan remain explicit. This scope is being implemented and
-qualified; its issue records the actual PR, verification and completion state.
+Completed [#54/#55](https://github.com/laojianzi/aster/pull/55),
+[#56/#57](https://github.com/laojianzi/aster/pull/57),
+[#59/#60](https://github.com/laojianzi/aster/pull/60),
+[#61/#62](https://github.com/laojianzi/aster/pull/62) and
+[#65/#66](https://github.com/laojianzi/aster/pull/66) add bounded string/int64/boolean
+set identities and required, nonnullable map-key tuples, including mixed typed keys.
+Complete preflight, shared budgets, cancellation, fixed private diagnostics and
+original-source navigation remain mandatory. False is not missing/null; no default
+insertion, coercion, pruning or complete SSA/list/admission equivalence is implied.
 [The progress tracker](https://github.com/laojianzi/aster/issues/13) records the
 remaining editor and release goals.
 
@@ -100,8 +102,22 @@ segments can still stall the upstream editor; clipboard preflight does not quali
 An actual NotFound selects POST/create-only. Existing resources use acknowledged,
 no-force SSA with the reviewed UID/resourceVersion. POST-created fields may still
 belong to `aster-desktop`; subsequent `aster-apply` intent cannot silently take them
-over. Resolve conflicts with the owning workflow, then review again. This feature
-does not render Helm charts, manage Helm releases or reconcile Git repositories.
+over. Resolve conflicts with the owning workflow, then review again. This reviewed-write layer does not manage Helm releases or reconcile Git repositories.
+
+### Trusted local Helm rendering
+
+**Render Helm chart** accepts an explicitly trusted, dependency-free local chart `.tgz`,
+optional values mapping and the exact approved Helm v4.3.0 distribution archive for this
+platform. Rendering has no cluster credentials; capability version is an explicit local
+assumption. Capture and discard preserve the original input. **Use Helm result** requires
+replacement consent and starts a new input/Undo boundary without re-rendering. Import,
+server dry-run and exact-name confirmation are still separate for every object.
+
+Inputs, process duration and output are bounded; this is not an OS sandbox. The desktop
+never downloads tools/charts or runs PATH Helm, plugins or a shell. Helm release management
+and GitOps reconciliation are not implemented. See [workflow, trust and limits](docs/local-helm-rendering.md)
+and [#67](https://github.com/laojianzi/aster/issues/67) / [PR #68](https://github.com/laojianzi/aster/pull/68)
+for actual qualification. The existing Schema/clipboard/dependency scopes are reused.
 
 Remaining P1 work includes advanced Schema semantics, reviewed Helm/GitOps lifecycle
 and safe completion. Completion still needs an upstream editor transaction that
