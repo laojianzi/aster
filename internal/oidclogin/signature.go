@@ -12,6 +12,14 @@ import (
 	jose "github.com/go-jose/go-jose/v4"
 )
 
+// Match the reviewed go-jose v4.1.6 parser limit without mutating its process-wide
+// MaxRSAModulusBits setting. The encoded cap bounds material before JOSE parsing.
+const (
+	minRSAModulusBits         = 2048
+	maxRSAModulusBits         = 4096
+	maxEncodedRSAModulusBytes = (maxRSAModulusBits/8*4 + 2) / 3
+)
+
 // verifySignedToken uses only a bounded, explicitly fetched issuer key set.
 // Untrusted JWT headers cannot trigger network resolution or choose a MAC key.
 func verifySignedToken(ctx context.Context, issuer, clientID, algorithm, keyID, raw string, data []byte) (*oidc.IDToken, error) {
@@ -61,7 +69,7 @@ func verifySignedToken(ctx context.Context, issuer, clientID, algorithm, keyID, 
 			return nil, ErrVerification
 		}
 		bounded := map[string]string{"kty": kind}
-		for name, limit := range map[string]int{"kid": 256, "alg": 16, "use": 8, "n": 1366, "e": 8, "crv": 8, "x": 43, "y": 43} {
+		for name, limit := range map[string]int{"kid": 256, "alg": 16, "use": 8, "n": maxEncodedRSAModulusBytes, "e": 8, "crv": 8, "x": 43, "y": 43} {
 			if value, exists := fields[name]; exists {
 				var text string
 				if len(value) > limit*6+2 || json.Unmarshal(value, &text) != nil || len(text) > limit {
@@ -92,7 +100,7 @@ func verifySignedToken(ctx context.Context, issuer, clientID, algorithm, keyID, 
 		}
 		switch pub := key.Key.(type) {
 		case *rsa.PublicKey:
-			if algorithm == "RS256" && pub.N != nil && pub.N.BitLen() >= 2048 && pub.N.BitLen() <= 8192 && pub.E >= 3 && pub.E <= 1<<31-1 && pub.E%2 == 1 {
+			if algorithm == "RS256" && pub.N != nil && pub.N.BitLen() >= minRSAModulusBits && pub.N.BitLen() <= maxRSAModulusBits && pub.E >= 3 && pub.E <= 1<<31-1 && pub.E%2 == 1 {
 				keys = append(keys, pub)
 			}
 		case *ecdsa.PublicKey:
