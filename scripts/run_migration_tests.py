@@ -7,6 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    "TestNativeMyGo05ScaledNavigationStaysAboveStatus",
     "TestNativeMyGo05GuardedChoiceTransitions",
     "TestNativeMyGo05PendingSensitiveFieldsDoNotInvalidateReview",
     "TestNativeMyGo05QueuedRenewalOptInDoesNotExpandScope",

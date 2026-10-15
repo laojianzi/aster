@@ -82,7 +82,7 @@ func (w *Workbench) View(c *ui.Context) {
 				})
 			})
 		}
-		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 			if w.helmReleases.open {
 				w.helmReleasesView(c)
 				return
@@ -99,7 +99,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.vaultView(c)
 				return
 			}
-			ui.Column(c).Width(174).Padding(10).Gap(5).Children(func() {
+			ui.Scroll(c.Key("resource.navigation")).Label("Resource navigation").Width(174).Shrink(0).MinHeight(0).Padding(10).Gap(5).Children(func() {
 				ui.Text(c, "RESOURCES").FontSize(11).Bold().TextColor(t.TextMuted)
 				for _, item := range []struct{ Label, Resource string }{{"Pods", "pods"}, {"Deployments", "deployments"}, {"StatefulSets", "statefulsets"}, {"DaemonSets", "daemonsets"}, {"Jobs", "jobs"}, {"CronJobs", "cronjobs"}, {"Services", "services"}, {"Ingresses", "ingresses"}, {"ConfigMaps", "configmaps"}, {"Secrets", "secrets"}, {"Volume Claims", "persistentvolumeclaims"}, {"Nodes", "nodes"}, {"Namespaces", "namespaces"}} {
 					ui.Button(c, item.Label).Width(152).MinHeight(30).OnClick(func() {
@@ -181,7 +181,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.detailView(c)
 			}
 		})
-		ui.Row(c).Height(34).Padding(6, 12).Gap(12).Children(func() {
+		ui.Row(c).MinHeight(34).Shrink(0).Padding(6, 12).Gap(12).Children(func() {
 			ui.Text(c, "Status: "+w.connectionStatus()).Label("Connection status").FontSize(12).Grow(1).SingleLine()
 			ui.Text(c, "Connected: "+w.activeContext+" / "+w.activeNamespace).FontSize(11).TextColor(t.TextMuted)
 			ui.Text(c, fmt.Sprintf("%d active write(s)", w.pendingWrites)).FontSize(12).TextColor(t.TextMuted)

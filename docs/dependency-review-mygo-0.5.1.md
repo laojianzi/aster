@@ -96,6 +96,14 @@ rows use minimum heights, and details use available space. The mandatory layout
 case uses a 1100x700 window with 125% text scale, high contrast and reduced motion,
 under LTR and RTL-host settings. Control bounds and two retained full-frame
 screenshots show the repaired actions, not all possible glyphs or scale factors.
+A subsequent Windows CI image exposed a separate navigation/footer overlap that
+window-only action bounds missed. The body now uses the available height, the
+sidebar is an independently keyed scroll viewport, and the status row cannot
+shrink below its minimum. A mandatory 100/125/150% LTR/RTL-host regression checks
+footer separation, unclipped last-item reachability by wheel, actual activation,
+and keyboard Home returning to the first item. The old code failed the 150%
+case locally. This is not a claim that every scale, translation or font fits
+without ellipsis; narrow presentation labels may still be shortened.
 
 Root layout direction must not normalize manifest contents. Existing Unicode,
 raw mixed-CRLF/LF, Find, selection, native history, focus, dialog and checked versus
