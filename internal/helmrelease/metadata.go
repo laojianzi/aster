@@ -1,5 +1,5 @@
-// Package helmrelease projects bounded Helm Secret-driver metadata. It never
-// decodes a release payload or treats editable labels as authoritative state.
+// Package helmrelease implements bounded Helm storage observations. Metadata
+// reads never decode payloads; explicit inspection is separate and read-only.
 package helmrelease
 
 import (
@@ -41,6 +41,9 @@ type Revision struct {
 	Number      int32
 	Status      string
 	StorageName string
+	// Object identity binds a later explicit content read to this exact revision.
+	UID             string
+	ResourceVersion string
 }
 
 type Snapshot struct {
@@ -107,7 +110,7 @@ func DecodePage(data []byte, ns string) (Page, error) {
 		if labels["owner"] != "helm" || len(name) == 0 || len(name) > 53 || len(validation.IsDNS1123Subdomain(name)) != 0 || err != nil || number < 1 || strconv.FormatInt(number, 10) != version || !knownStatus(labels["status"]) || item.Name != "sh.helm.release.v1."+name+".v"+version {
 			return Page{}, ErrInvalid
 		}
-		page.Revisions = append(page.Revisions, Revision{Release: name, Number: int32(number), Status: labels["status"], StorageName: item.Name})
+		page.Revisions = append(page.Revisions, Revision{Release: name, Number: int32(number), Status: labels["status"], StorageName: item.Name, UID: string(item.UID), ResourceVersion: item.ResourceVersion})
 		page.UIDs = append(page.UIDs, string(item.UID))
 	}
 	return page, nil

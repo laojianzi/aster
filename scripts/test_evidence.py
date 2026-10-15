@@ -117,8 +117,10 @@ HELM_METADATA_REQUIRED = {
 }
 
 
+HELM_INSPECTION_REQUIRED = {'unit-native': ('TestHelmInspectionBoundIdentityAndPrivateProjection', 'TestHelmInspectionMalformedAndAmbiguousPayloads', 'TestHelmInspectionEncodingBudgetsAndCancellation', 'TestHelmInspectionLateBudgetsAndInFlightCancellation', 'TestHelmInspectionExactGetConsentAndCurrentIdentity', 'TestHelmInspectionPrivateErrorsNoRetryOrFallback', 'TestHelmInspectionStaleStorageAndCancellation', 'TestNativeHelmInspectionExplicitConsentAndPrivateSummary', 'TestNativeHelmInspectionStaleCompletionAndTeardown', 'TestNativeHelmInspectionFailureCancellationAndStaleObject'), 'native-os-interactions': ('TestNativeHelmInspectionExplicitConsentAndPrivateSummary', 'TestNativeHelmInspectionStaleCompletionAndTeardown', 'TestNativeHelmInspectionFailureCancellationAndStaleObject'), 'real-cluster-native': ('TestRealHelmInspectionReadOnlyIdentityAndRBAC', 'TestNativeHelmInspectionAgainstRealCluster')}
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

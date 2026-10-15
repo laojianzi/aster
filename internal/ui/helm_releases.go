@@ -19,9 +19,16 @@ type helmReleaseState struct {
 	namespace, session, status string
 	snapshot                   helmrelease.Snapshot
 	list                       ui.ListState
+	selected                   helmrelease.Revision
+	acknowledged, inspecting   bool
+	contentEpoch               uint64
+	contentCancel              context.CancelFunc
+	contentStatus              string
+	inspection                 *helmrelease.Inspection
 }
 
 func (w *Workbench) clearHelmReleases() {
+	w.clearHelmInspection()
 	r := &w.helmReleases
 	if r.cancel != nil {
 		r.cancel()
@@ -52,6 +59,7 @@ func (w *Workbench) openHelmReleases() {
 }
 
 func (w *Workbench) stopHelmReleases() {
+	w.clearHelmInspection()
 	r := &w.helmReleases
 	r.epoch++
 	if r.cancel != nil {
@@ -117,16 +125,20 @@ func (w *Workbench) helmReleasesView(c *ui.Context) {
 		})
 		ui.Text(c, r.status).Label("Helm metadata status").FontSize(12)
 		ui.Text(c, "Read-only Secret-driver labels · not decoded release state or workload health").FontSize(11)
-		ui.Text(c, "No values/manifests, install, upgrade, rollback, uninstall or write approval.").FontSize(11)
+		ui.Text(c, "Content requires separate selection and consent. No release writes or write approval.").FontSize(11)
 		ui.Text(c, "Requires list secrets permission. ConfigMap/SQL drivers are not queried.").FontSize(11)
 		rows := r.snapshot.Revisions
 		ui.List(c.Key("helm-release-revisions"), &r.list, len(rows), func(i int) {
 			row := rows[i]
 			ui.Column(c).Padding(6).Gap(3).Children(func() {
 				ui.Text(c, fmt.Sprintf("%s · revision %d · label: %s", row.Release, row.Number, row.Status)).Label("Helm revision " + row.StorageName).SingleLine()
-				ui.Text(c, row.StorageName).FontSize(10).SingleLine()
+				ui.Row(c).Gap(8).Children(func() {
+					ui.Text(c, row.StorageName).FontSize(10).SingleLine()
+					ui.Button(c, "Select revision").Label("Select " + row.StorageName).Disabled(r.busy).OnClick(func() { w.selectHelmRevision(row) })
+				})
 			})
 		}).Grow(1)
+		w.helmInspectionView(c)
 		if !r.busy && r.snapshot.ResourceVersion != "" && len(rows) == 0 {
 			ui.Text(c, "No matching Secret-driver labels in this namespace snapshot. Other drivers were not checked.").FontSize(11)
 		}

@@ -2,23 +2,21 @@
 
 ## 当前基线与唯一实施范围
 
-2026-10-14 接续基线：main `6eb2d75d931453454af43a82e1b91b206d7bf447`，
-源码树 `d8318bf846de6d590c9416282f0c9b783b1bf528`，Go 1.27.2 / MyGo v0.4.8。
-[#67](https://github.com/laojianzi/aster/issues/67) / PR #68 已完成可信本地 Helm 渲染，
-并在独立 PR/main 验收、原始 bundle 恢复及清理后明确 completed。
-本轮审计时远端仅 main、0 open PR、只有总 tracker #13 open。
+2026-10-15 接续基线：已验收 main `eb19fdc3d5566f9e1d62dd3823b6f4dcaefbad59`，
+源码树 `6e2a99bea984459dab4fc3f46a37bb064b4c2e01`，Go 1.27.2 / MyGo v0.4.8。
+#67/#68 本地 Helm 渲染和 #69/#70 只读修订标签清单均已独立验收并 completed；
+写入前审计远端只有 main、无 open PR、只有总 tracker #13 open，不重复已有实现。
 
-**当前唯一新范围：[Issue #69](https://github.com/laojianzi/aster/issues/69)，
-`feat/helm-release-metadata`：有界 Helm release 只读修订元数据清单。**
-只请求当前身份、单一命名空间的 Secret-driver 元数据，明确刷新/取消，保留读取预算、
-严格分页一致性和过期结果保护。不取 Secret data、不解码 values/manifest，不用 Helm
-访问集群，不自动轮询或写入。元数据协商不降低 `list secrets` 的 RBAC 要求；异常时
-清空结果，不回退完整对象或其他存储驱动。标签不是 release 状态、健康或所有权证明。
-操作和限制见 [元数据清单契约](helm-release-metadata.md)。
+**本轮唯一范围：[Issue #71](https://github.com/laojianzi/aster/issues/71)，
+`feat/helm-revision-inspection`：选定 Helm 修订内容的一致性只读摘要。**
+选择不读取；另行敏感内容确认后才 GET 精确 Secret，对照选定 UID/resourceVersion、
+标签与内容身份，实施编码/解压/JSON/时间预算及取消保护。只保留有限摘要，默认不显示
+values/manifest/notes/templates/hooks。不会生成 Prepared、导入清单或写入集群。
+一致性不是真实性、健康、所有权或授权；操作和边界见
+[选定修订检查契约](helm-revision-inspection.md)。
 
-本文件记录实施范围，不预先宣称 #69 已合并、已退役或完成验收。精确提交、PR/main
-原始证据与结项状态以 #69 和 [总进度 #13](https://github.com/laojianzi/aster/issues/13) 为准。
-一个实际范围只使用一条分支及一个 PR；写入前复查实时队列。
+本文件不预先宣称 #71 的 CI、合并、主干或退役验收通过；精确后置证据以 #71 和
+[#13](https://github.com/laojianzi/aster/issues/13) 为准。每个实际范围仅一条分支和一个 PR。
 
 ## 已完成、必须复用的能力
 
@@ -32,6 +30,7 @@
 | 有界字符串/int64/bool map-list 与 set-list 身份提示 | #54/#55、#56/#57、#59/#60、#61/#62、#65/#66 |
 | 已渲染清单的有序导入、逐对象不可变审阅、确认和部分结果核对 | #44/#45 |
 | 可信本地 chart/values 快照、固定官方 Helm 4.3.0、渲染捕获/丢弃/接受 | #67/#68；不是 Helm release 写入或 GitOps |
+| Helm Secret-driver 元数据协商、单命名空间分页与显式刷新/取消 | #69/#70；不是 release 内容或生命周期写入 |
 | MyGo v0.4.8 源码/运行时审查和已有迁移保护 | #11/#58；不按旧快照重复升级 |
 
 证据以各自 Issue/PR 为准，不用合并数或绿色 CI 百分比代替 MVP 完成度。
@@ -43,7 +42,7 @@
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**P1 — Helm release / GitOps。** #68 已实现本地渲染，#69 补只读 release 修订元数据。
+**P1 — Helm release / GitOps。** #68 已实现本地渲染，#70 已完成只读修订元数据，#71 推进选定内容一致性摘要。
 后续仍需分别定义 release 内容与生命周期检查、install/upgrade/rollback/uninstall、
 GitOps repository/sync/reconcile 的可信执行、并发、失败/Unknown 与确认边界。
 不得把元数据标签、渲染或普通逐对象 SSA 重命名成完整 Helm 生命周期；不得直接运行

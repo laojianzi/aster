@@ -3,7 +3,7 @@
 Scope #69 continues the completed local-rendering slice #67 / #68. This is an
 explicit **read-only Secret-driver revision-label inventory**, not `helm list`
 equivalence, decoded release state, install, upgrade, rollback or uninstall.
-The implementation does not invoke Helm or add a module dependency.
+The metadata path does not invoke Helm or add a module dependency.
 
 ## Workflow and identity
 
@@ -19,7 +19,10 @@ errors never leave old or partial rows presented as a successful new result.
 The panel is unavailable while a detail editor or write is active. It does not
 alter manifest buffers, imported delivery sets or Prepared plans. This does not
 extend the editor's separately documented history-across-unmount guarantees.
-Rows are ordered by release name, then **numeric revision descending**. Every
+Rows are ordered by release name, then **numeric revision descending**. The
+separate [selected-revision inspection](helm-revision-inspection.md) requires an
+explicit row selection and additional sensitive-content acknowledgement before
+one exact Secret GET. Metadata refresh itself still never reads payloads. Every
 row explicitly describes the status as a label. No row authorizes a mutation.
 
 ## Data minimization and limits
