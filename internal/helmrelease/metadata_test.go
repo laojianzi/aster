@@ -31,7 +31,7 @@ func TestHelmReleaseMetadataProjectionAndNumericOrdering(t *testing.T) {
 		t.Fatal(err)
 	}
 	Sort(p.Revisions)
-	want := []Revision{{"app", 10, "deployed", "sh.helm.release.v1.app.v10"}, {"app", 9, "deployed", "sh.helm.release.v1.app.v9"}, {"app", 1, "deployed", "sh.helm.release.v1.app.v1"}, {"z", 1, "deployed", "sh.helm.release.v1.z.v1"}}
+	want := []Revision{{"app", 10, "deployed", "sh.helm.release.v1.app.v10", "sh.helm.release.v1.app.v10", "4"}, {"app", 9, "deployed", "sh.helm.release.v1.app.v9", "sh.helm.release.v1.app.v9", "4"}, {"app", 1, "deployed", "sh.helm.release.v1.app.v1", "sh.helm.release.v1.app.v1", "4"}, {"z", 1, "deployed", "sh.helm.release.v1.z.v1", "sh.helm.release.v1.z.v1", "4"}}
 	if !reflect.DeepEqual(p.Revisions, want) || !reflect.DeepEqual(before, data) {
 		t.Fatalf("incorrect projection: %+v", p)
 	}
