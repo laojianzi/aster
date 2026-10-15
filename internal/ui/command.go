@@ -109,13 +109,13 @@ func (w *Workbench) commandView(c *ui.Context) {
 	if w.commandContainer == "" && len(w.containers) > 0 {
 		w.commandContainer = w.containers[0]
 	}
-	if ui.Select(c.Key("field.commandContainer"), &w.commandContainer, w.containers).Label("Command container").Disabled(w.commandActive).Changed() {
+	if guardedSelect(c, "field.commandContainer", &w.commandContainer, w.containers, !w.commandActive).Label("Command container").Disabled(w.commandActive).Changed() && !w.commandActive {
 		w.commandConfirmation = ""
 	}
-	if ui.TextArea(c.Key("field.commandArgv"), &w.commandArgv).Label("Command argv JSON").Height(65).ReadOnly(w.commandActive).Changed() {
+	if guardedTextArea(c, "field.commandArgv", &w.commandArgv, !w.commandActive).Label("Command argv JSON").Height(65).ReadOnly(w.commandActive).Changed() && !w.commandActive {
 		w.commandConfirmation = ""
 	}
-	ui.TextInput(c.Key("field.commandConfirmation"), &w.commandConfirmation).Label("Confirm Pod for command").Placeholder("Type the exact Pod name").Disabled(w.commandActive)
+	guardedTextInput(c, "field.commandConfirmation", &w.commandConfirmation, !w.commandActive).Label("Confirm Pod for command").Placeholder("Type the exact Pod name").Disabled(w.commandActive)
 	ui.Row(c).Gap(8).Children(func() {
 		ui.PrimaryButton(c, "Run command").Disabled(w.commandActive || w.detail == nil || w.commandConfirmation != w.detail.GetName() || w.commandContainer == "").OnClick(func() {
 			w.startCommand()

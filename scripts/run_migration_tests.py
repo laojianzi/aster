@@ -7,6 +7,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    "TestNativeMyGo05BusyTransitionRejectsQueuedFields",
+    "TestNativeMyGo05BusyTransitionCannotRestoreConsumedConsent",
+    "TestNativeMyGo05ScaledWorkbenchKeepsActionsVisible",
     'TestNativeHelmInspectionExplicitConsentAndPrivateSummary',
     'TestNativeHelmInspectionStaleCompletionAndTeardown',
     'TestNativeHelmInspectionFailureCancellationAndStaleObject',
@@ -113,6 +116,9 @@ REQUIRED = [
 ]
 
 TERMINAL_REQUIRED = [
+    "TestTerminalNativeMyGo05ClipboardReadsNeverEvaluateProviders",
+    "TestTerminalNativeMyGo05MultiformatPasteIsBoundedTextOnly",
+    "TestTerminalNativeMyGo05ControlCVRemainRemote",
     'TestTerminalNativeMyGo048WheelRoutingAndClose',
     'TestTerminalNativeRemoteLinksCannotLaunchLocalApplications',
     'TestTerminalNativePasteCannotBypassInputBudget',

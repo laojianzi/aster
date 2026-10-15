@@ -64,7 +64,7 @@ func (w *Workbench) forwardView(c *ui.Context) {
 	if w.forwardPort == "" {
 		w.forwardPort = "8080"
 	}
-	ui.TextInput(c.Key("field.forwardPort"), &w.forwardPort).Label("Remote port").Disabled(w.forwardActive).Width(130)
+	guardedTextInput(c, "field.forwardPort", &w.forwardPort, !w.forwardActive).Label("Remote port").Disabled(w.forwardActive).Width(130)
 	ui.Row(c).Gap(8).Children(func() {
 		ui.PrimaryButton(c, "Start port forward").Disabled(w.forwardActive).OnClick(func() {
 			w.startForward()

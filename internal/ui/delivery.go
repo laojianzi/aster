@@ -583,7 +583,7 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			if inventory.Changed() {
 				w.deliverySelectionChanged()
 			}
-			if ui.Checkbox(c.Key("delivery.acknowledged"), &d.acknowledged, "I understand omitted fields may be removed").Disabled(d.busy != "").Changed() {
+			if guardedCheckbox(c, "delivery.acknowledged", &d.acknowledged, "I understand omitted fields may be removed", d.busy == "").Disabled(d.busy != "").Changed() && d.busy == "" {
 				w.stopDeliveryReview()
 				d.status = "Acknowledgement changed. Preview again before submission."
 			}
@@ -601,7 +601,7 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			}
 			ui.Scroll(c.Key("delivery.preview.scroll")).Grow(1).Children(func() { ui.Text(c, text).Label("Delivery preview").FontSize(12) })
 			ui.Row(c).Gap(8).Children(func() {
-				e := ui.TextInput(c.Key(fmt.Sprintf("delivery.confirmation.%d", d.epoch)), &d.confirmation).Label("Delivery confirmation").Placeholder("Type the exact reviewed resource name").Grow(1).Disabled(d.plan == nil || d.busy != "")
+				e := guardedTextInput(c, fmt.Sprintf("delivery.confirmation.%d", d.epoch), &d.confirmation, d.plan != nil && d.busy == "").Label("Delivery confirmation").Placeholder("Type the exact reviewed resource name").Grow(1).Disabled(d.plan == nil || d.busy != "")
 				d.confirmationComposing = e.Composing()
 				ui.PrimaryButton(c, "Submit reviewed object").Disabled(d.plan == nil || d.busy != "" || d.halted || d.confirmationComposing || w.pendingWrites != 0 || d.plan != nil && d.confirmation != d.plan.Target().Name).OnClick(w.executeDelivery)
 			})
