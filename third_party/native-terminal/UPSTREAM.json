@@ -1,6 +1,6 @@
 {
   "module": "github.com/egoist/mygo",
-  "version": "v0.4.8",
+  "version": "v0.5.1",
   "ghostty_commit": "befcdfd2c3a1cb24d9ec886e93c95b2b5daa7028",
   "files": {
     "box.go": "e190a0b91a5639729f6b15d20843db1ae3c0d9950781acd10af3f7fe25b91de3",
@@ -13,23 +13,26 @@
     "internal/pty/pty_other.go": "f9a8538f4c73bb8b2d1a019ec84f4e5f715adcd08b95f05c1b6627333d4794a1",
     "internal/pty/pty_unix.go": "de75452df000e0f9610638125e6b701f2175cbf96635781aeee45f925870b560",
     "internal/pty/pty_windows.go": "8bb7159b0ae5360c31734f0b28c752b572edcc6497b971c796a3dc1396b063a0",
-    "internal/vt/encode.go": "704b88b17df878e41e66d0f8bf2746c2835b1d4ac6f35dc9e8f836cd6793f6ec",
+    "internal/vt/clipboard.go": "d7301b6f20fa46da7df48c532aa0fdb18f47d7cc2316c0f1a156da6c64f5fe63",
+    "internal/vt/encode.go": "1aacdea6cc49be7324b98b6a561b0c0cf17ebc1b7f080904f14dc89f9b9d456e",
     "internal/vt/ffi.go": "4d3d50c1f37b932cd211e1963707c4be23220e1bf117d9cf5c714d9169b66305",
     "internal/vt/ffi_other.go": "79417723e9e17acc0978dd88e97bb295afe096be790d6c2b4beb14cf8a0995ea",
-    "internal/vt/lib.go": "a802163337f353bc5a787bac190baa1f3fd2da3e4bbd5688875fb44dbd4bd688",
+    "internal/vt/lib.go": "4fc98188fd049154ea0866859e7de59d7a336c7a7d66d0de711af6c2f4cc2780",
     "internal/vt/open_unix.go": "8a9c72acd6fad9cf541350a0bb646621108ec937b5400f915ee2f44103bd202e",
     "internal/vt/open_windows.go": "9ede90c1cfb7a7bc11a4acaa337f2832647274ca7dc98c727598eccf1b68023d",
     "internal/vt/render.go": "9c65d4c713f2b0856de88a04e4974319a16e0efce1e42ffe2e5cbac34d7eee05",
     "internal/vt/selection.go": "df89c04c2e29d653aaee67e94c9b9df83810f1652feaa991abae92c317029e33",
-    "internal/vt/terminal.go": "3470596a784ec14cf6fea0cb1d5e11842109bb044c199cd8c062e800d2d3badf",
-    "internal/vt/types.go": "cfe3c2bc31477124815d5b64aa0d234911e609b29eeccf85e68fb91f83fda5eb",
+    "internal/vt/terminal.go": "6e949d3f1005209b51623f4693c3f7284b9fd04746fccb82e66f06bf909f090e",
+    "internal/vt/types.go": "d67885bf4e22a9917f96b6e45fd6e20cc7d2ee4184952359ddfba0d2237e8b65",
+    "keybind.go": "030fca4b84cf7de063c3ea5950211619bd036d726bb3c2e87b3207260a2f3271",
     "keys.go": "ffd3267f15df0618bdbbf86e5124a8f8989bc8a6ba69310c4bdb1dc4455dd87c",
     "library.go": "543252a67bdffc172298414c3576c4e1b39a121c8e9ae3bf025d105ca068eabd",
     "links.go": "4c9936f8e6fe7ffc6aa7daa040ae0a6da0512a48e2e2f351c060a0d2790d4145",
     "mygo-plugin.json": "2d7c464140e016bf4790671bcd4e61af8995c75a86e491f347297b1a637a29a4",
-    "paint.go": "856863c97fb923daa0e8013fa361c7672731b472d48fc2682c081f5f5b067342",
-    "terminal.go": "728a0a67a3da277f95fe8432cd94fcfe6e610796a0c2639cfdcde99cec0f3aac",
+    "paint.go": "93b09f8a0bab8e1f51806e5af10b3131d8a8d819f00a5372dfaa8c505d7c1aa2",
+    "paste.go": "0259fe873dfab6d222c6b4881956f01be23108a121003dafd789df94b4a425d0",
+    "terminal.go": "e7e0be947971b36726db2f55da6dbd3a647fab94d3157550e31cd50afdaa9657",
     "theme.go": "477b7fbaa362d66df0880d959d6dda34e552df09b259413bb14a0f57ab88176e",
-    "view.go": "af6499573f7bfbd8aada8436f68153d7ff145c396c9307bc39f555bad9722f02"
+    "view.go": "ff7f3c718d1d7425be87955d6a2d67d74c3c807971c9f8fefceab88c9aa3db1d"
   }
 }

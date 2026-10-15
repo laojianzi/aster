@@ -119,13 +119,13 @@ func (w *Workbench) terminalView(c *ui.Context) {
 	if w.terminalContainer == "" && len(w.containers) > 0 {
 		w.terminalContainer = w.containers[0]
 	}
-	if ui.Select(c.Key("field.terminalContainer"), &w.terminalContainer, w.containers).Label("Terminal container").Disabled(w.terminalActive).Changed() {
+	if guardedSelect(c, "field.terminalContainer", &w.terminalContainer, w.containers, !w.terminalActive).Label("Terminal container").Disabled(w.terminalActive).Changed() && !w.terminalActive {
 		w.terminalConfirmation = ""
 	}
-	if ui.TextArea(c.Key("field.terminalArgv"), &w.terminalArgv).Label("Terminal argv JSON").Height(48).ReadOnly(w.terminalActive).Changed() {
+	if guardedTextArea(c, "field.terminalArgv", &w.terminalArgv, !w.terminalActive).Label("Terminal argv JSON").Height(48).ReadOnly(w.terminalActive).Changed() && !w.terminalActive {
 		w.terminalConfirmation = ""
 	}
-	ui.TextInput(c.Key("field.terminalConfirmation"), &w.terminalConfirmation).Label("Confirm Pod for terminal").Placeholder("Type the exact Pod name").Disabled(w.terminalActive)
+	guardedTextInput(c, "field.terminalConfirmation", &w.terminalConfirmation, !w.terminalActive).Label("Confirm Pod for terminal").Placeholder("Type the exact Pod name").Disabled(w.terminalActive)
 	ui.Row(c).Gap(8).Children(func() {
 		ui.PrimaryButton(c, "Open terminal").Disabled(w.terminalActive || w.terminalJoining || w.detail == nil || w.terminalConfirmation != w.detail.GetName() || w.terminalContainer == "").OnClick(func() {
 			w.startTerminal()

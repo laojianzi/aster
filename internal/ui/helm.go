@@ -108,9 +108,9 @@ func (w *Workbench) helmRenderView(c *ui.Context) {
 		disabled := d.busy != "" || h.result != nil
 		composing, changed := false, false
 		field := func(key string, value *string, label, placeholder string) {
-			e := ui.TextInput(c.Key(key), value).Label(label).Placeholder(placeholder).Grow(1).Disabled(disabled)
+			e := guardedTextInput(c, key, value, !disabled).Label(label).Placeholder(placeholder).Grow(1).Disabled(disabled)
 			composing = composing || e.Composing()
-			changed = changed || e.Changed()
+			changed = changed || (!disabled && e.Changed())
 		}
 		ui.Row(c).Gap(6).Children(func() {
 			field("helm.archive", &h.archive, "Helm distribution archive", "Absolute path to approved Helm distribution")
@@ -125,12 +125,12 @@ func (w *Workbench) helmRenderView(c *ui.Context) {
 		if changed {
 			w.helmInputsChanged()
 		}
-		if ui.Checkbox(c.Key("helm.trust"), &h.trusted, "I trust this local chart (not sandboxed)").Disabled(disabled).Changed() {
+		if guardedCheckbox(c, "helm.trust", &h.trusted, "I trust this local chart (not sandboxed)", !disabled).Disabled(disabled).Changed() && !disabled {
 			w.stopDeliveryReview()
 		}
 		if h.result != nil {
 			ui.Scroll(c.Key("helm.summary.scroll")).Height(40).Children(func() { ui.Text(c, h.result.Summary()).Label("Helm result summary").FontSize(11) })
-			ui.Checkbox(c.Key("helm.replace"), &h.replace, "Replace current input; start a new Undo/review history").Disabled(d.busy != "")
+			guardedCheckbox(c, "helm.replace", &h.replace, "Replace current input; start a new Undo/review history", d.busy == "").Disabled(d.busy != "")
 		}
 		ui.Row(c).Gap(6).Children(func() {
 			ui.Button(c, "Render local Helm").Disabled(disabled || !h.trusted || composing || d.composing || d.retainedPaste != "" || w.pendingWrites != 0).OnClick(w.renderHelm)

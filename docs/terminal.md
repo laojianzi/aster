@@ -26,7 +26,10 @@ Terminal 使用 MyGo Native UI 和固定版本 libghostty-vt 自绘，不是 Web
 输出通过 io.Pipe 背压保序；原生显示保留约 2 MiB scrollback，网格上限 400×200。
 这些是分项预算，不是整个应用 RSS、原生解析器或 GPU 内存的硬上限。
 
-远端 OSC 52 写入被拒绝，远端通知/标题回调关闭，终端中的链接不启动本地应用。
+远端 OSC 52 写入以及 OSC 52/5522 剪贴板读取被拒绝，不求值远端请求的本地提供器。
+多格式粘贴只投影用户明确提供的有界文本，不保留图片/文件格式 offer，不自动复制选区。
+Ctrl+C/Ctrl+V 保留远端控制字节路由；显式复制/粘贴仍按平台快捷键执行。
+远端通知/标题回调关闭，终端中的链接不启动本地应用。
 用户主动选择、复制和粘贴仍然可用。命令参数和终端字节不写入应用历史或持久化文件，
 历史只记录目标与会话结果；这不是企业审计或终端录像。关闭屏幕释放原生状态，但不承诺
 操作系统剪贴板清除或进程内存的密码学擦除。
@@ -37,7 +40,7 @@ Terminal 使用 MyGo Native UI 和固定版本 libghostty-vt 自绘，不是 Web
 `python scripts/dev.py test`。首次构建需要下载 go.mod 固定的公共 Go 模块和原生库。
 离线时向这两个命令传入 `--source PATH/terminal --library-source PATH/lib`，仍校验同一组哈希。
 
-`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.3.7 的每个使用文件；
+`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.5.1 的 31 个使用文件；
 `hardening.patch` 是可审阅的输入、剪贴板、生命周期与库加载补丁。
 `scripts/prepare_terminal.py` 验证文件哈希，严格应用补丁、改写内部导入路径，生成
 `internal/nativeterm/upstream/`。不要直接修改生成目录，也不要仅运行未准备依赖的 go build。

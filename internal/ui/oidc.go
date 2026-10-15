@@ -229,7 +229,7 @@ func (w *Workbench) oidcView(c *ui.Context) {
 		if ui.TextArea(c.Key("oidc.ca"), &w.oidcCA).Label("OIDC issuer CA PEM").Placeholder("Optional issuer CA PEM (empty: system trust). Independent of the cluster CA.").Height(60).Changed() {
 			w.clearOIDC()
 		}
-		if ui.Checkbox(c.Key("oidc.allowRenewal"), &w.oidcAllowRenewal, "Allow memory-only renewal (requests offline access and consent)").Disabled(w.oidcPending).Changed() {
+		if guardedCheckbox(c, "oidc.allowRenewal", &w.oidcAllowRenewal, "Allow memory-only renewal (requests offline access and consent)", !w.oidcPending).Disabled(w.oidcPending).Changed() && !w.oidcPending {
 			w.clearOIDC()
 		}
 		ui.Row(c).Gap(8).Children(func() {
@@ -261,7 +261,7 @@ func (w *Workbench) oidcView(c *ui.Context) {
 				ui.Text(c, fmt.Sprintf("Verified subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity").SingleLine().FontSize(12)
 				ui.Text(c, "ID token expires "+info.ExpiresAt.Local().Format("2006-01-02 15:04:05")+" · Connection capped at 15 minutes").Label("OIDC expiry").FontSize(12)
 			}
-			ui.TextInput(c.Key("oidc.confirm"), &w.oidcConfirmation).Label("Confirm OIDC context").Placeholder("Type exact context name; confirmation is cleared after each step").Disabled(w.oidcPending)
+			guardedTextInput(c, "oidc.confirm", &w.oidcConfirmation, !w.oidcPending).Label("Confirm OIDC context").Placeholder("Type exact context name; confirmation is cleared after each step").Disabled(w.oidcPending)
 			enabled := !w.oidcPending && !w.vaultPending && !w.connectionPending && w.backend == nil && w.oidcConfirmation == w.oidcTarget.Context
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Button(c, "Sign in with browser").Disabled(!enabled || w.oidcReview == nil).OnClick(func() { w.loginOIDC(services) })

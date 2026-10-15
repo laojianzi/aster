@@ -13,8 +13,8 @@ type detailWidgetKey struct{ Connection, Detail uint64 }
 
 func (w *Workbench) detailView(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c.Key(detailWidgetKey{w.contextEpoch, w.detailEpoch})).Width(510).Padding(12).Gap(6).Children(func() {
-		ui.Row(c).Gap(8).Children(func() {
+	ui.Column(c.Key(detailWidgetKey{w.contextEpoch, w.detailEpoch})).Width(510 * max(1, c.Preferences().TextScale)).MaxWidthPercent(65).Padding(12).Gap(6).Children(func() {
+		ui.Row(c).Gap(8).Wrap().Children(func() {
 			title := w.detail.GetName()
 			if w.creating {
 				title = "New " + w.detailKind.Kind
@@ -31,7 +31,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 			return
 		}
 		ui.Text(c, w.activeContext+" / "+w.detail.GetNamespace()+" / "+w.detailKind.Kind).FontSize(11).TextColor(t.TextMuted)
-		ui.Row(c).Gap(6).Children(func() {
+		ui.Row(c).Gap(6).Wrap().Children(func() {
 			ui.Button(c, "YAML").OnClick(func() {
 				w.detailMode = "YAML"
 				w.stopLogs()
@@ -58,7 +58,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.loadMetrics(false)
 			})
 		})
-		ui.Row(c).Gap(6).Children(func() {
+		ui.Row(c).Gap(6).Wrap().Children(func() {
 			ui.Button(c, "Logs").Disabled(w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods").OnClick(func() {
 				w.detailMode = "Logs"
 			})
@@ -118,7 +118,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 					w.prepare("create")
 				})
 			} else {
-				ui.Row(c).Gap(6).Children(func() {
+				ui.Row(c).Gap(6).Wrap().Children(func() {
 					w.findButton(c)
 					ui.PrimaryButton(c, "Preview edit").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 						w.prepare("edit")
@@ -156,7 +156,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 				w.logDropped = 0
 				w.logStatus = "Select a log action for this container"
 			}
-			ui.Row(c).Gap(6).Children(func() {
+			ui.Row(c).Gap(6).Wrap().Children(func() {
 				ui.Button(c, "Follow logs").OnClick(func() {
 					w.startLogs(false, true)
 				})
@@ -174,7 +174,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 			ui.TextArea(c.Key("field.detailText"), &w.detailText).Label("Resource document").ReadOnly(true).Grow(1)
 		}
 		if w.detail != nil && !w.creating && w.detailMode != "Diff" {
-			ui.Row(c).Gap(6).Children(func() {
+			ui.Row(c).Gap(6).Wrap().Children(func() {
 				ui.TextInput(c.Key("field.replicas"), &w.replicas).Label("Replica count").Width(70)
 				ui.Button(c, "Preview scale").Disabled(w.preparing || w.editorRetainedPaste != "").OnClick(func() {
 					w.prepare("scale")

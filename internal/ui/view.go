@@ -13,8 +13,8 @@ func (w *Workbench) View(c *ui.Context) {
 	w.syncHelmReleases()
 	w.frames++
 	t := c.Theme()
-	ui.Column(c).Fill().Background(t.Background).Children(func() {
-		ui.Row(c).Height(58).Padding(12).Gap(10).Children(func() {
+	ui.Column(c).Direction(ui.LeftToRight).Fill().Background(t.Background).Children(func() {
+		ui.Row(c).MinHeight(58).Padding(12).Gap(10).Children(func() {
 			ui.Text(c, "Aster").Bold().FontSize(22)
 			ui.Text(c, "Native Kubernetes Workbench").FontSize(12).TextColor(t.TextMuted)
 			if ui.Select(c.Key("field.currentContext"), &w.currentContext, w.contexts).Label("Cluster context").Width(250).Changed() {
@@ -34,7 +34,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.disconnect()
 			})
 		})
-		ui.Row(c).Height(44).Padding(6, 12).Gap(8).Children(func() {
+		ui.Row(c).MinHeight(44).Padding(6, 12).Gap(8).Children(func() {
 			if ui.TextInput(c.Key("field.path"), &w.path).Label("Kubeconfig path").Placeholder("Kubeconfig path (empty: default)").Width(320).Changed() {
 				w.trustedFingerprint = ""
 				w.trustRequired = false
@@ -82,7 +82,7 @@ func (w *Workbench) View(c *ui.Context) {
 				})
 			})
 		}
-		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 			if w.helmReleases.open {
 				w.helmReleasesView(c)
 				return
@@ -99,10 +99,10 @@ func (w *Workbench) View(c *ui.Context) {
 				w.vaultView(c)
 				return
 			}
-			ui.Column(c).Width(174).Padding(10).Gap(5).Children(func() {
+			ui.Scroll(c.Key("resource.navigation")).Label("Resource navigation").Width(174).Shrink(0).MinHeight(0).Padding(10).Gap(5).Children(func() {
 				ui.Text(c, "RESOURCES").FontSize(11).Bold().TextColor(t.TextMuted)
 				for _, item := range []struct{ Label, Resource string }{{"Pods", "pods"}, {"Deployments", "deployments"}, {"StatefulSets", "statefulsets"}, {"DaemonSets", "daemonsets"}, {"Jobs", "jobs"}, {"CronJobs", "cronjobs"}, {"Services", "services"}, {"Ingresses", "ingresses"}, {"ConfigMaps", "configmaps"}, {"Secrets", "secrets"}, {"Volume Claims", "persistentvolumeclaims"}, {"Nodes", "nodes"}, {"Namespaces", "namespaces"}} {
-					ui.Button(c, item.Label).Width(152).Height(30).OnClick(func() {
+					ui.Button(c, item.Label).Width(152).MinHeight(30).OnClick(func() {
 						for _, kind := range catalog() {
 							if kind.GVR.Resource == item.Resource {
 								w.chooseKind(kind)
@@ -112,12 +112,12 @@ func (w *Workbench) View(c *ui.Context) {
 					})
 				}
 			})
-			ui.Column(c).Grow(1).Padding(12).Gap(8).Children(func() {
-				ui.Row(c).Gap(8).Children(func() {
+			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Padding(12).Gap(8).Children(func() {
+				ui.Row(c).Gap(8).Wrap().Children(func() {
 					ui.Text(c, w.currentKind.Kind).Bold().FontSize(20)
 					ui.Text(c, fmt.Sprintf("%d / %d resources", len(w.rows), w.total)).FontSize(12).TextColor(t.TextMuted)
 				})
-				ui.Row(c).Gap(8).Children(func() {
+				ui.Row(c).Gap(8).Wrap().Children(func() {
 					ui.Button(c, "Refresh").Disabled(w.backend == nil).OnClick(func() {
 						w.startScope()
 					})
@@ -141,7 +141,7 @@ func (w *Workbench) View(c *ui.Context) {
 						}
 					}
 				}
-				ui.Row(c).Gap(8).Children(func() {
+				ui.Row(c).Gap(8).Wrap().Children(func() {
 					if ui.TextInput(c.Key("field.filter"), &w.filter).Label("Filter resources").Placeholder("Filter name, namespace or status").Grow(1).Changed() {
 						w.queryChanged()
 					}
@@ -149,7 +149,7 @@ func (w *Workbench) View(c *ui.Context) {
 						w.queryChanged()
 					}
 				})
-				ui.Row(c).Gap(8).Children(func() {
+				ui.Row(c).Gap(8).Wrap().Children(func() {
 					ui.TextInput(c.Key("field.labelSelector"), &w.labelSelector).Label("Label selector").Placeholder("Server label selector, e.g. app=api").Grow(1)
 					ui.Button(c, "Apply selector").Disabled(w.backend == nil).OnClick(func() {
 						w.startScope()
@@ -181,7 +181,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.detailView(c)
 			}
 		})
-		ui.Row(c).Height(34).Padding(6, 12).Gap(12).Children(func() {
+		ui.Row(c).MinHeight(34).Shrink(0).Padding(6, 12).Gap(12).Children(func() {
 			ui.Text(c, "Status: "+w.connectionStatus()).Label("Connection status").FontSize(12).Grow(1).SingleLine()
 			ui.Text(c, "Connected: "+w.activeContext+" / "+w.activeNamespace).FontSize(11).TextColor(t.TextMuted)
 			ui.Text(c, fmt.Sprintf("%d active write(s)", w.pendingWrites)).FontSize(12).TextColor(t.TextMuted)

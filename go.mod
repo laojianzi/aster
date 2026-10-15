@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/ebitengine/purego v0.11.1
-	github.com/egoist/mygo v0.4.8
+	github.com/egoist/mygo v0.5.1
 	github.com/go-jose/go-jose/v4 v4.1.6
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/sys v0.49.0
@@ -49,10 +49,10 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/term v0.46.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect

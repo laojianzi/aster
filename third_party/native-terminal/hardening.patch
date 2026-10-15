@@ -1,5 +1,5 @@
 diff --git a/internal/vt/open_windows.go b/internal/vt/open_windows.go
-index 4b24a3e..9fb7f4a 100644
+index 4b24a3e..f8c0c04 100644
 --- a/internal/vt/open_windows.go
 +++ b/internal/vt/open_windows.go
 @@ -2,13 +2,13 @@
@@ -11,7 +11,7 @@ index 4b24a3e..9fb7f4a 100644
  
  func open(path string) (uintptr, error) {
 -	h, err := syscall.LoadLibrary(path)
-+	h, err := windows.LoadLibraryEx(path, 0, windows.LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | windows.LOAD_LIBRARY_SEARCH_SYSTEM32)
++	h, err := windows.LoadLibraryEx(path, 0, windows.LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|windows.LOAD_LIBRARY_SEARCH_SYSTEM32)
  	return uintptr(h), err
  }
  
@@ -20,34 +20,31 @@ index 4b24a3e..9fb7f4a 100644
 +	return windows.GetProcAddress(windows.Handle(h), name)
  }
 diff --git a/library.go b/library.go
-index 064604e..503c3c3 100644
+index 064604e..c63a688 100644
 --- a/library.go
 +++ b/library.go
-@@ -1,56 +1,62 @@
+@@ -1,56 +1,132 @@
  package terminal
  
  import (
--	_ "embed"
++	"crypto/sha256"
+ 	_ "embed"
 -	"fmt"
--	"runtime"
--	"sync"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"github.com/egoist/mygo"
++	"github.com/egoist/mygo/plugins/terminal/internal/vt"
++	"io"
++	"os"
++	"path/filepath"
+ 	"runtime"
+ 	"sync"
 -
 -	"github.com/egoist/mygo/plugins/terminal/internal/library"
 -	"github.com/egoist/mygo/plugins/terminal/internal/vt"
-+ "crypto/sha256"
-+ "encoding/hex"
-+ "encoding/json"
-+ _ "embed"
-+ "errors"
-+ "io"
-+ "os"
-+ "path/filepath"
-+ "runtime"
-+ "sync"
-+ "github.com/egoist/mygo"
-+ "github.com/egoist/mygo/plugins/terminal/internal/vt"
  )
--
+ 
 -//go:generate go run ./internal/libbuild
 -
 -// natives describes the builds of libghostty-vt this package binds, one
@@ -57,19 +54,16 @@ index 064604e..503c3c3 100644
  //go:embed mygo-plugin.json
  var natives []byte
 -
--var load struct {
+ var load struct {
 -	once sync.Once
 -	path string
 -	err  error
-+var load struct{mu sync.Mutex;path string;err error;loaded bool}
-+func librarySpec()(string,string,error){
-+ var m struct{Libraries []struct{Files map[string]struct{Name,SHA256 string}}}
-+ if json.Unmarshal(natives,&m)!=nil||len(m.Libraries)!=1{return "","",errors.New("invalid terminal library manifest")}
-+ f,ok:=m.Libraries[0].Files[runtime.GOOS+"-"+runtime.GOARCH]
-+ if !ok||filepath.Base(f.Name)!=f.Name||len(f.SHA256)!=64{return "","",errors.New("terminal platform not supported")}
-+ return f.Name,f.SHA256,nil
++	mu     sync.Mutex
++	path   string
++	err    error
++	loaded bool
  }
--
+ 
 -// Load loads libghostty-vt, once, from LibraryPath. New calls it; call it
 -// earlier to report a missing library before showing a terminal.
 -func Load() error {
@@ -77,27 +71,95 @@ index 064604e..503c3c3 100644
 -		if !vt.Supported {
 -			load.err = fmt.Errorf("terminal: not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 -			return
--		}
++func librarySpec() (string, string, error) {
++	var m struct {
++		Libraries []struct {
++			Files map[string]struct{ Name, SHA256 string }
+ 		}
 -		load.path, load.err = LibraryPath()
 -		if load.err == nil {
 -			load.err = vt.Load(load.path)
--		}
--	})
--	return load.err
++	}
++	if json.Unmarshal(natives, &m) != nil || len(m.Libraries) != 1 {
++		return "", "", errors.New("invalid terminal library manifest")
++	}
++	f, ok := m.Libraries[0].Files[runtime.GOOS+"-"+runtime.GOARCH]
++	if !ok || filepath.Base(f.Name) != f.Name || len(f.SHA256) != 64 {
++		return "", "", errors.New("terminal platform not supported")
++	}
++	return f.Name, f.SHA256, nil
++}
++
 +// ValidateLibrary rejects links and oversized/tampered files. Application
 +// resources must be installed in a directory not writable by untrusted users.
 +// Hash validation does not sandbox the loaded native code or eliminate TOCTOU
 +// in a directory a local attacker already controls.
 +func ValidateLibrary(path string) error {
-+ _,want,err:=librarySpec();if err!=nil{return err}
-+ info,err:=os.Lstat(path);if err!=nil{return errors.New("terminal library is missing")}
-+ if !info.Mode().IsRegular()||info.Size()>32<<20{return errors.New("terminal library is not a bounded regular file")}
-+ f,err:=os.Open(path);if err!=nil{return errors.New("terminal library cannot be opened")};defer f.Close()
-+ h:=sha256.New();n,err:=io.Copy(h,io.LimitReader(f,(32<<20)+1))
-+ if err!=nil||n>32<<20||hex.EncodeToString(h.Sum(nil))!=want{return errors.New("terminal library checksum mismatch")}
-+ return nil
++	_, want, err := librarySpec()
++	if err != nil {
++		return err
++	}
++	info, err := os.Lstat(path)
++	if err != nil {
++		return errors.New("terminal library is missing")
++	}
++	if !info.Mode().IsRegular() || info.Size() > 32<<20 {
++		return errors.New("terminal library is not a bounded regular file")
++	}
++	f, err := os.Open(path)
++	if err != nil {
++		return errors.New("terminal library cannot be opened")
++	}
++	defer f.Close()
++	h := sha256.New()
++	n, err := io.Copy(h, io.LimitReader(f, (32<<20)+1))
++	if err != nil || n > 32<<20 || hex.EncodeToString(h.Sum(nil)) != want {
++		return errors.New("terminal library checksum mismatch")
++	}
++	return nil
++}
++
++// LibraryPath uses packaged resources or the executable directory only. No
++// environment override, system lookup, cache search or runtime download.
++func LibraryPath() (string, error) {
++	name, _, err := librarySpec()
++	if err != nil {
++		return "", err
++	}
++	exe, err := os.Executable()
++	if err != nil {
++		return "", errors.New("executable directory unavailable")
++	}
++	dirs := []string{filepath.Dir(exe)}
++	if d, e := mygo.App.Path(mygo.PathResources); e == nil && d != "" {
++		dirs = append([]string{d}, dirs...)
++	}
++	for _, d := range dirs {
++		p := filepath.Join(d, name)
++		if _, e := os.Lstat(p); e == nil {
++			if e = ValidateLibrary(p); e != nil {
++				return "", e
++			}
++			return p, nil
+ 		}
+-	})
+-	return load.err
++	}
++	return "", errors.New("terminal library not packaged; run the verified build preparation")
++}
++func Load() error {
++	load.mu.Lock()
++	defer load.mu.Unlock()
++	if load.loaded {
++		return load.err
++	}
++	p, err := LibraryPath()
++	if err != nil {
++		return err
++	}
++	return loadFile(p)
  }
--
+ 
 -// LibraryPath returns the libghostty-vt the terminal loads, the first of:
 -//
 -//   - the file $MYGO_GHOSTTY_VT names;
@@ -111,34 +173,33 @@ index 064604e..503c3c3 100644
 -//
 -// Packaged apps never download it: build them with the CLI.
 -func LibraryPath() (string, error) { return library.Find(natives) }
-+// LibraryPath uses packaged resources or the executable directory only. No
-+// environment override, system lookup, cache search or runtime download.
-+func LibraryPath()(string,error){
-+ name,_,err:=librarySpec();if err!=nil{return "",err}
-+ exe,err:=os.Executable();if err!=nil{return "",errors.New("executable directory unavailable")}
-+ dirs:=[]string{filepath.Dir(exe)}
-+ if d,e:=mygo.App.Path(mygo.PathResources);e==nil&&d!="" {dirs=append([]string{d},dirs...)}
-+ for _,d:=range dirs {p:=filepath.Join(d,name);if _,e:=os.Lstat(p);e==nil{if e=ValidateLibrary(p);e!=nil{return "",e};return p,nil}}
-+ return "",errors.New("terminal library not packaged; run the verified build preparation")
-+}
-+func Load()error{
-+ load.mu.Lock();defer load.mu.Unlock()
-+ if load.loaded{return load.err}
-+ p,err:=LibraryPath();if err!=nil{return err};return loadFile(p)
-+}
 +// LoadFile is for explicit embedding/test callers, never derived from a
 +// kubeconfig or remote output. Hash verification is always mandatory.
-+func LoadFile(path string)error{
-+ load.mu.Lock();defer load.mu.Unlock()
-+ if !filepath.IsAbs(path){return errors.New("terminal library path must be absolute")}
-+ if err:=ValidateLibrary(path);err!=nil{return err};if load.loaded{return load.err};return loadFile(path)
++func LoadFile(path string) error {
++	load.mu.Lock()
++	defer load.mu.Unlock()
++	if !filepath.IsAbs(path) {
++		return errors.New("terminal library path must be absolute")
++	}
++	if err := ValidateLibrary(path); err != nil {
++		return err
++	}
++	if load.loaded {
++		return load.err
++	}
++	return loadFile(path)
 +}
-+func loadFile(path string)error{load.path=path;load.loaded=true;load.err=vt.Load(path);return load.err}
++func loadFile(path string) error {
++	load.path = path
++	load.loaded = true
++	load.err = vt.Load(path)
++	return load.err
++}
 diff --git a/paint.go b/paint.go
-index 1301a77..d8a81a3 100644
+index f4e43b1..5b3a22a 100644
 --- a/paint.go
 +++ b/paint.go
-@@ -82,7 +82,7 @@ func (v *view) layout(r ui.Rect, scale float32) {
+@@ -83,7 +83,7 @@ func (v *view) layout(r ui.Rect, scale float32) {
  	}
  	v.ox, v.oy = int(math.Round(padX*float64(scale))), int(math.Round(padY*float64(scale)))
  	w, h := int(math.Round(float64(r.W*scale)))-2*v.ox, int(math.Round(float64(r.H*scale)))-2*v.oy
@@ -147,25 +208,187 @@ index 1301a77..d8a81a3 100644
  }
  
  const asciiPrintable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+diff --git a/paste.go b/paste.go
+index 3fc1750..c42f1bc 100644
+--- a/paste.go
++++ b/paste.go
+@@ -20,6 +20,10 @@ var notTakenAfter = 5 * time.Second
+ // offered to a program that reads the clipboard itself (mode 5522), which
+ // reads it as text/plain.
+ func (t *Terminal) Paste(text string) {
++	if len(text) > MaxInputChunk {
++		t.in.fail(ErrInputLimit)
++		return
++	}
+ 	if text != "" {
+ 		t.PasteData(transfer.TextData(text))
+ 	}
+@@ -98,52 +102,26 @@ func readFormat(d transfer.Data, mime string) []byte {
+ // view read only some of them, which tell whether a paste of no text had
+ // something else.
+ func (t *Terminal) pasteData(d transfer.Data, held []transfer.Format) {
+-	o := newOffer(d.Snapshot())
+-	if held == nil {
+-		held = o.data.Formats()
++	// An explicit local paste authorizes text only, even in mode 5522.
++	// Do not snapshot/retain the offer or evaluate file/image/HTML providers.
++	text, err := d.Read(transfer.Text)
++	if err != nil || len(text) == 0 {
++		return
++	}
++	if len(text) > MaxInputChunk {
++		t.in.fail(ErrInputLimit)
++		return
+ 	}
+ 	t.mu.Lock()
+-	if t.term == nil {
++	if t.term == nil || t.closed {
+ 		t.mu.Unlock()
+ 		return
+ 	}
+-	var data []byte
+-	var status PasteStatus = -1
+-	if len(o.mimes) > 0 && t.term.PasteEvent(o.mimes) {
+-		// The event went to the input queue; the offer waits for the
+-		// program's read.
+-		t.offer = o
+-		status = PasteOffered
+-	} else {
+-		text, _ := o.data.Read(transfer.Text)
+-		if len(text) == 0 && slices.ContainsFunc(held, func(f transfer.Format) bool { return f != transfer.Text }) {
+-			status = PasteNoText
+-		}
+-		data = vt.EncodePaste(string(text), t.term.Mode(vt.ModeBracketedPaste))
+-	}
++	data := vt.EncodePaste(string(text), t.term.Mode(vt.ModeBracketedPaste))
+ 	t.term.ScrollToBottom()
+ 	t.mu.Unlock()
+ 	t.Send(data)
+ 	t.redraw()
+-	if status < 0 {
+-		return
+-	}
+-	// Once what the paste sent is written, from the queue's goroutine as
+-	// the other statuses.
+-	t.in.pushDone(nil, func() {
+-		t.pasteStatus(PasteProgress{Status: status})
+-		if status != PasteOffered {
+-			return
+-		}
+-		time.AfterFunc(notTakenAfter, func() {
+-			t.mu.Lock()
+-			waiting := t.offer == o
+-			t.mu.Unlock()
+-			if waiting {
+-				t.pasteStatus(PasteProgress{Status: PasteNotTaken})
+-			}
+-		})
+-	})
+ }
+ 
+ func (t *Terminal) pasteStatus(p PasteProgress) {
+@@ -177,52 +155,8 @@ type clipboardRequest struct {
+ // the main thread (ClipboardDeferred), which may first ask the app.
+ // t.mu is held.
+ func (t *Terminal) clipboardRead(req vt.ClipboardRead) (vt.ClipboardReply, vt.ClipboardAnswer) {
+-	o := t.offer
+-	if req.Granted && o != nil {
+-		t.offer = nil
+-		reply := vt.ClipboardReply{Contents: map[string][]byte{}}
+-		for _, mime := range req.Mimes {
+-			if b := o.read(mime); len(b) > 0 {
+-				reply.Contents[mime] = b
+-			}
+-		}
+-		if req.List {
+-			reply.Available = slices.Clone(o.mimes)
+-		}
+-		// The reply, encoded, comes to WritePTY as this returns.
+-		t.replying = len(reply.Contents) > 0
+-		return reply, vt.ClipboardAnswered
+-	}
+-	if req.CanRemember {
+-		// The read carries a paste event's password, which this terminal
+-		// does not know: it is another window's paste follow-up, and the
+-		// terminal that pasted answers it. Staying silent keeps this one
+-		// from answering twice.
+-		return vt.ClipboardReply{}, vt.ClipboardRefused
+-	}
+-	if t.opts.ClipboardRead == ClipboardDeny {
+-		// A policy denial is the answer — the library writes an empty
+-		// OSC 52 reply, or EPERM for OSC 5522 — so it goes through the
+-		// replied path, not ClipboardRefused, which keeps the terminal
+-		// silent for another window to answer.
+-		return vt.ClipboardReply{}, vt.ClipboardAnswered
+-	}
+-	r := &clipboardRequest{
+-		t:        t,
+-		deferred: &vt.DeferredClipboardRead{},
+-		mimes:    slices.Clone(req.Mimes),
+-		list:     req.List,
+-		primary:  req.Primary,
+-		ask:      t.opts.ClipboardRead == ClipboardAsk,
+-	}
+-	if r.ask && req.List && len(req.Mimes) == 0 {
+-		// A read of the types available is served without asking, as
+-		// Kitty does.
+-		r.ask = false
+-	}
+-	t.clipReads = append(t.clipReads, r)
+-	t.redraw()
+-	return vt.ClipboardReply{Deferred: r.deferred}, vt.ClipboardDeferred
++	// Defense in depth: no read is authorized, not even a granted paste offer.
++	return vt.ClipboardReply{}, vt.ClipboardAnswered
+ }
+ 
+ // sendReply queues a paste's reply in pieces, each telling how far it went
+@@ -252,7 +186,5 @@ func (t *Terminal) sendReply(p []byte) {
+ // readsClipboard reports whether the program reads the clipboard itself
+ // (mode 5522), as a paste then offers it all the clipboard holds.
+ func (t *Terminal) readsClipboard() bool {
+-	t.mu.Lock()
+-	defer t.mu.Unlock()
+-	return t.term != nil && t.term.Mode(vt.ModePasteEvents)
++	return false
+ }
 diff --git a/terminal.go b/terminal.go
-index 9b8ebed..34c534e 100644
+index 3e25871..639ed33 100644
 --- a/terminal.go
 +++ b/terminal.go
-@@ -169,6 +169,7 @@ type Terminal struct {
+@@ -375,10 +375,11 @@ type Terminal struct {
+ 	held      bool
+ 	heldSince time.Time
  
- 	draw     atomic.Pointer[func()] // asks for a frame of the view
- 	done     chan struct{}
+-	draw     atomic.Pointer[func()] // asks for a frame of the view
+-	done     chan struct{}
+-	doneOnce sync.Once
+-	code     atomic.Int64
++	draw                              atomic.Pointer[func()] // asks for a frame of the view
++	done                              chan struct{}
 +	inputDone, failureDone, closeDone chan struct{}
- 	doneOnce sync.Once
- 	code     atomic.Int64
++	doneOnce                          sync.Once
++	code                              atomic.Int64
  
-@@ -193,30 +194,27 @@ type events struct {
+ 	// curTheme is the view's theme, for the program's questions; t.mu
+ 	// guards it. v is the view's state, on the main thread.
+@@ -401,40 +402,40 @@ type events struct {
  // The program starts once a view shows the terminal, at the size of the
  // view, or half a second later at 80×24 when none does.
  func New(opts Options) (*Terminal, error) {
-+	if opts.Conn == nil { return nil, errors.New("terminal: an explicit remote connection is required") }
++	if opts.Conn == nil {
++		return nil, errors.New("terminal: an explicit remote connection is required")
++	}
 +	opts.Command, opts.Dir, opts.Env = nil, "", nil
 +	opts.Scrollback = 2 << 20
++	// A dependency upgrade must never grant a remote program local capabilities.
++	opts.NoClipboardWrite, opts.ClipboardRead = true, ClipboardDeny
++	opts.CopyOnSelect, opts.RightClick = CopyOnSelectNone, RightClickContextMenu
++	opts.OnPaste, opts.OnPasteStatus, opts.OnClipboardRequest, opts.OpenLink = nil, nil, nil, nil
++	// Preserve remote Ctrl+C / Ctrl+V on Windows as on Linux. Local clipboard
++	// commands remain Ctrl+Shift+C/V (Command+C/V on macOS).
++	opts.Keybinds = append(append([]Keybind(nil), opts.Keybinds...),
++		Keybind{Mods: ui.Ctrl, Key: ui.KeyC, Action: ActionNone},
++		Keybind{Mods: ui.Ctrl, Key: ui.KeyV, Action: ActionNone})
  	if err := Load(); err != nil {
  		return nil, err
  	}
@@ -173,10 +396,18 @@ index 9b8ebed..34c534e 100644
 -	t := &Terminal{opts: opts, done: make(chan struct{})}
 +	t := &Terminal{opts: opts, done: make(chan struct{}), inputDone: make(chan struct{}), failureDone: make(chan struct{}), closeDone: make(chan struct{})}
 +	t.in.init()
+ 	t.binds = keybinds(&opts)
  	t.size = gridSize{80, 24, 8, 16}
  	var err error
  	t.term, err = vt.NewTerminal(80, 24, vt.Effects{
--		WritePTY:     func(p []byte) { t.in.push(append([]byte(nil), p...)) },
+-		WritePTY: func(p []byte) {
+-			if !t.replying {
+-				t.in.push(append([]byte(nil), p...))
+-				return
+-			}
+-			t.replying = false
+-			t.sendReply(p)
+-		},
 -		Bell:         func() { t.events.bells++ },
 -		TitleChanged: func() { t.events.title = true },
 +		WritePTY:     func(p []byte) { t.in.push(p) },
@@ -184,24 +415,27 @@ index 9b8ebed..34c534e 100644
 +		TitleChanged: nil,
  		RenderHold:   t.renderHold,
 -		Clipboard: func(text string, primary bool) bool {
--			if !primary {
--				t.clipOut = append(t.clipOut, text)
--				t.redraw()
+-			if primary || t.opts.NoClipboardWrite {
+-				return false
 -			}
--			return !primary
+-			t.clipOut = append(t.clipOut, text)
+-			t.redraw()
+-			return true
 -		},
+-		ClipboardRead: t.clipboardRead,
 +		// Remote OSC 52 cannot read or modify the local clipboard.
-+		Clipboard: nil,
- 		Size: func() (int, int, int, int) { return t.size.cols, t.size.rows, t.size.cellW, t.size.cellH },
- 		Dark: func() bool { return t.curTheme == nil || t.curTheme.dark() },
++		Clipboard:     nil,
++		ClipboardRead: nil,
+ 		Size:          func() (int, int, int, int) { return t.size.cols, t.size.rows, t.size.cellW, t.size.cellH },
+ 		Dark:          func() bool { return t.curTheme == nil || t.curTheme.dark() },
 -		Notify: func(title, body string) {
 -			t.events.notify = append(t.events.notify, [2]string{title, body})
 -		},
-+		Notify: nil,
++		Notify:        nil,
  	})
  	if err != nil {
  		return nil, err
-@@ -277,7 +275,11 @@ func New(opts Options) (*Terminal, error) {
+@@ -495,7 +496,15 @@ func New(opts Options) (*Terminal, error) {
  // run reads the output and writes the input of the program, or Conn.
  func (t *Terminal) run() {
  	go t.read()
@@ -209,12 +443,16 @@ index 9b8ebed..34c534e 100644
 +	go func() { defer close(t.inputDone); t.in.run(t.src) }()
 +	go func() {
 +		defer close(t.failureDone)
-+		select { case <-t.in.failed: _ = t.closeSrc(); case <-t.done: }
++		select {
++		case <-t.in.failed:
++			_ = t.closeSrc()
++		case <-t.done:
++		}
 +	}()
  }
  
  // start starts the program of launch, which the caller took, in a
-@@ -535,7 +537,7 @@ func (t *Terminal) Text() string {
+@@ -778,7 +787,7 @@ func (t *Terminal) Text() string {
  func (t *Terminal) Resize(cols, rows int) {
  	t.mu.Lock()
  	defer t.mu.Unlock()
@@ -223,7 +461,7 @@ index 9b8ebed..34c534e 100644
  }
  
  // Snapshot returns what the terminal shows as escape sequences: its
-@@ -554,13 +556,14 @@ func (t *Terminal) Snapshot() []byte {
+@@ -797,10 +806,13 @@ func (t *Terminal) Snapshot() []byte {
  // Send sends data to the program as if typed.
  func (t *Terminal) Send(data []byte) {
  	if len(data) > 0 {
@@ -232,14 +470,13 @@ index 9b8ebed..34c534e 100644
  	}
  }
  
- // Paste pastes text, bracketed when the program asks (mode 2004), so that
- // it does not run as commands as it would typed.
- func (t *Terminal) Paste(text string) {
-+	if len(text) > MaxInputChunk { t.in.fail(ErrInputLimit); return }
- 	t.mu.Lock()
- 	if t.term == nil {
- 		t.mu.Unlock()
-@@ -583,9 +586,11 @@ func (t *Terminal) Close() error {
++// Paste pastes text, bracketed when the program asks (mode 2004), so that
++// it does not run as commands as it would typed.
++
+ // Feed shows data as if the program wrote it: text and escape sequences.
+ func (t *Terminal) Feed(data []byte) { t.write(data) }
+ 
+@@ -811,11 +823,12 @@ func (t *Terminal) Close() error {
  	t.mu.Lock()
  	if t.closed {
  		t.mu.Unlock()
@@ -247,143 +484,302 @@ index 9b8ebed..34c534e 100644
  		return nil
  	}
  	t.closed = true
+-	t.offer = nil
+-	t.clipReads = nil
 +	defer close(t.closeDone)
++	t.offer, t.clipReads = nil, nil
  	src, proc, waiting := t.src, t.proc, t.launch != nil
  	t.launch = nil
  	if t.timer != nil {
-@@ -616,6 +621,7 @@ func (t *Terminal) Close() error {
+@@ -846,6 +859,9 @@ func (t *Terminal) Close() error {
  	// free it under the locks.
  	t.mu.Lock()
  	t.rmu.Lock()
-+	if t.v != nil { t.v.release() }
++	if t.v != nil {
++		t.v.release()
++	}
  	t.term.Free()
  	t.term = nil
  	t.rs.Free()
-@@ -746,58 +752,60 @@ func unhex(c byte) (byte, bool) {
+@@ -976,14 +992,23 @@ func unhex(c byte) (byte, bool) {
  // inputQueue writes what is typed to the program in order, from a
  // goroutine of its own: a program that does not read its input must not
  // block the reader, which answers its queries.
--type inputQueue struct {
--	mu     sync.Mutex
--	cond   *sync.Cond
--	queue  [][]byte
--	closed bool
--}
--
--func (q *inputQueue) init() {
--	if q.cond == nil {
--		q.cond = sync.NewCond(&q.mu)
--	}
--}
--
--func (q *inputQueue) push(p []byte) {
--	q.mu.Lock()
--	q.init()
--	if !q.closed {
--		q.queue = append(q.queue, p)
--		q.cond.Signal()
--	}
--	q.mu.Unlock()
--}
--
--func (q *inputQueue) close() {
--	q.mu.Lock()
--	q.init()
--	q.closed = true
--	q.queue = nil
--	q.cond.Broadcast()
--	q.mu.Unlock()
--}
 +// Limits count queued AND in-flight bytes/chunks. Failure terminates the
 +// connection; a partial input stream is never silently treated as successful.
 +const MaxInputChunk = 16 << 10
 +const MaxInputBytes = 128 << 10
 +const MaxInputChunks = 256
++
 +var ErrInputLimit = errors.New("terminal input exceeded its safety budget; session disconnected")
++
+ type inputQueue struct {
+-	mu     sync.Mutex
+-	cond   *sync.Cond
+-	queue  []queued
+-	closed bool
++	mu            sync.Mutex
++	cond          *sync.Cond
++	queue         []queued
++	bytes, chunks int
++	closed        bool
++	failed        chan struct{}
++	err           error
+ }
+-
+-// queued is input to write, and what to run once it is written.
+ type queued struct {
+ 	p    []byte
+ 	done func()
+@@ -992,32 +1017,51 @@ type queued struct {
+ func (q *inputQueue) init() {
+ 	if q.cond == nil {
+ 		q.cond = sync.NewCond(&q.mu)
++		q.failed = make(chan struct{})
++	}
++}
++func (q *inputQueue) failLocked(err error) {
++	if q.err != nil || q.closed {
++		return
++	}
++	q.err = err
++	q.closed = true
++	q.queue = nil
++	close(q.failed)
++	q.cond.Broadcast()
++}
++func (q *inputQueue) fail(err error) { q.mu.Lock(); defer q.mu.Unlock(); q.init(); q.failLocked(err) }
++func (q *inputQueue) push(p []byte) {
++	if len(p) > 0 {
++		q.pushDone(p, nil)
+ 	}
+ }
  
--func (q *inputQueue) run(w io.Writer) {
--	for {
--		q.mu.Lock()
--		q.init()
--		for len(q.queue) == 0 && !q.closed {
--			q.cond.Wait()
--		}
--		if q.closed {
--			q.mu.Unlock()
--			return
--		}
--		p := q.queue[0]
--		q.queue = q.queue[1:]
--		q.mu.Unlock()
--		if _, err := w.Write(p); err != nil {
+-func (q *inputQueue) push(p []byte) { q.pushDone(p, nil) }
+-
+-// pushDone queues p, and done to run once it is written, on the queue's
+-// goroutine.
++// Callbacks count as chunks too; queued and in-flight work share one budget.
+ func (q *inputQueue) pushDone(p []byte, done func()) {
+ 	q.mu.Lock()
++	defer q.mu.Unlock()
+ 	q.init()
+-	if !q.closed {
+-		q.queue = append(q.queue, queued{p, done})
+-		q.cond.Signal()
++	if q.closed || (len(p) == 0 && done == nil) {
++		return
+ 	}
+-	q.mu.Unlock()
++	if len(p) > MaxInputChunk+16 || len(p) > MaxInputBytes-q.bytes || q.chunks >= MaxInputChunks {
++		q.failLocked(ErrInputLimit)
++		return
++	}
++	q.queue = append(q.queue, queued{append([]byte(nil), p...), done})
++	q.bytes += len(p)
++	q.chunks++
++	q.cond.Signal()
+ }
+-
+ func (q *inputQueue) close() {
+ 	q.mu.Lock()
++	defer q.mu.Unlock()
+ 	q.init()
+ 	q.closed = true
+ 	q.queue = nil
+ 	q.cond.Broadcast()
+-	q.mu.Unlock()
+ }
+-
+ func (q *inputQueue) run(w io.Writer) {
+ 	for {
+ 		q.mu.Lock()
+@@ -1030,20 +1074,51 @@ func (q *inputQueue) run(w io.Writer) {
+ 			return
+ 		}
+ 		item := q.queue[0]
++		q.queue[0] = queued{}
+ 		q.queue = q.queue[1:]
+ 		q.mu.Unlock()
+-		if len(item.p) == 0 {
+-			// Only something to run, in its place among the writes.
+-		} else if _, err := w.Write(item.p); err != nil {
 -			q.close()
 -			return
--		}
--	}
--}
-+type inputQueue struct {
-+ mu sync.Mutex
-+ cond *sync.Cond
-+ queue [][]byte
-+ bytes, chunks int
-+ closed bool
-+ failed chan struct{}
-+ err error
-+}
-+func(q *inputQueue) init(){ if q.cond==nil { q.cond=sync.NewCond(&q.mu);q.failed=make(chan struct{}) } }
-+func(q *inputQueue) failLocked(err error){
-+ if q.err!=nil || q.closed { return }
-+ q.err=err;q.closed=true;q.queue=nil;close(q.failed);q.cond.Broadcast()
-+}
-+func(q *inputQueue) fail(err error){q.mu.Lock();defer q.mu.Unlock();q.init();q.failLocked(err)}
-+func(q *inputQueue) push(p []byte){
-+ q.mu.Lock();defer q.mu.Unlock();q.init()
-+ if q.closed || len(p)==0{return}
-+ if len(p)>MaxInputChunk+16 || len(p)>MaxInputBytes-q.bytes || q.chunks>=MaxInputChunks { q.failLocked(ErrInputLimit);return }
-+ q.queue=append(q.queue,append([]byte(nil),p...));q.bytes+=len(p);q.chunks++;q.cond.Signal()
-+}
-+func(q *inputQueue) close(){q.mu.Lock();defer q.mu.Unlock();q.init();q.closed=true;q.queue=nil;q.cond.Broadcast()}
-+func(q *inputQueue) run(w io.Writer){
-+ for {
-+  q.mu.Lock();q.init()
-+  for len(q.queue)==0&&!q.closed{q.cond.Wait()}
-+  if q.closed{q.mu.Unlock();return}
-+  p:=q.queue[0];q.queue[0]=nil;q.queue=q.queue[1:];q.mu.Unlock()
-+  n,err:=w.Write(p)
-+  q.mu.Lock();q.bytes-=len(p);q.chunks--
-+  if err==nil&&n!=len(p){err=io.ErrShortWrite}
-+  if err!=nil{q.failLocked(err)}
-+  q.mu.Unlock()
-+  if err!=nil{return}
-+ }
-+}
++		var n int
++		var err error
++		if len(item.p) > 0 {
++			n, err = w.Write(item.p)
++		}
++		if err == nil && n != len(item.p) {
++			err = io.ErrShortWrite
+ 		}
+-		if item.done != nil {
++		if err == nil && item.done != nil {
+ 			item.done()
+ 		}
++		q.mu.Lock()
++		q.bytes -= len(item.p)
++		q.chunks--
++		if err != nil {
++			q.failLocked(err)
++		}
++		q.mu.Unlock()
++		if err != nil {
++			return
++		}
+ 	}
+ }
+ 
 +// InputError does not expose connection errors which may contain credentials.
-+func(t *Terminal) InputError() error {
-+ t.in.mu.Lock();defer t.in.mu.Unlock()
-+ if errors.Is(t.in.err,ErrInputLimit){return ErrInputLimit}
-+ if t.in.err!=nil{return errors.New("terminal input failed; session disconnected")}
-+ return nil
++func (t *Terminal) InputError() error {
++	t.in.mu.Lock()
++	defer t.in.mu.Unlock()
++	if errors.Is(t.in.err, ErrInputLimit) {
++		return ErrInputLimit
++	}
++	if t.in.err != nil {
++		return errors.New("terminal input failed; session disconnected")
++	}
++	return nil
 +}
++
 +// IOFinished joins the reader, input writer and failure watcher. Close must
 +// unblock the supplied Conn. Remote exit status is provided by Kubernetes,
 +// never Terminal.ExitCode, which only describes the local stream.
-+func(t *Terminal) IOFinished() { <-t.done; <-t.inputDone; <-t.failureDone }
- 
++func (t *Terminal) IOFinished() { <-t.done; <-t.inputDone; <-t.failureDone }
++
  func vtCursor(s CursorStyle) vt.CursorStyle {
  	switch s {
+ 	case CursorBar:
 diff --git a/view.go b/view.go
-index bab81c8..1605ba4 100644
+index dece09a..6f8a12c 100644
 --- a/view.go
 +++ b/view.go
-@@ -41,6 +41,7 @@ func View(c *ui.Context, t *Terminal) ui.Element {
+@@ -9,7 +9,6 @@ import (
+ 	"time"
+ 	"unicode/utf8"
+ 
+-	"github.com/egoist/mygo/internal/l10n"
+ 	"github.com/egoist/mygo/plugins/terminal/internal/vt"
+ 	"github.com/egoist/mygo/transfer"
+ 	"github.com/egoist/mygo/ui"
+@@ -52,6 +51,8 @@ func View(c *ui.Context, t *Terminal) ui.Element {
  // viewOf returns the terminal's view state, made on the first frame
  // showing it.
  func (t *Terminal) viewOf(c *ui.Context) *view {
-+	t.mu.Lock(); defer t.mu.Unlock()
++	t.mu.Lock()
++	defer t.mu.Unlock()
  	if t.v == nil {
  		t.v = &view{t: t, blinkStart: time.Now()}
  		t.v.shaped.init(4096)
-@@ -193,7 +194,7 @@ func (v *view) release() {
+@@ -233,47 +234,7 @@ func (v *view) answerReads(c *ui.Context, term *vt.Terminal) {
+ 
+ // answerRead answers r if it can this frame, and reports whether it did.
+ func (v *view) answerRead(c *ui.Context, term *vt.Terminal, r *clipboardRequest) bool {
+-	t := v.t
+-	if a := v.readAnswer(r); a != 0 {
+-		v.finishRead(term, r, a == 1)
+-		return true
+-	}
+-	if !r.ask {
+-		v.finishRead(term, r, true)
+-		return true
+-	}
+-	if on := t.opts.OnClipboardRequest; on != nil {
+-		if !r.asked {
+-			r.text, r.asked = v.services.ReadClipboard(), true
+-			on(ClipboardRequest{
+-				Mimes:   slices.Clone(r.mimes),
+-				List:    r.list,
+-				Primary: r.primary,
+-				Text:    r.text,
+-				req:     r,
+-			})
+-			if a := v.readAnswer(r); a != 0 {
+-				v.finishRead(term, r, a == 1)
+-				return true
+-			}
+-		}
+-		return false
+-	}
+-	// The terminal's own prompt, modal across the frames until it is
+-	// answered.
+-	if v.clipPrompt != r {
+-		r.text = v.services.ReadClipboard()
+-		v.clipPrompt, v.clipOpen = r, true
+-	}
+-	tx := l10n.In(v.lang)
+-	switch ui.AlertDialog(c, &v.clipOpen, tx.ClipboardRead(), v.readMessage(r), tx.ClipboardReadDeny(), tx.ClipboardReadAllow()) {
+-	case -1:
+-		return false
+-	case 0, ui.AlertDismissed:
+-		v.finishRead(term, r, false)
+-	default:
+-		v.finishRead(term, r, true)
+-	}
++	v.finishRead(term, r, false)
+ 	return true
+ }
+ 
+@@ -289,40 +250,9 @@ func (v *view) readAnswer(r *clipboardRequest) int8 {
+ // finishRead answers a read with what the clipboard holds of what the
+ // program asked for, read here on the main thread, or with its refusal.
+ func (v *view) finishRead(term *vt.Terminal, r *clipboardRequest, allow bool) {
+-	if term == nil {
+-		return
+-	}
+-	if !allow {
++	if term != nil {
+ 		v.answer(term, r, false, nil, nil)
+-		return
+-	}
+-	formats := []transfer.Format{transfer.Text}
+-	for _, mime := range r.mimes {
+-		if f := transfer.Format(mime); !slices.Contains(formats, f) {
+-			formats = append(formats, f)
+-		}
+-	}
+-	d := v.services.ReadClipboardData(formats...)
+-	contents := make(map[string][]byte, len(r.mimes)+1)
+-	for _, mime := range r.mimes {
+-		if b := readFormat(d, mime); len(b) > 0 {
+-			contents[mime] = b
+-		}
+-	}
+-	// The text too, whatever was asked for: an OSC 52 read asks for
+-	// text/plain alone, and the binding serves the protocol it came by.
+-	if b := readFormat(d, string(transfer.Text)); len(b) > 0 {
+-		if _, ok := contents["text/plain"]; !ok {
+-			contents["text/plain"] = b
+-		}
+ 	}
+-	var available []string
+-	for _, f := range v.services.ClipboardFormats() {
+-		if m := offerMIME(f); m != "" && !slices.Contains(available, m) {
+-			available = append(available, m)
+-		}
+-	}
+-	v.answer(term, r, true, contents, available)
+ }
+ 
+ // answer writes the answer of a read under t.mu, as the reader goroutine
+@@ -342,13 +272,7 @@ func (v *view) answer(term *vt.Terminal, r *clipboardRequest, allow bool, conten
+ // text it would read as one line, the types it asked for when the
+ // clipboard holds no text, or that the clipboard is empty.
+ func (v *view) readMessage(r *clipboardRequest) string {
+-	if r.text != "" {
+-		return previewText(r.text)
+-	}
+-	if len(r.mimes) > 0 {
+-		return strings.Join(r.mimes, " ")
+-	}
+-	return l10n.In(v.lang).ClipboardReadEmpty()
++	return "Remote clipboard access is disabled"
+ }
+ 
+ // previewText is text as one line of at most 200 runes.
+@@ -378,7 +302,7 @@ func (v *view) release() {
  		v.mouse = nil
  	}
  	if v.gesture != nil {
@@ -392,15 +788,41 @@ index bab81c8..1605ba4 100644
  		v.gesture = nil
  	}
  }
-@@ -248,6 +249,7 @@ func (v *view) input(ev ui.InputEvent) bool {
+@@ -403,18 +327,17 @@ func (v *view) menu(m *ui.Menu) {
+ 		text, selected = t.term.SelectionText()
+ 	}
+ 	t.mu.Unlock()
+-	tx := l10n.In(v.lang)
+-	if v.menuItem(m, tx.Copy(), ActionCopy).Disabled(!selected || text == "").Chosen() {
++	if v.menuItem(m, "Copy", ActionCopy).Disabled(!selected || text == "").Chosen() {
+ 		v.services.WriteClipboard(text)
+ 	}
+-	if v.menuItem(m, tx.Paste(), ActionPaste).Chosen() {
++	if v.menuItem(m, "Paste", ActionPaste).Chosen() {
+ 		v.paste()
+ 	}
+-	if v.menuItem(m, tx.SelectAll(), ActionSelectAll).Chosen() {
++	if v.menuItem(m, "Select all", ActionSelectAll).Chosen() {
+ 		v.selectAll()
+ 	}
+ 	m.Separator()
+-	if m.Item(tx.ClearScrollback()).Chosen() {
++	if m.Item("Clear scrollback").Chosen() {
+ 		t.Feed([]byte("\x1b[3J"))
+ 	}
+ }
+@@ -439,6 +362,10 @@ func (v *view) input(ev ui.InputEvent) bool {
  		v.typed(ev.Text)
  		return true
  	case ui.InputCompose:
-+		if len(ev.Text)>MaxInputChunk {v.t.in.fail(ErrInputLimit);return true}
++		if len(ev.Text) > MaxInputChunk {
++			v.t.in.fail(ErrInputLimit)
++			return true
++		}
  		v.preedit, v.preeditCaret, v.pending = ev.Text, ev.Caret, nil
  		return true
  	case ui.InputCommand:
-@@ -263,14 +265,9 @@ func (v *view) input(ev ui.InputEvent) bool {
+@@ -454,35 +381,9 @@ func (v *view) input(ev ui.InputEvent) bool {
  		}
  		return true
  	case ui.InputPointerDown, ui.InputPointerUp, ui.InputPointerMove:
@@ -411,22 +833,46 @@ index bab81c8..1605ba4 100644
 -				v.services.OpenURL(link)
 -			}
 -		}
+-		if text := v.copying; text != "" {
+-			// Outside pointerEvent's lock, which the clipboard may hold
+-			// up while another program has it.
+-			v.copying = ""
+-			v.services.WriteClipboard(text)
+-		}
+-		if a := v.rightClick; a != RightClickContextMenu {
+-			// Outside pointerEvent's lock, which copying and pasting take.
+-			v.rightClick = RightClickContextMenu
+-			switch a {
+-			case RightClickCopy:
+-				v.copy(true)
+-			case RightClickCopyOrPaste:
+-				if !v.copy(true) {
+-					v.paste()
+-				}
+-			case RightClickPaste:
+-				v.clearSelection()
+-				v.paste()
+-			}
+-		}
 -		return took
-+        // Remote text and OSC8 never launch local applications, including
-+        // the new upstream OpenLink hook. Users can explicitly copy text.
-+        return v.pointerEvent(ev)
++		// Remote text and OSC8 never launch local applications, including
++		// the new upstream OpenLink hook. Users can explicitly copy text.
++		return v.pointerEvent(ev)
  	case ui.InputScroll:
  		return v.scroll(ev)
  	}
-@@ -379,6 +376,7 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
+@@ -661,6 +562,10 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
  
  // typed sends text typed or committed by an input method.
  func (v *view) typed(text string) {
-+	if len(text)>MaxInputChunk {v.t.in.fail(ErrInputLimit);return}
++	if len(text) > MaxInputChunk {
++		v.t.in.fail(ErrInputLimit)
++		return
++	}
  	v.preedit = ""
  	p := v.pending
  	v.pending = nil
-@@ -443,7 +441,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
+@@ -725,7 +630,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
  	if len(b) == 0 {
  		return false
  	}
@@ -435,7 +881,41 @@ index bab81c8..1605ba4 100644
  	if press {
  		t.term.ScrollToBottom()
  		t.term.SetSelection(nil)
-@@ -599,10 +597,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
+@@ -776,30 +681,9 @@ func (v *view) copy(clear bool) bool {
+ // later, from the terminal's goroutine, where the clipboard cannot be
+ // read: it reads what was read here.
+ func (v *view) paste() bool {
+-	t := v.t
+-	held := v.services.ClipboardFormats()
+-	if len(held) == 0 {
+-		return false
+-	}
+-	var d transfer.Data
+-	switch {
+-	case t.opts.OnPaste != nil:
+-		d = v.services.ReadClipboardData()
+-		if t.opts.OnPaste(d) {
+-			return true
+-		}
+-	case t.readsClipboard():
+-		var formats []transfer.Format
+-		for _, f := range held {
+-			if offerMIME(f) != "" {
+-				formats = append(formats, f)
+-			}
+-		}
+-		d = v.services.ReadClipboardData(formats...)
+-	default:
+-		d = v.services.ReadClipboardData(transfer.Text)
+-	}
+-	t.pasteData(d, held)
++	// Request only text from the OS; do not enumerate or read other formats.
++	d := v.services.ReadClipboardData(transfer.Text)
++	v.t.pasteData(d, nil)
+ 	return true
+ }
+ 
+@@ -936,10 +820,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
  // is a file path: none without Command, or while the primary button
  // selects or the program has a press; t.mu is held.
  func (v *view) linkUnder(mods ui.Modifiers, x, y float32) (link string, path bool) {
@@ -443,12 +923,12 @@ index bab81c8..1605ba4 100644
 -		return "", false
 -	}
 -	return v.linkAt(v.cellAt(x, y))
-+    // Disable link activation/hover before parsing remote output.
-+    return "", false
++	// Disable link activation/hover before parsing remote output.
++	return "", false
  }
  
  // linkAt is the link at the cell: a hyperlink (OSC 8), a URL printed as
-@@ -677,7 +673,7 @@ func (v *view) report(ev ui.InputEvent) bool {
+@@ -1014,7 +896,7 @@ func (v *view) report(ev ui.InputEvent) bool {
  	v.mouse.Sync(t.term, v.ox*2+v.cols*v.cellW, v.oy*2+v.rows*v.cellH, v.cellW, v.cellH, v.ox, v.oy, pressed)
  	out := v.mouse.Encode(action, b, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale)
  	if len(out) > 0 {
@@ -457,7 +937,7 @@ index bab81c8..1605ba4 100644
  	}
  	return ev.Kind != ui.InputPointerMove || len(out) > 0
  }
-@@ -720,7 +716,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1081,7 +963,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  		}
  		for range abs(rows) {
  			if out := v.mouse.Encode(vt.MousePress, button, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale); len(out) > 0 {
@@ -466,7 +946,7 @@ index bab81c8..1605ba4 100644
  			}
  		}
  	case v.wheelArrows():
-@@ -737,7 +733,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1098,7 +980,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  			key = vt.KeyArrowUp
  		}
  		for range abs(rows) {

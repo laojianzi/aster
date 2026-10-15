@@ -169,12 +169,12 @@ func (w *Workbench) vaultView(c *ui.Context) {
 			ui.Text(c, "Context: "+w.vaultTarget.Context).Label("Credential target context").SingleLine()
 			ui.Text(c, "Server: "+w.vaultTarget.Server).Label("Credential target server").SingleLine()
 			ui.Text(c, "User alias: "+w.vaultTarget.User).SingleLine()
-			ui.TextInput(c.Key(struct {
+			guardedTextInput(c, struct {
 				Field string
 				Epoch uint64
-			}{"vault-token", w.vaultEpoch}), &w.vaultToken).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
-			ui.Select(c.Key("field.vaultDuration"), &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}).Label("Local token lifetime").Disabled(w.vaultPending)
-			ui.TextInput(c.Key("field.vaultConfirmation"), &w.vaultConfirmation).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
+			}{"vault-token", w.vaultEpoch}, &w.vaultToken, !w.vaultPending).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
+			guardedSelect(c, "field.vaultDuration", &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}, !w.vaultPending).Label("Local token lifetime").Disabled(w.vaultPending)
+			guardedTextInput(c, "field.vaultConfirmation", &w.vaultConfirmation, !w.vaultPending).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
 			enabled := !w.vaultPending && !w.connectionPending && w.backend == nil && w.vaultConfirmation == w.vaultTarget.Context
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Button(c, "Store token").Disabled(!enabled || w.vaultToken == "").OnClick(func() {
