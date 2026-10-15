@@ -46,8 +46,11 @@ Discovery, token exchange and JWKS reads have verified TLS, no environment
 proxy, redirects, compression, cookies or automatic retry. Each response is
 capped at 64 KiB and 10 seconds. JSON depth/work/key ambiguity is checked before
 interpretation; JWTs are capped at 16 KiB; only bounded issuer public keys with
-RS256 (2048–8192-bit RSA) or ES256 (P-256) can verify tokens. Maintained go-oidc and
-go-jose implement cryptographic validation. We additionally require exact
+RS256 (2048–4096-bit RSA) or ES256 (P-256) can verify tokens. Maintained go-oidc and
+go-jose implement cryptographic validation. The go-jose v4.1.6 security update
+reduces the previous 8192-bit upper bound to 4096 bits; larger RSA issuer keys
+are refused rather than increasing the dependency's global parser limit. This
+compatibility restriction applies to login and renewal. ES256/P-256 is unchanged. We additionally require exact
 issuer/nonce/subject, one reviewed audience, matching azp when present, numeric
 iat/exp/nbf and fresh bounded times. Unreviewed extra audiences, JOSE network
 headers, critical extensions and MAC/unsigned tokens are refused. Access-token

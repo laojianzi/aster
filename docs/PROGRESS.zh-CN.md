@@ -2,21 +2,27 @@
 
 ## 当前基线与唯一实施范围
 
-2026-10-15 接续基线：已验收 main `eb19fdc3d5566f9e1d62dd3823b6f4dcaefbad59`，
-源码树 `6e2a99bea984459dab4fc3f46a37bb064b4c2e01`，Go 1.27.2 / MyGo v0.4.8。
-#67/#68 本地 Helm 渲染和 #69/#70 只读修订标签清单均已独立验收并 completed；
-写入前审计远端只有 main、无 open PR、只有总 tracker #13 open，不重复已有实现。
+2026-10-15 接续基线：已验收 main `a8422d80af4e434558639d1893d1406f60f8c922`，
+源码树 `05f0e63e1a330d4afff2845907582ad472345971`，Go 1.27.2 / MyGo v0.4.8。
+#67/#68 本地渲染、#69/#70 修订元数据、#71/#72 单次同意后的选定内容一致性摘要均已完成。
+#71 在新 main 独立验收和完整历史恢复后，于 2026-10-15T03:51:41Z 显式 completed；
+[原始结项记录](https://github.com/laojianzi/aster/issues/71#issuecomment-6183982696)保留。
+不得重建这些已完成分支或重复其 PR。
 
-**本轮唯一范围：[Issue #71](https://github.com/laojianzi/aster/issues/71)，
-`feat/helm-revision-inspection`：选定 Helm 修订内容的一致性只读摘要。**
-选择不读取；另行敏感内容确认后才 GET 精确 Secret，对照选定 UID/resourceVersion、
-标签与内容身份，实施编码/解压/JSON/时间预算及取消保护。只保留有限摘要，默认不显示
-values/manifest/notes/templates/hooks。不会生成 Prepared、导入清单或写入集群。
-一致性不是真实性、健康、所有权或授权；操作和边界见
-[选定修订检查契约](helm-revision-inspection.md)。
+**当前唯一实施 PR：[安全依赖更新 #73](https://github.com/laojianzi/aster/pull/73)，
+`renovate/github.com-go-jose-go-jose-v4-4.x`：go-jose/v4 v4.1.6。**
+[#11](https://github.com/laojianzi/aster/issues/11) 是真实重新开放的依赖队列，不是旧升级快照。
+本次仅批准既有 JOSE 条目，由 Renovate 创建 #73；不新开竞争分支，不批准全部更新。
+MyGo v0.5.1 仍单独待审，当前 pin 保持 v0.4.8，不将其混入安全修复。
 
-本文件不预先宣称 #71 的 CI、合并、主干或退役验收通过；精确后置证据以 #71 和
-[#13](https://github.com/laojianzi/aster/issues/13) 为准。每个实际范围仅一条分支和一个 PR。
+机器人初始提交仅改 go.mod，OIDC 在缺失 go.sum 阶段失败。接续提交补已核验校验和，
+明确 RS256 的 RSA 范围收窄为 2048–4096 位、前置编码预算及登录/续期边界回归，
+不覆盖上游进程级安全上限。既有私钥字段拒绝、公钥投影、JWT 头白名单和私有错误保留。
+[依赖审查](dependency-review-go-jose-4.1.6.md)记录来源、兼容性与真实验收边界。
+
+本文件不预先宣称 #73 最终 CI、合并、新主干或退役已通过；这些结果以 #73、#11 和
+[#13](https://github.com/laojianzi/aster/issues/13) 为准。旧 #72 的绿色 CI 不验证新依赖图。
+#11 在仍有待审更新时保持开放；每个实际范围仅一条分支及一个 PR。
 
 ## 已完成、必须复用的能力
 
@@ -31,6 +37,7 @@ values/manifest/notes/templates/hooks。不会生成 Prepared、导入清单或�
 | 已渲染清单的有序导入、逐对象不可变审阅、确认和部分结果核对 | #44/#45 |
 | 可信本地 chart/values 快照、固定官方 Helm 4.3.0、渲染捕获/丢弃/接受 | #67/#68；不是 Helm release 写入或 GitOps |
 | Helm Secret-driver 元数据协商、单命名空间分页与显式刷新/取消 | #69/#70；不是 release 内容或生命周期写入 |
+| 单次内容同意、精确 Secret GET、UID/resourceVersion 与内容一致性只读摘要 | #71/#72；不认证真实性、不提供生命周期写入 |
 | MyGo v0.4.8 源码/运行时审查和已有迁移保护 | #11/#58；不按旧快照重复升级 |
 
 证据以各自 Issue/PR 为准，不用合并数或绿色 CI 百分比代替 MVP 完成度。
@@ -42,7 +49,10 @@ values/manifest/notes/templates/hooks。不会生成 Prepared、导入清单或�
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**P1 — Helm release / GitOps。** #68 已实现本地渲染，#70 已完成只读修订元数据，#71 推进选定内容一致性摘要。
+**优先安全依赖。** #73 补 go-jose v4.1.6，保留来源、五项 PR/main 门槛与精确分支保护。
+MyGo v0.5.1 是之后独立的 module/native 来源与运行时兼容性审查，不预先声称解决编辑器契约。
+
+**P1 — Helm release / GitOps。** #68/#70/#72 的本地渲染、修订元数据和内容一致性摘要直接复用。
 后续仍需分别定义 release 内容与生命周期检查、install/upgrade/rollback/uninstall、
 GitOps repository/sync/reconcile 的可信执行、并发、失败/Unknown 与确认边界。
 不得把元数据标签、渲染或普通逐对象 SSA 重命名成完整 Helm 生命周期；不得直接运行
