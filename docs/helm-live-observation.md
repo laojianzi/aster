@@ -34,6 +34,13 @@ two snapshots and are never compared numerically. Unrelated release changes do
 not change the selected history, although malformed unrelated metadata still
 fails the reused strict decoder.
 
+Legacy unaggregated discovery may omit its top-level `apiVersion`; this is not
+a missing resource API version. The decoder accepts that documented omission or
+an explicit `v1` envelope, while rejecting null/empty/other explicit versions,
+duplicate/unknown fields and mismatched `groupVersion`. Kind, resources, exact
+GVK routing and all budgets remain mandatory. Regression fixtures cover both
+legacy core/group envelopes and the explicit-version representation.
+
 Between snapshots, fetch fresh discovery for each *exact* stored API version
 and require a unique nonsubresource Kind mapping that supports GET. Do not use
 preferred versions, guess plurals, substitute another version or fall back to a

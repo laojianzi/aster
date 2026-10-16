@@ -38,14 +38,14 @@ func liveRevisionMeta() metav1.PartialObjectMetadata {
 	return metav1.PartialObjectMetadata{ObjectMeta: s.ObjectMeta}
 }
 func liveDiscovery() metav1.APIResourceList {
-	return metav1.APIResourceList{TypeMeta: metav1.TypeMeta{Kind: "APIResourceList", APIVersion: "v1"}, GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "configmaps", Kind: "ConfigMap", Namespaced: true, Verbs: metav1.Verbs{"get"}}}}
+	return metav1.APIResourceList{TypeMeta: metav1.TypeMeta{Kind: "APIResourceList"}, GroupVersion: "v1", APIResources: []metav1.APIResource{{Name: "configmaps", Kind: "ConfigMap", Namespaced: true, Verbs: metav1.Verbs{"get"}}}}
 }
 func liveObject() metav1.PartialObjectMetadata {
 	return metav1.PartialObjectMetadata{TypeMeta: metav1.TypeMeta{Kind: "PartialObjectMetadata", APIVersion: "meta.k8s.io/v1"}, ObjectMeta: metav1.ObjectMeta{Name: "sample", Namespace: "team", UID: types.UID("live-uid"), ResourceVersion: "rv-a", Labels: map[string]string{"app.kubernetes.io/managed-by": "Helm"}, Annotations: map[string]string{"meta.helm.sh/release-name": "example", "meta.helm.sh/release-namespace": "team", "private": "PRIVATE"}}}
 }
 
 func TestHelmLiveReadOnlyMetadataAndHistory(t *testing.T) {
-	for _, mode := range []string{"present", "missing-marker", "conflict-marker", "absent", "foreign", "cluster", "lifecycle", "replaced-uid", "newer-before", "newer-after", "source-replaced", "source-rv", "history-changed", "reordered", "pagination"} {
+	for _, mode := range []string{"present", "versioned-discovery", "missing-marker", "conflict-marker", "absent", "foreign", "cluster", "lifecycle", "replaced-uid", "newer-before", "newer-after", "source-replaced", "source-rv", "history-changed", "reordered", "pagination"} {
 		t.Run(mode, func(t *testing.T) {
 			text := liveManifest
 			if mode == "foreign" {
@@ -108,6 +108,9 @@ func TestHelmLiveReadOnlyMetadataAndHistory(t *testing.T) {
 				case "/api/v1":
 					disc.Add(1)
 					d := liveDiscovery()
+					if mode == "versioned-discovery" {
+						d.APIVersion = "v1"
+					}
 					if mode == "cluster" {
 						d.APIResources[0].Namespaced = false
 					}
@@ -404,5 +407,50 @@ func TestHelmLiveCancellationAndBudgets(t *testing.T) {
 	}
 	if _, _, e := b.helmLiveGET(context.Background(), []string{"/api/v1"}, "application/json", 64, &remaining, false); !errors.Is(e, helmrelease.ErrLiveBudget) {
 		t.Fatal("shared bytes", e)
+	}
+}
+
+// Exercise the legacy wire envelope, not only a locally constructed versioned
+// TypeMeta. Kubernetes' api/discovery/api__v1.json intentionally lacks apiVersion.
+func TestHelmLiveDiscoveryEnvelope(t *testing.T) {
+	const core = `{"kind":"APIResourceList","groupVersion":"v1","resources":[{"name":"configmaps","singularName":"configmap","namespaced":true,"kind":"ConfigMap","verbs":["get"],"storageVersionHash":"opaque"}]}`
+	cases := []struct {
+		name, body, gv, kind string
+		valid                bool
+	}{
+		{"legacy-core", core, "v1", "ConfigMap", true},
+		{"explicit-v1", strings.Replace(core, "{", `{"apiVersion":"v1",`, 1), "v1", "ConfigMap", true},
+		{"legacy-group", strings.ReplaceAll(strings.ReplaceAll(core, `"v1"`, `"apps/v1"`), "ConfigMap", "Deployment"), "apps/v1", "Deployment", true},
+		{"empty-version", strings.Replace(core, "{", `{"apiVersion":"",`, 1), "v1", "ConfigMap", false},
+		{"null-version", strings.Replace(core, "{", `{"apiVersion":null,`, 1), "v1", "ConfigMap", false},
+		{"wrong-version", strings.Replace(core, "{", `{"apiVersion":"apps/v1",`, 1), "v1", "ConfigMap", false},
+		{"numeric-version", strings.Replace(core, "{", `{"apiVersion":1,`, 1), "v1", "ConfigMap", false},
+		{"duplicate-version", strings.Replace(core, "{", `{"apiVersion":"v1","apiVersion":"v1",`, 1), "v1", "ConfigMap", false},
+		{"duplicate-gv", strings.Replace(core, "{", `{"groupVersion":"v1",`, 1), "v1", "ConfigMap", false},
+		{"wrong-gv", core, "apps/v1", "ConfigMap", false},
+		{"missing-gv", strings.Replace(core, `"groupVersion":"v1",`, "", 1), "v1", "ConfigMap", false},
+		{"missing-kind", strings.Replace(core, `"kind":"APIResourceList",`, "", 1), "v1", "ConfigMap", false},
+		{"wrong-kind", strings.Replace(core, "APIResourceList", "APIGroupDiscoveryList", 1), "v1", "ConfigMap", false},
+		{"unknown-field", strings.Replace(core, "{", `{"PRIVATE":"SECRET",`, 1), "v1", "ConfigMap", false},
+		{"null-resources", `{"kind":"APIResourceList","groupVersion":"v1","resources":null}`, "v1", "ConfigMap", false},
+		{"trailing-json", core + "{}", "v1", "ConfigMap", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := decodeLiveDiscovery([]byte(tc.body), tc.gv)
+			if !tc.valid {
+				if !errors.Is(err, helmrelease.ErrLiveRouting) || list.APIResources != nil || strings.Contains(err.Error(), "SECRET") {
+					t.Fatal("invalid discovery accepted or leaked", err)
+				}
+				return
+			}
+			if err != nil || list.GroupVersion != tc.gv || len(list.APIResources) != 1 {
+				t.Fatal("valid legacy discovery rejected", err)
+			}
+			route, err := resolveLiveRoute(list, tc.kind)
+			if err != nil || route.resource != "configmaps" || !route.namespaced {
+				t.Fatal("exact discovered route changed", err)
+			}
+		})
 	}
 }

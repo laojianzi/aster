@@ -130,6 +130,7 @@ HELM_LIVE_OBSERVATION_REQUIRED = {'native-os-interactions': ('TestNativeHelmLive
  'unit-native': ('TestHelmLiveLatestRevisionConsistency',
                  'TestHelmLiveObservationImmutableExpiry',
                  'TestHelmLiveReadOnlyMetadataAndHistory',
+                 'TestHelmLiveDiscoveryEnvelope',
                  'TestHelmLiveRejectsRoutesAndPrivateFailures',
                  'TestHelmLiveCancellationAndBudgets',
                  'TestNativeHelmLiveObservationConsentAndExpiry',

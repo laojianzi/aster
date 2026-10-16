@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -87,9 +88,9 @@ func (b *Backend) ObserveHelmPreview(ctx context.Context, p *helmrelease.Uninsta
 			if err != nil {
 				return nil, err
 			}
-			issues, e := strictjson.UnmarshalStrict(data, &list)
+			list, err = decodeLiveDiscovery(data, item.APIVersion)
 			clear(data)
-			if e != nil || len(issues) != 0 || list.Kind != "APIResourceList" || list.APIVersion != "v1" || list.GroupVersion != item.APIVersion || list.APIResources == nil || len(list.APIResources) > 512 {
+			if err != nil {
 				return nil, helmrelease.ErrLiveRouting
 			}
 			discovery[item.APIVersion] = list
@@ -137,6 +138,33 @@ func (b *Backend) ObserveHelmPreview(ctx context.Context, p *helmrelease.Uninsta
 		return nil, err
 	}
 	return helmrelease.FinishLiveObservation(p, session, before, after, observed, started, time.Now())
+}
+
+// Legacy unaggregated discovery deliberately omits the top-level apiVersion.
+// groupVersion is still mandatory and must match the exact requested endpoint.
+// Keep an explicitly supplied envelope version strict; null/empty/other versions
+// and duplicate or unknown fields do not receive the legacy omission allowance.
+func decodeLiveDiscovery(data []byte, expectedGroupVersion string) (metav1.APIResourceList, error) {
+	var wire struct {
+		APIVersion   json.RawMessage      `json:"apiVersion"`
+		Kind         string               `json:"kind"`
+		GroupVersion string               `json:"groupVersion"`
+		Resources    []metav1.APIResource `json:"resources"`
+	}
+	var list metav1.APIResourceList
+	issues, err := strictjson.UnmarshalStrict(data, &wire)
+	if err != nil || len(issues) != 0 || wire.Kind != "APIResourceList" || wire.GroupVersion != expectedGroupVersion || wire.Resources == nil || len(wire.Resources) > 512 {
+		return list, helmrelease.ErrLiveRouting
+	}
+	if len(wire.APIVersion) != 0 {
+		var version string
+		if json.Unmarshal(wire.APIVersion, &version) != nil || version != "v1" {
+			return list, helmrelease.ErrLiveRouting
+		}
+		list.APIVersion = version
+	}
+	list.Kind, list.GroupVersion, list.APIResources = wire.Kind, wire.GroupVersion, wire.Resources
+	return list, nil
 }
 
 // Do not reuse broad preferred-version discovery: it tolerates partial failure,
