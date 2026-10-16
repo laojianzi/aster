@@ -62,6 +62,12 @@ func ValidSelection(ns string, row Revision) bool {
 // selected object to their current identity/lifetime and obtain consent before
 // fetching it. Byte slices are cleared best-effort, not a Go/OS erasure promise.
 func InspectSecret(ctx context.Context, data []byte, ns string, selected Revision) (Inspection, error) {
+	return inspectSecret(ctx, data, ns, selected, nil)
+}
+
+// visit is private to this package: raw release content never becomes an exported
+// capability or part of the existing summary. It runs only after full validation.
+func inspectSecret(ctx context.Context, data []byte, ns string, selected Revision, visit func(Inspection, string) error) (Inspection, error) {
 	empty := Inspection{}
 	if err := ctx.Err(); err != nil {
 		return empty, err
@@ -174,7 +180,13 @@ func InspectSecret(ctx context.Context, data []byte, ns string, selected Revisio
 	if err := ctx.Err(); err != nil {
 		return empty, err
 	}
-	return Inspection{ChartName: chart.Name, ChartVersion: chart.Version, ManifestBytes: len(release.Manifest), HookCount: len(release.Hooks), SuppliedValues: len(release.Config)}, nil
+	summary := Inspection{ChartName: chart.Name, ChartVersion: chart.Version, ManifestBytes: len(release.Manifest), HookCount: len(release.Hooks), SuppliedValues: len(release.Config)}
+	if visit != nil {
+		if err := visit(summary, release.Manifest); err != nil {
+			return empty, err
+		}
+	}
+	return summary, nil
 }
 
 func safeVersion(s string) bool {
