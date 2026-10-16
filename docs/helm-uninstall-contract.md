@@ -145,6 +145,14 @@ unique fixture namespaces and registers cleanup. Ambient auth/proxy/plugins are
 not inherited by Helm. These guards prevent accidental default-context usage;
 opt-in/context naming alone is not proof that a cluster is disposable.
 
+The real-cluster launcher preserves the original complete E2E/UI package set,
+then appends a separate invocation of the new contract test root with all seven
+subcases to the same raw stream. It does not rerun unrelated Helm-renderer unit
+tests inside the busy cluster job. Those remain mandatory in the full unit/race
+and coverage suites. Either invocation's failure fails the job; the second
+stream cannot overwrite the first, and the new root/subcases remain mandatory.
+No original test is filtered from the original suite or given a longer deadline.
+
 New unit and real-cluster required names and subcases are additive. CI cannot
 qualify by skipping the archive, omitting a subcase, hiding failure or only
 compiling. Existing UI/migration names stay unchanged because no native UI or

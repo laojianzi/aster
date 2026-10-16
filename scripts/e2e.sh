@@ -31,7 +31,8 @@ mkdir -p "$ASTER_TEST_ARTIFACTS"
 cd "$root"
 kubectl version > "$ASTER_TEST_ARTIFACTS/environment.txt"
 git rev-parse HEAD >> "$ASTER_TEST_ARTIFACTS/environment.txt"
-go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... ./internal/helmrender/... | tee "$ASTER_TEST_ARTIFACTS/tests.jsonl"
+go test -race -tags=e2e -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee "$ASTER_TEST_ARTIFACTS/tests.jsonl"
+go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=12m -json ./internal/helmrender/... | tee -a "$ASTER_TEST_ARTIFACTS/tests.jsonl"
 python3 scripts/test_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native --require TestRealTTYInteractiveInputResizeAndExit --require TestRealTTYCancelAndLeaseDoNotInventExit --require TestRealTTYReadOnlyRBACPreventsExecution --require TestNativeTTYInputAndLifecycleAgainstRealCluster --require TestNativeScaleTracksActualReadiness --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealMetricsPodNodeAndIndependentRBAC --require TestNativeMetricsAgainstRealServerAndTeardown
 
 python3 scripts/helm_uninstall_contract_evidence.py "$ASTER_TEST_ARTIFACTS/tests.jsonl" --suite real-cluster-native

@@ -1,6 +1,7 @@
 """Contract characterization is mandatory, not a production CLI capability."""
 import json
 import copy
+import subprocess
 import retire_completed_oidc as retirement
 from pathlib import Path
 import tempfile
@@ -73,6 +74,54 @@ class HelmUninstallContractScopeTests(unittest.TestCase):
                     if line.startswith('          python3 scripts/helm_uninstall_contract_evidence.py ')]
             self.assertEqual(len(gate), 1)
             self.assertTrue(gate[0].endswith('--suite ' + suite))
+
+    def test_cluster_entry_keeps_old_suite_and_does_not_repeat_unit_rendering(self):
+        root = Path(__file__).resolve().parents[1]
+        for file, tags in (('.github/workflows/ci.yml', 'e2e,osvault'), ('scripts/e2e.sh', 'e2e')):
+            text = (root / file).read_text()
+            commands = [line.strip() for line in text.splitlines() if 'go test -race -tags=' in line
+                        and ('./e2e/...' in line or './internal/helmrender/...' in line)]
+            self.assertEqual(len(commands), 2)
+            self.assertIn('go test -race -tags=' + tags + ' -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee ', commands[0])
+            self.assertNotIn(' -run ', commands[0])
+            self.assertNotIn('./internal/helmrender/...', commands[0])
+            self.assertIn("go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=12m -json ./internal/helmrender/... | tee -a ", commands[1])
+            self.assertEqual(commands[0].split(' | tee ', 1)[1], commands[1].split(' | tee -a ', 1)[1])
+            self.assertNotIn('|| true', '\n'.join(commands))
+        # The original renderer unit suite remains required in BOTH full unit
+        # and coverage executions; only unintended cluster duplication is removed.
+        self.assertIn('TestHelmRealTemplateSnapshotAndFailure', contract_evidence.required('unit-native'))
+        self.assertEqual(len(contract_evidence.REQUIRED['real-cluster-native']), 8)
+
+    def test_split_cluster_pipeline_retains_failures_and_appended_raw_stream(self):
+        root = Path(__file__).resolve().parents[1]
+        for file in ('.github/workflows/ci.yml', 'scripts/e2e.sh'):
+            text = (root / file).read_text()
+            commands = [line.strip() for line in text.splitlines() if 'go test -race -tags=' in line
+                        and ('./e2e/...' in line or './internal/helmrender/...' in line)]
+            for fail in ('none', 'original', 'contract'):
+                with self.subTest(file=file, fail=fail), tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory) / 'tests.jsonl'
+                    script = """set -euo pipefail
+calls=0
+go() {
+    calls=$((calls + 1))
+    case "$*" in
+      *./e2e/...*) printf '%s\n' '{"Action":"pass","Package":"old","Test":"TestOld"}'; [[ "$FAIL" != original ]] ;;
+      *./internal/helmrender/...*) printf '%s\n' '{"Action":"pass","Package":"new","Test":"TestNew"}'; [[ "$FAIL" != contract ]] ;;
+      *) return 90 ;;
+    esac
+}
+python() { shift; go "${@:2}"; }
+"""
+                    for command in commands:
+                        command = command.split(' | tee', 1)[0] + (' | tee -a ' if ' | tee -a ' in command else ' | tee ') + str(output)
+                        script += command + '\n'
+                    result = subprocess.run(['bash', '-c', script], env={'PATH':'/usr/bin:/bin','FAIL':fail},
+                                            capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode == 0, fail == 'none')
+                    records = [json.loads(line) for line in output.read_text().splitlines()]
+                    self.assertEqual([item['Package'] for item in records], ['old'] if fail == 'original' else ['old','new'])
 
     def test_coverage_retains_original_suite_and_failure_with_raw_evidence(self):
         text = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
