@@ -26,6 +26,9 @@ type helmReleaseState struct {
 	contentStatus              string
 	inspection                 *helmrelease.Inspection
 	preview                    *helmrelease.UninstallPreview
+	live                       *helmrelease.LiveObservation
+	liveAcknowledged           bool
+	liveStatus                 string
 }
 
 func (w *Workbench) clearHelmReleases() {

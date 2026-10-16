@@ -22,6 +22,9 @@ func (w *Workbench) clearHelmInspection() {
 	r.acknowledged, r.inspecting = false, false
 	r.inspection = nil
 	r.preview = nil
+	r.live = nil
+	r.liveAcknowledged = false
+	r.liveStatus = ""
 	r.contentStatus = ""
 }
 func (w *Workbench) selectHelmRevision(row helmrelease.Revision) {
@@ -59,6 +62,9 @@ func (w *Workbench) readHelmContent(preview bool) {
 	r.acknowledged = false // Single explicit attempt; failures never retain consent.
 	r.inspection = nil
 	r.preview = nil
+	r.live = nil
+	r.liveAcknowledged = false
+	r.liveStatus = ""
 	r.inspecting = true
 	r.contentStatus = "Inspecting the selected Secret content; raw content is withheld…"
 	ctx, cancel := context.WithCancel(w.operationContext())
