@@ -7,6 +7,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeHelmLiveObservationConsentAndExpiry',
+    'TestNativeHelmLiveObservationStaleResults',
+    'TestNativeHelmLiveObservationFailureClearsResult',
+    'TestNativeHelmLiveObservationScaledInventory',
+
     'TestNativeHelmUninstallPreviewConsentAndExpiry',
     'TestNativeHelmUninstallPreviewStaleCompletionAndBusyConsent',
     'TestNativeHelmUninstallPreviewFailuresAndCancellation',
