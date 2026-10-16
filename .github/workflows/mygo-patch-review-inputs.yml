@@ -1,0 +1,57 @@
+name: MyGo patch review inputs
+# Candidate-only public inputs. Not a product acceptance gate; remove after review.
+on:
+  push:
+    branches: ['renovate/mygo-native-framework']
+    paths: ['.github/workflows/mygo-patch-review-inputs.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache: false
+      - name: Retain fixed public module archives and complete upstream history
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$PWD/mygo-patch-inputs"
+          mkdir -p "$out"
+          git rev-parse HEAD > "$out/ASTER_COMMIT"
+          go version > "$out/environment.txt"
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          cd "$work"
+          for version in v0.5.1 v0.5.2 v0.5.3 v0.5.4 v0.5.5; do
+            go mod download -json "github.com/egoist/mygo@$version" > "$out/$version.json"
+            module_zip=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["Zip"])' "$out/$version.json")
+            cp "$module_zip" "$out/$version.module.zip"
+          done
+          git init --bare upstream.git
+          git -C upstream.git fetch --no-tags https://github.com/egoist/mygo.git \
+            refs/tags/v0.5.1:refs/tags/v0.5.1 refs/tags/v0.5.2:refs/tags/v0.5.2 \
+            refs/tags/v0.5.3:refs/tags/v0.5.3 refs/tags/v0.5.4:refs/tags/v0.5.4 \
+            refs/tags/v0.5.5:refs/tags/v0.5.5
+          test "$(git -C upstream.git rev-parse v0.5.1)" = 408b4def1f3e6a8d3fac852396b4a46d82ba22a3
+          test "$(git -C upstream.git rev-parse v0.5.5)" = 4d8673cd2658a2c6e86b26c44751e57bf8174f91
+          git -C upstream.git fsck --full --strict
+          git -C upstream.git bundle create "$out/upstream.bundle" --all
+          git -C upstream.git log --reverse --format='%H%x09%s' v0.5.1..v0.5.5 > "$out/commits.tsv"
+          git -C upstream.git diff --name-status v0.5.1 v0.5.5 > "$out/files.tsv"
+          git -C upstream.git show-ref > "$out/refs.txt"
+          cd "$out"
+          sha256sum *.json *.zip *.bundle *.tsv *.txt ASTER_COMMIT > SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mygo-051-055-review-inputs
+          path: mygo-patch-inputs/
+          if-no-files-found: error
+          retention-days: 7
