@@ -74,6 +74,19 @@ class HelmUninstallContractScopeTests(unittest.TestCase):
             self.assertEqual(len(gate), 1)
             self.assertTrue(gate[0].endswith('--suite ' + suite))
 
+    def test_coverage_retains_original_suite_and_failure_with_raw_evidence(self):
+        text = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
+        block = text.split('      - name: Coverage\n', 1)[1].split('      - name:', 1)[0]
+        self.assertIn('        shell: bash\n', block)
+        self.assertIn('          set -euo pipefail\n', block)
+        self.assertIn('go test -coverprofile=artifacts/unit/coverage.out -json ./... ', block)
+        self.assertIn('2>artifacts/unit/coverage/stderr.log | tee artifacts/unit/coverage/tests.jsonl', block)
+        self.assertIn('python3 scripts/helm_uninstall_contract_evidence.py artifacts/unit/coverage/tests.jsonl --suite unit-native', block)
+        self.assertNotIn('continue-on-error', block)
+        self.assertNotIn('|| true', block)
+        self.assertNotIn('-run ', block)
+        self.assertNotIn('-timeout', block)
+
     def test_test_only_execution_and_disposable_cluster_guards(self):
         root = Path(__file__).resolve().parents[1]
         hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()

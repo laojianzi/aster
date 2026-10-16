@@ -70,7 +70,12 @@ jobs:
         shell: bash
         run: go test ./internal/ui -run '^$' -bench '^BenchmarkManifestBuffer' -benchtime=100x -benchmem | tee artifacts/unit/manifest-buffer-bench.txt
       - name: Coverage
-        run: go test -coverprofile=artifacts/unit/coverage.out ./...
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/unit/coverage
+          go test -coverprofile=artifacts/unit/coverage.out -json ./... 2>artifacts/unit/coverage/stderr.log | tee artifacts/unit/coverage/tests.jsonl
+          python3 scripts/helm_uninstall_contract_evidence.py artifacts/unit/coverage/tests.jsonl --suite unit-native
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
