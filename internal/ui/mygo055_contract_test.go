@@ -27,6 +27,10 @@ func TestNativeMyGo055ExplicitClockAndCurrentFrameShortcut(t *testing.T) {
 		}
 	}, 800, 500)
 	initial := tt.Now()
+	tt.Advance(-time.Second)
+	if !tt.Now().Equal(initial) {
+		t.Fatal("negative advance moved UI time backwards")
+	}
 	for range 3 {
 		tt.Frame()
 	}
