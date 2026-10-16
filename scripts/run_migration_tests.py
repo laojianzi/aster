@@ -7,6 +7,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    'TestNativeHelmUninstallPreviewConsentAndExpiry',
+    'TestNativeHelmUninstallPreviewStaleCompletionAndBusyConsent',
+    'TestNativeHelmUninstallPreviewFailuresAndCancellation',
+    'TestNativeHelmUninstallPreviewScaledInventory',
+
     "TestNativeMyGo055ExplicitClockAndCurrentFrameShortcut",
     "TestNativeMyGo055SplitListReportsCurrentSelectionOnce",
     "TestNativeMyGo05ScaledNavigationStaysAboveStatus",

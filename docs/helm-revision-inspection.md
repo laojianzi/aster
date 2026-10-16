@@ -90,6 +90,13 @@ errors or URLs. Context cancellation is checked during reads/decompression/JSON
 walks and before result publication. Limits bound client work and allocations;
 they are not a hard operating-system scheduling or peak-memory guarantee.
 
+## Separate lifecycle scope preview
+
+The separately consented [uninstall scope preview](helm-uninstall-preview.md) (#76)
+reuses the same strict read/decoder and exposes bounded stored object identities
+without raw payload. The existing **Inspect selected revision** summary remains
+unchanged. Neither action is a live dry-run, a write plan or approval.
+
 ## Trust boundary and later work
 
 A writer can change both labels and payload consistently. Therefore **consistent

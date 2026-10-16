@@ -2,6 +2,7 @@ package uiworkbench
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -11,6 +12,7 @@ func (w *Workbench) View(c *ui.Context) {
 	w.syncFind()
 	w.syncDelivery()
 	w.syncHelmReleases()
+	w.expireHelmUninstall(time.Now())
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Direction(ui.LeftToRight).Fill().Background(t.Background).Children(func() {

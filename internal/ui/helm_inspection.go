@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/laojianzi/aster/internal/helmrelease"
@@ -20,6 +21,7 @@ func (w *Workbench) clearHelmInspection() {
 	r.selected = helmrelease.Revision{}
 	r.acknowledged, r.inspecting = false, false
 	r.inspection = nil
+	r.preview = nil
 	r.contentStatus = ""
 }
 func (w *Workbench) selectHelmRevision(row helmrelease.Revision) {
@@ -42,7 +44,10 @@ func (w *Workbench) selectHelmRevision(row helmrelease.Revision) {
 	r.selected = row
 	r.contentStatus = "Selected only. No Secret content has been requested."
 }
-func (w *Workbench) inspectHelmRevision() {
+func (w *Workbench) inspectHelmRevision()  { w.readHelmContent(false) }
+func (w *Workbench) previewHelmUninstall() { w.readHelmContent(true) }
+
+func (w *Workbench) readHelmContent(preview bool) {
 	w.syncHelmReleases()
 	r := &w.helmReleases
 	if !r.open || r.busy || r.inspecting || !r.acknowledged || !helmrelease.ValidSelection(r.namespace, r.selected) {
@@ -53,13 +58,21 @@ func (w *Workbench) inspectHelmRevision() {
 	contentEpoch := r.contentEpoch
 	r.acknowledged = false // Single explicit attempt; failures never retain consent.
 	r.inspection = nil
+	r.preview = nil
 	r.inspecting = true
 	r.contentStatus = "Inspecting the selected Secret content; raw content is withheld…"
 	ctx, cancel := context.WithCancel(w.operationContext())
 	r.contentCancel = cancel
 	w.run(func(context.Context) {
 		defer cancel()
-		result, err := backend.InspectHelmRelease(ctx, ns, row, true)
+		var result helmrelease.Inspection
+		var scope *helmrelease.UninstallPreview
+		var err error
+		if preview {
+			scope, err = backend.PreviewHelmUninstall(ctx, ns, row, session, true)
+		} else {
+			result, err = backend.InspectHelmRelease(ctx, ns, row, true)
+		}
 		w.emit(func() {
 			current := &w.helmReleases
 			if !current.open || current.epoch != epoch || current.contentEpoch != contentEpoch || current.selected != row ||
@@ -84,6 +97,15 @@ func (w *Workbench) inspectHelmRevision() {
 				}
 				return
 			}
+			if preview {
+				if !scope.Matches(session, ns, row, time.Now()) {
+					current.contentStatus = "Helm scope preview expired; explicitly read again."
+					return
+				}
+				current.preview = scope
+				current.contentStatus = "Stored scope only. No live ownership check, dry-run, or deletion approval."
+				return
+			}
 			current.inspection = &result
 			current.contentStatus = "Selected object and payload identities agree. Consistency is NOT authenticity or write approval."
 		})
@@ -97,9 +119,10 @@ func (w *Workbench) helmInspectionView(c *ui.Context) {
 	ui.Column(c).Gap(5).Children(func() {
 		ui.Text(c, fmt.Sprintf("Selected: %s · revision %d", r.selected.Release, r.selected.Number)).Label("Helm inspection selection").SingleLine()
 		ui.Text(c, "Content may contain secrets. Requires get secrets; raw values/manifests/notes stay hidden.").FontSize(11)
-		ui.Checkbox(c.Key("helm.inspection.consent"), &r.acknowledged, "Allow reading this revision's sensitive Secret content").Disabled(r.busy || r.inspecting)
-		ui.Row(c).Gap(8).Children(func() {
+		guardedCheckbox(c, fmt.Sprintf("helm.inspection.consent.%d", r.contentEpoch), &r.acknowledged, "Allow reading this revision's sensitive Secret content", !r.busy && !r.inspecting)
+		ui.Row(c).Gap(8).Wrap().Children(func() {
 			ui.Button(c, "Inspect selected revision").Disabled(!r.acknowledged || r.busy || r.inspecting).OnClick(w.inspectHelmRevision)
+			ui.Button(c, "Preview uninstall scope").Disabled(!r.acknowledged || r.busy || r.inspecting).OnClick(w.previewHelmUninstall)
 			ui.Button(c, "Stop content inspection").Disabled(!r.inspecting).OnClick(w.clearHelmInspection)
 			ui.Button(c, "Discard inspection").OnClick(w.clearHelmInspection)
 		})

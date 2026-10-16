@@ -126,6 +126,16 @@ contract through external `TextBuffer.Replace`; its new editor also normalizes
 loaded mixed CRLF/LF bytes. See the [editor boundary review](docs/editor-upstream-mygo-0.4.8-review.md). Other identity policy, product-depth and release
 priorities remain in [the tracker](https://github.com/laojianzi/aster/issues/13).
 
+## Helm uninstall scope preview
+
+After selecting a Helm revision, acknowledge the sensitive read and choose
+**Preview uninstall scope**. This creates a two-minute, session-bound immutable
+inventory of up to 32 stored object identities, with hooks/keep/CRD warnings.
+Raw content stays hidden. The revision may be historical; live ownership, routing
+and actual deletion behavior are not verified. This is not a Helm dry-run or
+executable plan. **Discard inspection** clears it; refreshing or changing scope
+invalidates it without automatically rereading. See [the precise boundaries](docs/helm-uninstall-preview.md).
+
 ## Reviewed issuer sign-out
 
 For an active browser-OIDC connection, **Browser sign-in** shows an optional issuer
