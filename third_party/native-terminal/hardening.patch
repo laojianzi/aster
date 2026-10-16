@@ -209,7 +209,7 @@ index f4e43b1..5b3a22a 100644
  
  const asciiPrintable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 diff --git a/paste.go b/paste.go
-index 3fc1750..c42f1bc 100644
+index ed38aa6..88dd3a6 100644
 --- a/paste.go
 +++ b/paste.go
 @@ -20,6 +20,10 @@ var notTakenAfter = 5 * time.Second
@@ -223,7 +223,7 @@ index 3fc1750..c42f1bc 100644
  	if text != "" {
  		t.PasteData(transfer.TextData(text))
  	}
-@@ -98,52 +102,26 @@ func readFormat(d transfer.Data, mime string) []byte {
+@@ -100,61 +104,26 @@ func readFormat(d transfer.Data, mime string) []byte {
  // view read only some of them, which tell whether a paste of no text had
  // something else.
  func (t *Terminal) pasteData(d transfer.Data, held []transfer.Format) {
@@ -255,10 +255,19 @@ index 3fc1750..c42f1bc 100644
 -		status = PasteOffered
 -	} else {
 -		text, _ := o.data.Read(transfer.Text)
--		if len(text) == 0 && slices.ContainsFunc(held, func(f transfer.Format) bool { return f != transfer.Text }) {
+-		bracketed := t.term.Mode(vt.ModeBracketedPaste)
+-		switch {
+-		case len(text) > 0:
+-			data = vt.EncodePaste(string(text), bracketed)
+-		case !slices.ContainsFunc(held, func(f transfer.Format) bool { return f != transfer.Text }):
+-		case bracketed:
+-			// An empty bracketed paste, as VS Code's terminal sends, which
+-			// programs that take images, as Claude Code, read as a paste
+-			// of what the clipboard holds and read it themselves.
+-			data = []byte("\x1b[200~\x1b[201~")
+-		default:
 -			status = PasteNoText
 -		}
--		data = vt.EncodePaste(string(text), t.term.Mode(vt.ModeBracketedPaste))
 -	}
 +	data := vt.EncodePaste(string(text), t.term.Mode(vt.ModeBracketedPaste))
  	t.term.ScrollToBottom()
@@ -287,7 +296,7 @@ index 3fc1750..c42f1bc 100644
  }
  
  func (t *Terminal) pasteStatus(p PasteProgress) {
-@@ -177,52 +155,8 @@ type clipboardRequest struct {
+@@ -188,52 +157,8 @@ type clipboardRequest struct {
  // the main thread (ClipboardDeferred), which may first ask the app.
  // t.mu is held.
  func (t *Terminal) clipboardRead(req vt.ClipboardRead) (vt.ClipboardReply, vt.ClipboardAnswer) {
@@ -342,7 +351,7 @@ index 3fc1750..c42f1bc 100644
  }
  
  // sendReply queues a paste's reply in pieces, each telling how far it went
-@@ -252,7 +186,5 @@ func (t *Terminal) sendReply(p []byte) {
+@@ -263,7 +188,5 @@ func (t *Terminal) sendReply(p []byte) {
  // readsClipboard reports whether the program reads the clipboard itself
  // (mode 5522), as a paste then offers it all the clipboard holds.
  func (t *Terminal) readsClipboard() bool {
@@ -352,10 +361,10 @@ index 3fc1750..c42f1bc 100644
 +	return false
  }
 diff --git a/terminal.go b/terminal.go
-index 3e25871..639ed33 100644
+index a0054ee..06aeab8 100644
 --- a/terminal.go
 +++ b/terminal.go
-@@ -375,10 +375,11 @@ type Terminal struct {
+@@ -378,10 +378,11 @@ type Terminal struct {
  	held      bool
  	heldSince time.Time
  
@@ -371,7 +380,7 @@ index 3e25871..639ed33 100644
  
  	// curTheme is the view's theme, for the program's questions; t.mu
  	// guards it. v is the view's state, on the main thread.
-@@ -401,40 +402,40 @@ type events struct {
+@@ -404,40 +405,40 @@ type events struct {
  // The program starts once a view shows the terminal, at the size of the
  // view, or half a second later at 80×24 when none does.
  func New(opts Options) (*Terminal, error) {
@@ -435,7 +444,7 @@ index 3e25871..639ed33 100644
  	})
  	if err != nil {
  		return nil, err
-@@ -495,7 +496,15 @@ func New(opts Options) (*Terminal, error) {
+@@ -498,7 +499,15 @@ func New(opts Options) (*Terminal, error) {
  // run reads the output and writes the input of the program, or Conn.
  func (t *Terminal) run() {
  	go t.read()
@@ -452,7 +461,22 @@ index 3e25871..639ed33 100644
  }
  
  // start starts the program of launch, which the caller took, in a
-@@ -778,7 +787,7 @@ func (t *Terminal) Text() string {
+@@ -749,11 +758,11 @@ func (t *Terminal) zoom(z Zoom) {
+ 	t.redraw()
+ }
+ 
+-// SetCopyOnSelect changes where a selection is copied as it ends, as
+-// Options.CopyOnSelect, as when the user changes a setting.
++// SetCopyOnSelect cannot enable automatic clipboard writes in Aster.
++// Only an explicit user copy command grants a clipboard write.
+ func (t *Terminal) SetCopyOnSelect(c CopyOnSelect) {
+ 	t.mu.Lock()
+-	t.opts.CopyOnSelect = c
++	t.opts.CopyOnSelect = CopyOnSelectNone
+ 	t.mu.Unlock()
+ }
+ 
+@@ -789,7 +798,7 @@ func (t *Terminal) Text() string {
  func (t *Terminal) Resize(cols, rows int) {
  	t.mu.Lock()
  	defer t.mu.Unlock()
@@ -461,7 +485,7 @@ index 3e25871..639ed33 100644
  }
  
  // Snapshot returns what the terminal shows as escape sequences: its
-@@ -797,10 +806,13 @@ func (t *Terminal) Snapshot() []byte {
+@@ -808,10 +817,13 @@ func (t *Terminal) Snapshot() []byte {
  // Send sends data to the program as if typed.
  func (t *Terminal) Send(data []byte) {
  	if len(data) > 0 {
@@ -476,7 +500,7 @@ index 3e25871..639ed33 100644
  // Feed shows data as if the program wrote it: text and escape sequences.
  func (t *Terminal) Feed(data []byte) { t.write(data) }
  
-@@ -811,11 +823,12 @@ func (t *Terminal) Close() error {
+@@ -822,11 +834,12 @@ func (t *Terminal) Close() error {
  	t.mu.Lock()
  	if t.closed {
  		t.mu.Unlock()
@@ -491,7 +515,7 @@ index 3e25871..639ed33 100644
  	src, proc, waiting := t.src, t.proc, t.launch != nil
  	t.launch = nil
  	if t.timer != nil {
-@@ -846,6 +859,9 @@ func (t *Terminal) Close() error {
+@@ -857,6 +870,9 @@ func (t *Terminal) Close() error {
  	// free it under the locks.
  	t.mu.Lock()
  	t.rmu.Lock()
@@ -501,7 +525,7 @@ index 3e25871..639ed33 100644
  	t.term.Free()
  	t.term = nil
  	t.rs.Free()
-@@ -976,14 +992,23 @@ func unhex(c byte) (byte, bool) {
+@@ -987,14 +1003,23 @@ func unhex(c byte) (byte, bool) {
  // inputQueue writes what is typed to the program in order, from a
  // goroutine of its own: a program that does not read its input must not
  // block the reader, which answers its queries.
@@ -531,7 +555,7 @@ index 3e25871..639ed33 100644
  type queued struct {
  	p    []byte
  	done func()
-@@ -992,32 +1017,51 @@ type queued struct {
+@@ -1003,32 +1028,51 @@ type queued struct {
  func (q *inputQueue) init() {
  	if q.cond == nil {
  		q.cond = sync.NewCond(&q.mu)
@@ -594,7 +618,7 @@ index 3e25871..639ed33 100644
  func (q *inputQueue) run(w io.Writer) {
  	for {
  		q.mu.Lock()
-@@ -1030,20 +1074,51 @@ func (q *inputQueue) run(w io.Writer) {
+@@ -1041,20 +1085,51 @@ func (q *inputQueue) run(w io.Writer) {
  			return
  		}
  		item := q.queue[0]
@@ -653,7 +677,7 @@ index 3e25871..639ed33 100644
  	switch s {
  	case CursorBar:
 diff --git a/view.go b/view.go
-index dece09a..6f8a12c 100644
+index a7ba7b7..c290942 100644
 --- a/view.go
 +++ b/view.go
 @@ -9,7 +9,6 @@ import (
@@ -753,13 +777,13 @@ index dece09a..6f8a12c 100644
 -		if _, ok := contents["text/plain"]; !ok {
 -			contents["text/plain"] = b
 -		}
- 	}
+-	}
 -	var available []string
 -	for _, f := range v.services.ClipboardFormats() {
 -		if m := offerMIME(f); m != "" && !slices.Contains(available, m) {
 -			available = append(available, m)
 -		}
--	}
+ 	}
 -	v.answer(term, r, true, contents, available)
  }
  
@@ -915,7 +939,30 @@ index dece09a..6f8a12c 100644
  	return true
  }
  
-@@ -936,10 +820,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
+@@ -817,21 +701,13 @@ func (v *view) clearSelection() {
+ func (v *view) selectAll() {
+ 	t := v.t
+ 	t.mu.Lock()
+-	text := ""
+ 	if t.term != nil {
+ 		if s, ok := t.term.SelectAll(); ok {
+ 			t.term.SetSelection(&s)
+-			if t.opts.CopyOnSelect == CopyOnSelectClipboard {
+-				text, _ = t.term.SelectionText()
+-			}
+ 		}
+ 	}
+ 	t.mu.Unlock()
+-	if text != "" {
+-		// Outside the lock, which the clipboard may hold up while
+-		// another program has it.
+-		v.services.WriteClipboard(text)
+-	}
++	// Selection is not authorization to write the host clipboard.
+ 	v.services.Invalidate()
+ }
+ 
+@@ -945,10 +821,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
  // is a file path: none without Command, or while the primary button
  // selects or the program has a press; t.mu is held.
  func (v *view) linkUnder(mods ui.Modifiers, x, y float32) (link string, path bool) {
@@ -928,7 +975,7 @@ index dece09a..6f8a12c 100644
  }
  
  // linkAt is the link at the cell: a hyperlink (OSC 8), a URL printed as
-@@ -1014,7 +896,7 @@ func (v *view) report(ev ui.InputEvent) bool {
+@@ -1023,7 +897,7 @@ func (v *view) report(ev ui.InputEvent) bool {
  	v.mouse.Sync(t.term, v.ox*2+v.cols*v.cellW, v.oy*2+v.rows*v.cellH, v.cellW, v.cellH, v.ox, v.oy, pressed)
  	out := v.mouse.Encode(action, b, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale)
  	if len(out) > 0 {
@@ -937,7 +984,7 @@ index dece09a..6f8a12c 100644
  	}
  	return ev.Kind != ui.InputPointerMove || len(out) > 0
  }
-@@ -1081,7 +963,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1090,7 +964,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  		}
  		for range abs(rows) {
  			if out := v.mouse.Encode(vt.MousePress, button, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale); len(out) > 0 {
@@ -946,7 +993,7 @@ index dece09a..6f8a12c 100644
  			}
  		}
  	case v.wheelArrows():
-@@ -1098,7 +980,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1107,7 +981,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
  			key = vt.KeyArrowUp
  		}
  		for range abs(rows) {

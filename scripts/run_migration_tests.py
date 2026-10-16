@@ -7,6 +7,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    "TestNativeMyGo055ExplicitClockAndCurrentFrameShortcut",
+    "TestNativeMyGo055SplitListReportsCurrentSelectionOnce",
     "TestNativeMyGo05ScaledNavigationStaysAboveStatus",
     "TestNativeMyGo05GuardedChoiceTransitions",
     "TestNativeMyGo05PendingSensitiveFieldsDoNotInvalidateReview",
@@ -120,6 +122,7 @@ REQUIRED = [
 ]
 
 TERMINAL_REQUIRED = [
+    "TestTerminalNativeMyGo055RuntimeCopyAndImagePasteStayDenied",
     "TestTerminalNativeMyGo05ClipboardReadsNeverEvaluateProviders",
     "TestTerminalNativeMyGo05MultiformatPasteIsBoundedTextOnly",
     "TestTerminalNativeMyGo05ControlCVRemainRemote",

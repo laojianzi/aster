@@ -82,11 +82,13 @@ func TestNativeMyGo04ToastExpiresAfterClosingDialog(t *testing.T) {
 				t.Fatal("test pointer would rest on the toast")
 			}
 			// Only the public tester: do not move the pointer to hide the old bug.
-			deadline := time.Now().Add(2 * time.Second)
-			for closed == 0 && time.Now().Before(deadline) {
-				time.Sleep(10 * time.Millisecond)
-				tt.Frame()
+			// Since MyGo 0.5.5, only Advance moves the tester's UI clock.
+			// Keep the old deadline and close-once contract, not a real sleep.
+			tt.Advance(299 * time.Millisecond)
+			if closed != 0 {
+				t.Fatal("toast expired before its configured deadline")
 			}
+			tt.Advance(1701 * time.Millisecond)
 			if closed != 1 || tt.HasText("Contract complete") {
 				t.Fatalf("toast inherited closed dialog hover/focus: closes=%d", closed)
 			}
