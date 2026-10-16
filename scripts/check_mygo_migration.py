@@ -25,7 +25,7 @@ if __name__ == '__main__':
     version = subprocess.check_output(
         ['go', 'list', '-m', '-f', '{{.Version}}', 'github.com/egoist/mygo'],
         cwd=ROOT, text=True).strip()
-    if version != spec['version'] or version not in ('v0.3.7', 'v0.4.1', 'v0.4.2', 'v0.4.5', 'v0.4.8', 'v0.5.1'):
+    if version != spec['version'] or version not in ('v0.3.7', 'v0.4.1', 'v0.4.2', 'v0.4.5', 'v0.4.8', 'v0.5.1', 'v0.5.5'):
         raise SystemExit('framework/native-source pins differ from the audited 0.3/0.4/0.5 contract')
     before = snapshot()
     subprocess.run(['go', 'run', 'github.com/egoist/mygo/cmd/mygo@' + version,

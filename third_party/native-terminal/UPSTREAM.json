@@ -30,9 +30,9 @@
     "links.go": "4c9936f8e6fe7ffc6aa7daa040ae0a6da0512a48e2e2f351c060a0d2790d4145",
     "mygo-plugin.json": "2d7c464140e016bf4790671bcd4e61af8995c75a86e491f347297b1a637a29a4",
     "paint.go": "93b09f8a0bab8e1f51806e5af10b3131d8a8d819f00a5372dfaa8c505d7c1aa2",
-    "paste.go": "0259fe873dfab6d222c6b4881956f01be23108a121003dafd789df94b4a425d0",
-    "terminal.go": "e7e0be947971b36726db2f55da6dbd3a647fab94d3157550e31cd50afdaa9657",
+    "paste.go": "b1a0cbaaeffb2d3f7d9a15a56a1905780ccc406b9a2fd64891b9345ab0910168",
+    "terminal.go": "c42e2726b5306e8f8ffbfc33534f0f18db6a84da965e5e3e807d06c4e4a5a737",
     "theme.go": "477b7fbaa362d66df0880d959d6dda34e552df09b259413bb14a0f57ab88176e",
-    "view.go": "ff7f3c718d1d7425be87955d6a2d67d74c3c807971c9f8fefceab88c9aa3db1d"
+    "view.go": "448b21b65a90d155acf115eca0800781afbc4d3f0cbd831278c9c1f855aff354"
   }
 }
