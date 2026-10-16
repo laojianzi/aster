@@ -257,16 +257,22 @@ func TestNativeHelmUninstallPreviewScaledInventory(t *testing.T) {
 					}
 				}
 				viewport, ok := h.tt.Find("Helm uninstall inventory")
-				if !ok || viewport.H <= 0 || viewport.Y+viewport.H > status.Y {
+				if !ok || viewport.H < 96 || viewport.Y+viewport.H > status.Y {
 					t.Fatal("invalid viewport", viewport)
 				}
 				h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 4000)
 				h.tt.Frame()
 				last, ok := h.tt.Find("Helm uninstall object 32")
-				if !ok || last.Y < viewport.Y || last.Y+last.H > viewport.Y+viewport.H {
+				if !ok || last.H < 12 || last.Y < viewport.Y || last.Y+last.H > viewport.Y+viewport.H {
 					t.Fatal("last stored object unreachable", last, viewport)
 				}
 				saveNativeScreenshot(t, h.tt)
+				h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, -4000)
+				h.tt.Frame()
+				expiry, ok := h.tt.Find("Helm uninstall expiry")
+				if !ok || expiry.H < 10 || expiry.Y < viewport.Y || expiry.Y+expiry.H > viewport.Y+viewport.H {
+					t.Fatal("stored-scope warnings/expiry not reachable after scrolling back", expiry, viewport)
+				}
 				if reads.Load() != 1 {
 					t.Fatal("scrolling performed extra read")
 				}

@@ -31,14 +31,18 @@ func (w *Workbench) helmUninstallPreviewView(c *ui.Context) {
 	}
 	items, summary := p.Items(), p.Summary()
 	ui.Text(c, "Uninstall scope preview — NOT executable").Bold()
-	ui.Text(c, fmt.Sprintf("Stored revision %d (%s) · %d object(s) · %d stored hook(s)", p.Revision().Number, p.Revision().Status, len(items), summary.HookCount)).Label("Helm uninstall preview counts").FontSize(12)
-	ui.Text(c, "Not necessarily latest. Live identity/ownership, routing, dependents and dry-run are NOT checked.").FontSize(11)
-	ui.Text(c, "Hooks/history and chart CRDs outside the stored manifest remain unplanned. Order below is NOT deletion order.").FontSize(11)
-	if s := p.Revision().Status; s != "deployed" && s != "failed" {
-		ui.Text(c, "Selected status is historical, pending or unknown; do not infer an uninstallable release.").FontSize(11)
-	}
-	ui.Text(c, "Expires: "+p.ExpiresAt().UTC().Format("15:04:05 UTC")+" · Refresh/discard invalidates this observation.").Label("Helm uninstall expiry").FontSize(11)
-	ui.Scroll(c.Key("helm.uninstall.inventory")).Label("Helm uninstall inventory").Grow(1).Basis(0).MinHeight(0).Children(func() {
+	// Keep only the nonexecution warning and read/discard controls pinned.
+	// Observations and descriptors share one scroll viewport; fixed warning rows
+	// must not squeeze glyphs to a near-zero height when controls wrap.
+	ui.Scroll(c.Key("helm.uninstall.inventory." + p.ID())).Label("Helm uninstall inventory").Grow(1).Basis(0).MinHeight(0).Gap(6).Children(func() {
+		ui.Text(c, fmt.Sprintf("Stored revision %d (%s) · %d object(s) · %d stored hook(s)", p.Revision().Number, p.Revision().Status, len(items), summary.HookCount)).Label("Helm uninstall preview counts").FontSize(12)
+		ui.Text(c, "Not necessarily latest. Live identity/ownership, routing, dependents and dry-run are NOT checked.").FontSize(11)
+		ui.Text(c, "Hooks/history and chart CRDs outside the stored manifest remain unplanned. Order below is NOT deletion order.").FontSize(11)
+		if s := p.Revision().Status; s != "deployed" && s != "failed" {
+			ui.Text(c, "Selected status is historical, pending or unknown; do not infer an uninstallable release.").FontSize(11)
+		}
+		ui.Text(c, "Expires: "+p.ExpiresAt().UTC().Format("15:04:05 UTC")+" · Refresh/discard invalidates this observation.").Label("Helm uninstall expiry").FontSize(11)
+
 		for i, item := range items {
 			declared := item.Namespace
 			if declared == "" {
@@ -57,8 +61,8 @@ func (w *Workbench) helmUninstallPreviewView(c *ui.Context) {
 			if item.ForeignNamespace {
 				flags = append(flags, "foreign namespace")
 			}
-			ui.Column(c.Key(fmt.Sprintf("helm.uninstall.item.%d", i))).Padding(4).Gap(2).Children(func() {
-				ui.Text(c, fmt.Sprintf("%d. %s %s · %s / %s", i+1, item.APIVersion, item.Kind, declared, item.Name)).Label(fmt.Sprintf("Helm uninstall object %d", i+1)).SingleLine().FontSize(12)
+			ui.Column(c.Key(fmt.Sprintf("helm.uninstall.item.%d", i))).Padding(4).Gap(2).Shrink(0).Children(func() {
+				ui.Text(c, fmt.Sprintf("%d. %s %s · %s / %s", i+1, item.APIVersion, item.Kind, declared, item.Name)).Label(fmt.Sprintf("Helm uninstall object %d", i+1)).SingleLine().FontSize(12).MinHeight(20).Shrink(0)
 				if len(flags) != 0 {
 					ui.Text(c, strings.Join(flags, " · ")).FontSize(11)
 				}

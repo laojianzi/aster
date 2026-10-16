@@ -16,7 +16,9 @@ revision** summary; either action consumes it. Busy/current-model guards and a
 selection/attempt-specific input key prevent queued input restoring old consent.
 
 The preview replaces the metadata rows with an independently scrollable stored
-inventory. Each row exposes only validated API version/kind, name, declared
+inventory. Its explanatory observations scroll with the descriptors, while the
+nonexecution warning and consent/discard controls remain outside that viewport.
+A fresh preview identity starts a new scroll viewport; no text-scale clamp is used. Each row exposes only validated API version/kind, name, declared
 namespace and risk flags. Missing namespace is explicitly unresolved, not assumed
 to be cluster-scoped or to name a live target. Foreign namespaces are marked;
 no requests to those namespaces are made. Secret objects expose identity only,

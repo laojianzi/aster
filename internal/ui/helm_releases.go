@@ -124,14 +124,14 @@ func (w *Workbench) helmReleasesView(c *ui.Context) {
 			ui.Button(c, "Stop Helm metadata").Disabled(!r.busy).OnClick(w.stopHelmReleases)
 			ui.Button(c, "Close Helm metadata").OnClick(w.clearHelmReleases)
 		})
-		ui.Text(c, r.status).Label("Helm metadata status").FontSize(12)
-		ui.Text(c, "Read-only Secret-driver labels · not decoded release state or workload health").FontSize(11)
-		ui.Text(c, "Content requires separate selection and consent. No release writes or write approval.").FontSize(11)
-		ui.Text(c, "Requires list secrets permission. ConfigMap/SQL drivers are not queried.").FontSize(11)
 		rows := r.snapshot.Revisions
 		if r.preview != nil {
 			w.helmUninstallPreviewView(c)
 		} else {
+			ui.Text(c, r.status).Label("Helm metadata status").FontSize(12)
+			ui.Text(c, "Read-only Secret-driver labels · not decoded release state or workload health").FontSize(11)
+			ui.Text(c, "Content requires separate selection and consent. No release writes or write approval.").FontSize(11)
+			ui.Text(c, "Requires list secrets permission. ConfigMap/SQL drivers are not queried.").FontSize(11)
 			ui.List(c.Key("helm-release-revisions"), &r.list, len(rows), func(i int) {
 				row := rows[i]
 				ui.Column(c).Padding(6).Gap(3).Children(func() {
