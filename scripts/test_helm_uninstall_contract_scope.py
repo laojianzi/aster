@@ -141,8 +141,11 @@ python() { shift; go "${@:2}"; }
         hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()
         cluster = (root / 'internal/helmrender/uninstall_contract_e2e_test.go').read_text()
         self.assertTrue(cluster.startswith('//go:build e2e\n'))
+        self.assertIn('observeHelmUninstallTargetAbsent(ctx, 3*time.Second, cm.UID', cluster)
+        self.assertNotIn('expected real target deletion', cluster)
         for marker in ('readLocal(', 'sha256.Sum256', 'unpackExecutable(', 'isolatedEnvironment(',
-                       'exec.CommandContext', 'cmd.WaitDelay', 'httptest.NewServer', 'entry.Options.Preconditions'):
+                       'exec.CommandContext', 'cmd.WaitDelay', 'httptest.NewServer', 'entry.Options.Preconditions',
+                       'observeHelmUninstallTargetAbsent(', 'PollUntilContextTimeout(', 'apierrors.IsNotFound('):
             self.assertIn(marker, hermetic)
         for marker in ('testcluster.Config(t)', 'IsLoopback()', 'cfg.Insecure', 'cfg.ExecProvider',
                        'clientcmd.Write(raw)', 'GenerateName:', 't.Cleanup(', 'PreviewHelmUninstall(',

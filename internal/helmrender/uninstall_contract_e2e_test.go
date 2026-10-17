@@ -187,13 +187,25 @@ func TestRealHelmUninstallContractResourcesAndHistory(t *testing.T) {
 			if _, err := tool.uninstall(t, ns.Name, flags...); err != nil {
 				t.Fatal("actual uninstall", err)
 			}
-			live, err = client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
 			if mode == "missing-marker" || mode == "mismatch-marker" {
+				live, err = client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
 				if err != nil || !reflect.DeepEqual(cm, live) {
 					t.Fatal("mismatched object must remain unchanged despite CLI success", err)
 				}
-			} else if !apierrors.IsNotFound(err) {
-				t.Fatal("expected real target deletion", err)
+			} else {
+				// --wait=hookOnly permits an asynchronous DELETE to remain visible
+				// briefly. Poll READS only for exact absence, with a separate tight
+				// deadline; a persistent object, replacement UID or denied GET fails.
+				err = observeHelmUninstallTargetAbsent(ctx, 3*time.Second, cm.UID, func(ctx context.Context) (types.UID, error) {
+					observed, err := client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
+					if err != nil {
+						return "", err
+					}
+					return observed.UID, nil
+				})
+				if err != nil {
+					t.Fatal("real target disappearance not established", err)
+				}
 			}
 			history, err := client.CoreV1().Secrets(ns.Name).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm,name=contract"})
 			if err != nil {

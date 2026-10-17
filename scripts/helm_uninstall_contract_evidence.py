@@ -14,6 +14,9 @@ REQUIRED = {
         'TestHelmUninstallBinaryRaceAndPartialEffects/replace-after-read',
         'TestHelmUninstallBinaryRaceAndPartialEffects/partial',
         'TestHelmUninstallBinaryCancellationIsNotRollback',
+        'TestHelmUninstallDeletionObservationFailsClosed',
+        *['TestHelmUninstallDeletionObservationFailsClosed/' + mode for mode in
+          ('eventual-exact-absence', 'persistent-object', 'replaced-uid', 'denied-not-absent', 'canceled')],
     ),
     'real-cluster-native': (
         'TestRealHelmUninstallContractResourcesAndHistory',

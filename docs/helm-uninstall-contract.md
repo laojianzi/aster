@@ -145,6 +145,17 @@ unique fixture namespaces and registers cleanup. Ambient auth/proxy/plugins are
 not inherited by Helm. These guards prevent accidental default-context usage;
 opt-in/context naming alone is not proof that a cluster is disposable.
 
+The real-cluster DELETE comparison waits at most three additional real seconds
+for **typed NotFound** of the reviewed ConfigMap. This is bounded read-only
+observation, not a repeated DELETE, and does not change the Helm command's
+existing timeout or wait strategy. Because `--wait=hookOnly` can return while
+deletion remains observable, an immediate successful GET is not proof of a
+permanent resource; persistent objects, unexpected replacements, 403 and
+cancellation still fail the test. The first actual-main test revealed this
+premature assertion on Kubernetes v1.36.4 and v1.37.0; its original failure
+artifacts remain nonqualifying evidence. A deterministic test checks eventual
+absence, permanent presence, replacement, denial and cancellation.
+
 The real-cluster launcher preserves the original complete E2E/UI package set,
 then appends a separate invocation of the new contract test root with all seven
 subcases to the same raw stream. It does not rerun unrelated Helm-renderer unit
