@@ -62,6 +62,35 @@ class HelmUninstallContractScopeTests(unittest.TestCase):
                     retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
                                          lambda _: mode != 'unreachable', number=number, branch=branch)
 
+    def test_only_actual_pr82_can_retire_its_exact_branch(self):
+        number, branch = 82, 'fix/helm-uninstall-absence'
+        head, tip = 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(80, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        for mode in ('issue-number', 'open', 'unmerged', 'wrong-merge', 'wrong-branch',
+                     'foreign', 'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue-number': p['number'] = 80
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'wrong-merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'wrong-branch': p['head']['ref'] = 'test/helm-uninstall-contract'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
+                                         lambda _: mode != 'unreachable', number=number, branch=branch)
+
     def test_ci_gates_are_separate_commands_not_folded_yaml(self):
         text = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
         for suite, step in (('unit-native', 'Validate test evidence'),
