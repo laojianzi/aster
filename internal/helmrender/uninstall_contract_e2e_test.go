@@ -4,6 +4,7 @@ package helmrender
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/laojianzi/aster/internal/helmrelease"
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/testcluster"
 	corev1 "k8s.io/api/core/v1"
@@ -162,6 +164,43 @@ func TestRealHelmUninstallContractResourcesAndHistory(t *testing.T) {
 			before, err := client.CoreV1().Secrets(ns.Name).Get(ctx, row.StorageName, metav1.GetOptions{})
 			if err != nil {
 				t.Fatal(err)
+			}
+			if mode == "keep-history" {
+				t.Run("status-patch-dry-run", func(t *testing.T) {
+					copy := before.DeepCopy()
+					copy.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}
+					wire, err := json.Marshal(copy)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer clear(wire)
+					patch, err := helmrelease.BuildUninstallStatusPatch(ctx, wire, ns.Name, row, helmrelease.BeginUninstallStatus, time.Now())
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer clear(patch)
+					dry, err := client.CoreV1().Secrets(ns.Name).Patch(ctx, row.StorageName, types.JSONPatchType, patch, metav1.PatchOptions{DryRun: []string{metav1.DryRunAll}, FieldValidation: "Strict"})
+					if err != nil || dry.Labels["status"] != "uninstalling" || dry.UID != before.UID {
+						t.Fatal("real Helm storage dry-run", err)
+					}
+					// Check the transformed full payload, not only its metadata label.
+					dry.TypeMeta = metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}
+					wire, err = json.Marshal(dry)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer clear(wire)
+					next := row
+					next.Status = "uninstalling"
+					next.ResourceVersion = dry.ResourceVersion
+					if _, err := helmrelease.InspectSecret(ctx, wire, ns.Name, next); err != nil {
+						t.Fatal("transformed actual Helm payload", err)
+					}
+					unchanged, err := client.CoreV1().Secrets(ns.Name).Get(ctx, row.StorageName, metav1.GetOptions{})
+					if err != nil || !reflect.DeepEqual(before, unchanged) {
+						t.Fatal("status dry-run persisted", err)
+					}
+				})
 			}
 			if _, err := tool.uninstall(t, ns.Name, "--dry-run", "--keep-history"); err != nil {
 				t.Fatal("actual dry-run", err)

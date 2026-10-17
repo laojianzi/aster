@@ -68,6 +68,17 @@ func InspectSecret(ctx context.Context, data []byte, ns string, selected Revisio
 // visit is private to this package: raw release content never becomes an exported
 // capability or part of the existing summary. It runs only after full validation.
 func inspectSecret(ctx context.Context, data []byte, ns string, selected Revision, visit func(Inspection, string) error) (Inspection, error) {
+	return inspectSecretPayload(ctx, data, ns, selected, func(summary Inspection, manifest string, _ []byte) error {
+		if visit != nil {
+			return visit(summary, manifest)
+		}
+		return nil
+	})
+}
+
+// The raw payload is valid only during this private callback and is cleared on
+// return. It must never be retained in the public inspection/preview models.
+func inspectSecretPayload(ctx context.Context, data []byte, ns string, selected Revision, visit func(Inspection, string, []byte) error) (Inspection, error) {
 	empty := Inspection{}
 	if err := ctx.Err(); err != nil {
 		return empty, err
@@ -182,7 +193,7 @@ func inspectSecret(ctx context.Context, data []byte, ns string, selected Revisio
 	}
 	summary := Inspection{ChartName: chart.Name, ChartVersion: chart.Version, ManifestBytes: len(release.Manifest), HookCount: len(release.Hooks), SuppliedValues: len(release.Config)}
 	if visit != nil {
-		if err := visit(summary, release.Manifest); err != nil {
+		if err := visit(summary, release.Manifest, payload); err != nil {
 			return empty, err
 		}
 	}

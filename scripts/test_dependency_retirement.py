@@ -11,7 +11,8 @@ class DependencyRetirementTests(unittest.TestCase):
         self.assertEqual(APPROVED[58], 'renovate/mygo-native-framework')
         self.assertEqual(APPROVED[73], 'renovate/github.com-go-jose-go-jose-v4-4.x')
         self.assertEqual(APPROVED[75], 'renovate/mygo-native-framework')
-        self.assertEqual(set(DEPENDENCY_SCOPES), {31, 33, 39, 40, 41, 58, 73, 74, 75})
+        self.assertEqual(APPROVED[85], 'feat/helm-release-status-transition')
+        self.assertEqual(set(DEPENDENCY_SCOPES), {31, 33, 39, 40, 41, 58, 73, 74, 75, 85})
         head = 'a' * 40
         runs = [dict(name=n,id=i,event='push',head_branch='main',head_sha=head,
                      status='completed',conclusion='success') for i,n in enumerate(REQUIRED)]

@@ -31,8 +31,24 @@ REQUIRED = {
     ),
 }
 
+STATUS_TRANSITION_REQUIRED = {
+    'unit-native': (
+        'TestHelmStatusTransitionPreservesPayloadAndConditions',
+        'TestHelmStatusTransitionRejectsStaleAndInvalid',
+        'TestHelmStatusTransitionPatchPreconditions',
+        'TestHelmStatusTransitionBudgetsAndCancellation',
+        'TestHelmStatusTransitionSpliceOracle',
+    ),
+    'real-cluster-native': (
+        'TestRealHelmStatusTransitionConditionalStorage',
+        *['TestRealHelmStatusTransitionConditionalStorage/' + key for key in
+          ('name', 'namespace', 'uid', 'rv', 'status', 'denied')],
+        'TestRealHelmUninstallContractResourcesAndHistory/keep-history/status-patch-dry-run',
+    ),
+}
+
 def required(suite):
-    return required_for_suite(suite, list(REQUIRED[suite]))
+    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ())])
 
 def main():
     parser = argparse.ArgumentParser()
