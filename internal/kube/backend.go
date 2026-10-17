@@ -14,7 +14,11 @@ import (
 	"k8s.io/client-go/util/flowcontrol"
 )
 
+// backendIdentity binds inert preparations without retaining transport credentials.
+type backendIdentity struct{ marker byte }
+
 type Backend struct {
+	identity    *backendIdentity
 	metricsHTTP *http.Client
 	config      *rest.Config
 	typed       kubernetes.Interface
@@ -73,7 +77,7 @@ func New(config *rest.Config) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("write client: %w", err)
 	}
-	return &Backend{metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
+	return &Backend{identity: &backendIdentity{marker: 1}, metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
 }
 func (b *Backend) ServerVersion() (string, error) {
 	v, err := b.discovery.ServerVersion()

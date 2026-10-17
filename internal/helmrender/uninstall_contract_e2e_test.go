@@ -165,6 +165,24 @@ func TestRealHelmUninstallContractResourcesAndHistory(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			t.Run("restricted-preparation", func(t *testing.T) {
+				prepared, e := backend.PrepareHelmUninstall(ctx, ns.Name, row, "contract-session", true)
+				// This is a current-identity review, never a claim of original Helm
+				// ownership. In the recreated case the replacement UID must be shown.
+				allowed := mode == "purge-history" || mode == "recreated"
+				if allowed {
+					if e != nil || prepared == nil || len(prepared.Targets()) != 1 || prepared.Targets()[0].UID != string(cm.UID) {
+						t.Fatal("actual Helm preparation", e)
+					}
+				} else if e == nil || prepared != nil {
+					t.Fatal("unsupported actual Helm profile admitted")
+				}
+				storage, se := client.CoreV1().Secrets(ns.Name).Get(ctx, row.StorageName, metav1.GetOptions{})
+				target, te := client.CoreV1().ConfigMaps(ns.Name).Get(ctx, cm.Name, metav1.GetOptions{})
+				if se != nil || te != nil || !reflect.DeepEqual(before, storage) || !reflect.DeepEqual(cm, target) {
+					t.Fatal("preparation changed actual Helm storage/target", se, te)
+				}
+			})
 			if mode == "keep-history" {
 				t.Run("status-patch-dry-run", func(t *testing.T) {
 					copy := before.DeepCopy()

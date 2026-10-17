@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/laojianzi/aster/internal/manifest"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -139,6 +140,11 @@ func PreviewUninstallSecret(ctx context.Context, data []byte, ns string, row Rev
 }
 
 func previewItems(ctx context.Context, text, ns string) ([]UninstallItem, error) {
+	return previewItemsChecked(ctx, text, ns, nil)
+}
+
+// check adds stricter eligibility without changing the existing preview parser.
+func previewItemsChecked(ctx context.Context, text, ns string, check func(*unstructured.Unstructured) error) ([]UninstallItem, error) {
 	if len(text) > MaxManifestBytes || strings.Count(text, "\n") > MaxPreviewNewlines {
 		return nil, ErrPreviewBudget
 	}
@@ -248,6 +254,11 @@ func previewItems(ctx context.Context, text, ns string) ([]UninstallItem, error)
 			return nil, ErrPreviewInvalid
 		}
 		seen[key] = true
+		if check != nil {
+			if err := check(obj); err != nil {
+				return nil, err
+			}
+		}
 		items = append(items, item)
 	}
 	if err := ctx.Err(); err != nil {
