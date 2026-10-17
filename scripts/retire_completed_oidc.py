@@ -16,7 +16,7 @@ from branch_cleanup import NoRedirect
 REPO = 'laojianzi/aster'
 BRANCH = 'feat/native-oidc-login'
 PR = 25
-APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo', 33: 'renovate/mygo-native-framework', 34: 'feat/native-manifest-find', 36: 'feat/native-manifest-buffer', 38: 'feat/native-oidc-signout', 39: 'renovate/mygo-native-framework', 40: 'fix/dependency-dashboard-autoclose', 41: 'renovate/mygo-native-framework', 43: 'feat/native-schema-constraints', 45: 'feat/reviewed-manifest-delivery', 47: 'feat/native-schema-multipleof', 49: 'feat/native-schema-pattern', 51: 'feat/native-schema-format', 53: 'feat/native-schema-structured-enum', 55: 'feat/native-schema-list-map', 57: 'feat/native-schema-list-set', 58: 'renovate/mygo-native-framework', 60: 'feat/native-schema-integer-map-keys', 62: 'feat/native-schema-integer-set', 64: 'feat/manifest-clipboard-preflight', 66: 'feat/native-schema-boolean-collections', 68: 'feat/local-helm-render-delivery', 70: 'feat/helm-release-metadata', 72: 'feat/helm-revision-inspection', 73: 'renovate/github.com-go-jose-go-jose-v4-4.x', 74: 'renovate/mygo-native-framework', 75: 'renovate/mygo-native-framework', 77: 'feat/helm-uninstall-scope-preview', 79: 'feat/helm-live-observation', 81: 'test/helm-uninstall-contract', 82: 'fix/helm-uninstall-absence'}
+APPROVED = {25: BRANCH, 28: 'feat/native-oidc-renewal', 30: 'feat/native-diagnostic-navigation', 31: 'fix/dependency-dashboard-mygo', 33: 'renovate/mygo-native-framework', 34: 'feat/native-manifest-find', 36: 'feat/native-manifest-buffer', 38: 'feat/native-oidc-signout', 39: 'renovate/mygo-native-framework', 40: 'fix/dependency-dashboard-autoclose', 41: 'renovate/mygo-native-framework', 43: 'feat/native-schema-constraints', 45: 'feat/reviewed-manifest-delivery', 47: 'feat/native-schema-multipleof', 49: 'feat/native-schema-pattern', 51: 'feat/native-schema-format', 53: 'feat/native-schema-structured-enum', 55: 'feat/native-schema-list-map', 57: 'feat/native-schema-list-set', 58: 'renovate/mygo-native-framework', 60: 'feat/native-schema-integer-map-keys', 62: 'feat/native-schema-integer-set', 64: 'feat/manifest-clipboard-preflight', 66: 'feat/native-schema-boolean-collections', 68: 'feat/local-helm-render-delivery', 70: 'feat/helm-release-metadata', 72: 'feat/helm-revision-inspection', 73: 'renovate/github.com-go-jose-go-jose-v4-4.x', 74: 'renovate/mygo-native-framework', 75: 'renovate/mygo-native-framework', 77: 'feat/helm-uninstall-scope-preview', 79: 'feat/helm-live-observation', 81: 'test/helm-uninstall-contract', 82: 'fix/helm-uninstall-absence', 83: 'test/helm-uninstall-contract'}
 DEPENDENCY_SCOPES = (31, 33, 39, 40, 41, 58, 73, 74, 75)
 REMOTE = 'https://github.com/' + REPO + '.git'
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,6 +66,8 @@ def workflows_pass(runs, head, *, extra=()):
 
 
 def run(report):
+    report['phase'] = 'initialize'
+    report['phases'] = ['initialize']
     head, token = os.environ.get('ASTER_CLEANUP_HEAD', ''), os.environ.get('GH_TOKEN', '')
     if re.fullmatch('[a-f0-9]{40}', head) is None or not token:
         raise ValueError('trusted exact head and token required')
@@ -96,43 +98,120 @@ def run(report):
         if p.returncode:
             raise ValueError('Git operation failed')
         return True if predicate else p.stdout.strip()
-    if git('rev-parse', 'HEAD') != head or api('git/ref/heads/main')['object']['sha'] != head:
-        raise ValueError('main moved')
+    retire_registered(report, head, api, collection, git, ROOT)
+
+
+def retire_registered(report, head, api, collection, git, root):
+    """Run one registered current-merge retirement; adapters allow offline tests.
+
+    All phase names and errors are fixed public diagnostics. Never put transport
+    exception text, subprocess output, environment or credentials in the report.
+    """
+    def phase(name):
+        report['phase'] = name
+        report.setdefault('phases', []).append(name)
+
+    def same_main():
+        if git('rev-parse', 'HEAD') != head or api('git/ref/heads/main')['object']['sha'] != head:
+            raise ValueError('main moved')
+
+    phase('verify-main')
+    same_main()
     report['head'] = head
+    phase('select-scope')
     number = select_scope([api('pulls/' + str(n)) for n in APPROVED], head)
     if number is None:
         report['status'] = 'no-registered-completion'
         return
     branch = APPROVED[number]
     receipt = 'refs/tags/maintenance/completed-pr-' + str(number)
-    report['pr'] = number
-    if git('ls-remote', REMOTE, receipt):
-        report['status'] = 'already-recorded'
-        return
-    runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
-    if not workflows_pass(runs, head, extra=('Renovate configuration',) if number in DEPENDENCY_SCOPES else ()):
+    report.update(pr=number, branch=branch, receipt=receipt)
+
+    def verified_gates():
+        runs = api('actions/runs?head_sha=' + head + '&event=push&per_page=100')['workflow_runs']
+        return workflows_pass(runs, head, extra=('Renovate configuration',) if number in DEPENDENCY_SCOPES else ())
+
+    def preflight():
+        pr = api('pulls/' + str(number))
+        branches = {b['name']: b for b in collection('branches')}
+        active = collection('pulls?state=open')
+        ancestor = lambda sha: git('merge-base', '--is-ancestor', sha, head, predicate=True)
+        tip = candidate(pr, head, branches, active, ancestor, number=number, branch=branch)
+        # candidate validates metadata even for an absent branch. Completed
+        # receipt reconciliation also requires ancestry and no active reference.
+        if tip is None:
+            if any(p[s].get('ref') == branch and (p[s].get('repo') or {}).get('full_name') == REPO
+                   for p in active for s in ('head', 'base')):
+                raise ValueError('absent branch has an active PR')
+            if not ancestor(pr['head']['sha']):
+                raise ValueError('completed history not reachable from main')
+        return tip
+
+    def receipt_sha():
+        data = git('ls-remote', '--refs', REMOTE, receipt)
+        if not data:
+            return None
+        fields = data.split()
+        if len(fields) != 2 or fields[1] != receipt or re.fullmatch('[a-f0-9]{40}', fields[0]) is None:
+            raise ValueError('ambiguous receipt reference')
+        return fields[0]
+
+    def confirm_effects():
+        # Reads only. A transport failure cannot cause a second push.
+        same_main()
+        observed = report['confirmation'] = {'main_matches': True}
+        observed['gates_passed'] = verified_gates()
+        if not observed['gates_passed']:
+            raise ValueError('verification changed after write')
+        observed['branch_absent'] = preflight() is None
+        observed['receipt_matches'] = receipt_sha() == head
+        if not observed['branch_absent'] or not observed['receipt_matches']:
+            raise ValueError('atomic retirement effects not established')
+
+    phase('verify-gates')
+    if not verified_gates():
         report['status'] = 'waiting-for-verification'
         return
-    def preflight():
-        return candidate(api('pulls/' + str(number)), head,
-             {b['name']: b for b in collection('branches')}, collection('pulls?state=open'),
-             lambda sha: git('merge-base', '--is-ancestor', sha, head, predicate=True),
-             number=number, branch=branch)
+    phase('preflight')
     sha = preflight()
+    existing = receipt_sha()
+    if existing is not None:
+        phase('verify-existing-receipt')
+        if existing != head or sha is not None:
+            raise ValueError('receipt does not prove completed retirement')
+        confirm_effects()
+        report['status'] = 'already-recorded'
+        return
     if sha is None:
         report['status'] = 'already-absent'
         return
-    report['branch'], report['expected_head'] = branch, sha
-    git('bundle', 'create', str(ROOT/'artifacts/completed-branch/before.bundle'), '--all')
-    if preflight() != sha or api('git/ref/heads/main')['object']['sha'] != head:
+    report['expected_head'] = sha
+    phase('archive')
+    git('bundle', 'create', str(root/'artifacts/completed-branch/before.bundle'), '--all')
+    phase('recheck-preflight')
+    if preflight() != sha or receipt_sha() is not None:
         raise ValueError('preflight changed')
+    same_main()
+    if not verified_gates():
+        raise ValueError('verification changed before write')
     ref = 'refs/heads/' + branch
-    git('push', '--atomic', '--porcelain', '--force-with-lease=' + ref + ':' + sha,
-        '--force-with-lease=' + receipt + ':', REMOTE, ':' + ref, head + ':' + receipt)
-    remaining = [b['name'] for b in collection('branches')]
-    if branch in remaining:
-        raise ValueError('deletion was not observed')
-    report.update(status='applied', remaining=remaining, receipt=receipt)
+    phase('atomic-write')
+    report['status'] = 'outcome-unknown'
+    try:
+        git('push', '--atomic', '--porcelain', '--force-with-lease=' + ref + ':' + sha,
+            '--force-with-lease=' + receipt + ':', REMOTE, ':' + ref, head + ':' + receipt)
+    except Exception as exc:
+        # Keep the original failure class; never leak exception messages which
+        # may contain credentials. Reconcile exact effects without repeating it.
+        report['write_error_type'] = type(exc).__name__
+        phase('reconcile-write')
+        confirm_effects()
+        report['status'] = 'applied-reconciled'
+    else:
+        phase('confirm-write')
+        confirm_effects()
+        report['status'] = 'applied'
+    phase('complete')
 
 
 if __name__ == '__main__':
