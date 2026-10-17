@@ -34,7 +34,7 @@ class HelmStatusTransitionScopeTests(unittest.TestCase):
         head, tip = 'a' * 40, 'b' * 40
         self.assertEqual(retirement.APPROVED[number], branch)
         self.assertNotIn(84, retirement.APPROVED)
-        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        self.assertIn(number, retirement.DEPENDENCY_SCOPES)
         pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
                   head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
                   base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
