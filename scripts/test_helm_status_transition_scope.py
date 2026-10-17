@@ -1,10 +1,12 @@
 """Payload rewriting is not an execution capability; every gate is additive."""
+import copy
 import json
 from pathlib import Path
 import tempfile
 import unittest
 import test_evidence as evidence
 import helm_uninstall_contract_evidence as contract
+import retire_completed_oidc as retirement
 
 class HelmStatusTransitionScopeTests(unittest.TestCase):
     def test_required_transition_tests_cannot_disappear_or_skip(self):
@@ -26,6 +28,35 @@ class HelmStatusTransitionScopeTests(unittest.TestCase):
                         p = Path(tmp) / 'tests.jsonl'
                         p.write_text(''.join(json.dumps(e) + '\n' for e in events))
                         self.assertEqual(evidence.summarize(p, required, suite)['valid'], outcome == 'pass')
+
+    def test_only_actual_pr85_can_retire_the_exact_branch(self):
+        number, branch = 85, 'feat/helm-release-status-transition'
+        head, tip = 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(84, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        for mode in ('issue', 'open', 'unmerged', 'merge', 'branch', 'foreign',
+                     'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue': p['number'] = 84
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'branch': p['head']['ref'] = 'test/helm-uninstall-contract'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
+                                         lambda _: mode != 'unreachable', number=number, branch=branch)
 
     def test_codec_has_no_production_transport_or_ui_call_site(self):
         root = Path(__file__).resolve().parents[1]
