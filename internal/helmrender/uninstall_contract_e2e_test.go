@@ -4,6 +4,7 @@ package helmrender
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -187,13 +189,28 @@ func TestRealHelmUninstallContractResourcesAndHistory(t *testing.T) {
 			if _, err := tool.uninstall(t, ns.Name, flags...); err != nil {
 				t.Fatal("actual uninstall", err)
 			}
-			live, err = client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
 			if mode == "missing-marker" || mode == "mismatch-marker" {
+				live, err = client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
 				if err != nil || !reflect.DeepEqual(cm, live) {
 					t.Fatal("mismatched object must remain unchanged despite CLI success", err)
 				}
-			} else if !apierrors.IsNotFound(err) {
-				t.Fatal("expected real target deletion", err)
+			} else {
+				// --wait=hookOnly permits an asynchronous DELETE to remain visible
+				// briefly. Poll READS only for exact absence, with a separate tight
+				// deadline; a persistent object, replacement UID or denied GET fails.
+				err = observeHelmUninstallTargetAbsent(ctx, 3*time.Second, "target", cm.UID, func(ctx context.Context) (types.UID, error) {
+					observed, err := client.CoreV1().ConfigMaps(ns.Name).Get(ctx, "target", metav1.GetOptions{})
+					if err != nil {
+						return "", err
+					}
+					if observed == nil || observed.Name != "target" || observed.Namespace != ns.Name {
+						return "", fmt.Errorf("ConfigMap response identity does not match the requested target")
+					}
+					return observed.UID, nil
+				})
+				if err != nil {
+					t.Fatal("real target disappearance not established", err)
+				}
 			}
 			history, err := client.CoreV1().Secrets(ns.Name).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm,name=contract"})
 			if err != nil {

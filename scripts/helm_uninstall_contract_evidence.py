@@ -14,6 +14,15 @@ REQUIRED = {
         'TestHelmUninstallBinaryRaceAndPartialEffects/replace-after-read',
         'TestHelmUninstallBinaryRaceAndPartialEffects/partial',
         'TestHelmUninstallBinaryCancellationIsNotRollback',
+        'TestHelmUninstallDeletionObservationRejectsAmbiguousReads',
+        *['TestHelmUninstallDeletionObservationRejectsAmbiguousReads/' + mode for mode in
+          ('typed-absence', 'wrapped-absence', 'raw-proxy-404', 'synthetic-proxy-404',
+           'other-name', 'other-resource', 'other-group', 'nil-details', 'wrong-code',
+           'wrong-reason', 'wrong-status', 'cancel-after-read', 'deadline-after-read',
+           'expired-before-read')],
+        'TestHelmUninstallDeletionObservationFailsClosed',
+        *['TestHelmUninstallDeletionObservationFailsClosed/' + mode for mode in
+          ('eventual-exact-absence', 'persistent-object', 'replaced-uid', 'denied-not-absent', 'canceled')],
     ),
     'real-cluster-native': (
         'TestRealHelmUninstallContractResourcesAndHistory',

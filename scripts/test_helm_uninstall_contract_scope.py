@@ -62,6 +62,35 @@ class HelmUninstallContractScopeTests(unittest.TestCase):
                     retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
                                          lambda _: mode != 'unreachable', number=number, branch=branch)
 
+    def test_only_actual_pr82_can_retire_its_exact_branch(self):
+        number, branch = 82, 'fix/helm-uninstall-absence'
+        head, tip = 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(80, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        for mode in ('issue-number', 'open', 'unmerged', 'wrong-merge', 'wrong-branch',
+                     'foreign', 'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue-number': p['number'] = 80
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'wrong-merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'wrong-branch': p['head']['ref'] = 'test/helm-uninstall-contract'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
+                                         lambda _: mode != 'unreachable', number=number, branch=branch)
+
     def test_ci_gates_are_separate_commands_not_folded_yaml(self):
         text = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
         for suite, step in (('unit-native', 'Validate test evidence'),
@@ -136,13 +165,38 @@ python() { shift; go "${@:2}"; }
         self.assertNotIn('-run ', block)
         self.assertNotIn('-timeout', block)
 
+    def test_absence_observer_is_exact_and_still_bounded(self):
+        root = Path(__file__).resolve().parents[1]
+        cluster = (root / 'internal/helmrender/uninstall_contract_e2e_test.go').read_text()
+        hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()
+        helper = hermetic.split('func observeHelmUninstallTargetAbsent(', 1)[1].split('func Test', 1)[0]
+        self.assertIn('ctx, 3*time.Second, "target", cm.UID', cluster)
+        self.assertIn('observed.Name != "target" || observed.Namespace != ns.Name', cluster)
+        self.assertIn('context.WithTimeout(context.Background(), 60*time.Second)', cluster)
+        self.assertIn('"--wait=hookOnly", "--timeout=5s", "--cascade=orphan"', hermetic)
+        self.assertIn('50*time.Millisecond, limit', helper)
+        self.assertGreaterEqual(helper.count('ctx.Err()'), 3)
+        for condition in ('s.Status == metav1.StatusFailure', 's.Code == http.StatusNotFound',
+                          's.Details.Name == expectedName', 's.Details.Kind == "configmaps"',
+                          's.Details.Group == ""', 'len(s.Details.Causes) == 0'):
+            self.assertIn(condition, helper)
+        for mode in ('synthetic-proxy-404', 'other-name', 'other-resource', 'nil-details',
+                     'wrong-code', 'wrong-status', 'cancel-after-read', 'deadline-after-read'):
+            self.assertIn('TestHelmUninstallDeletionObservationRejectsAmbiguousReads/' + mode,
+                          contract_evidence.REQUIRED['unit-native'])
+        self.assertNotIn('.Delete(', helper)
+        self.assertNotIn('tool.uninstall(', helper)
+
     def test_test_only_execution_and_disposable_cluster_guards(self):
         root = Path(__file__).resolve().parents[1]
         hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()
         cluster = (root / 'internal/helmrender/uninstall_contract_e2e_test.go').read_text()
         self.assertTrue(cluster.startswith('//go:build e2e\n'))
+        self.assertIn('observeHelmUninstallTargetAbsent(ctx, 3*time.Second, "target", cm.UID', cluster)
+        self.assertNotIn('expected real target deletion', cluster)
         for marker in ('readLocal(', 'sha256.Sum256', 'unpackExecutable(', 'isolatedEnvironment(',
-                       'exec.CommandContext', 'cmd.WaitDelay', 'httptest.NewServer', 'entry.Options.Preconditions'):
+                       'exec.CommandContext', 'cmd.WaitDelay', 'httptest.NewServer', 'entry.Options.Preconditions',
+                       'observeHelmUninstallTargetAbsent(', 'PollUntilContextTimeout(', 'apierrors.IsNotFound('):
             self.assertIn(marker, hermetic)
         for marker in ('testcluster.Config(t)', 'IsLoopback()', 'cfg.Insecure', 'cfg.ExecProvider',
                        'clientcmd.Write(raw)', 'GenerateName:', 't.Cleanup(', 'PreviewHelmUninstall(',

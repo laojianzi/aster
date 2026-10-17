@@ -145,6 +145,27 @@ unique fixture namespaces and registers cleanup. Ambient auth/proxy/plugins are
 not inherited by Helm. These guards prevent accidental default-context usage;
 opt-in/context naming alone is not proof that a cluster is disposable.
 
+The real-cluster DELETE comparison waits at most three additional real seconds
+for **typed NotFound** of the reviewed ConfigMap. This is bounded read-only
+observation, not a repeated DELETE, and does not change the Helm command's
+existing timeout or wait strategy. Because `--wait=hookOnly` can return while
+deletion remains observable, an immediate successful GET is not proof of a
+permanent resource; persistent objects, unexpected replacements, 403 and
+cancellation still fail the test. The first actual-main test found a remaining object
+in this immediate sample on Kubernetes v1.36.4 and v1.37.0; its original failure
+artifacts remain nonqualifying evidence. A deterministic test checks eventual
+absence, permanent presence, replacement, denial and cancellation.
+
+Typed NotFound must also be a failure envelope for the exact target name and
+core ConfigMap resource, with code 404 and no unexpected-server causes. A
+client-go-generated proxy 404 is not Kubernetes absence. The predicate checks its
+context both before and after each read, so a late NotFound after cancellation or
+deadline cannot qualify. Successful GETs must match the requested name/namespace
+and reviewed UID. Additional deterministic regressions cover proxy/status/target
+ambiguity and cancellation/deadline during the read; these are mandatory in the
+full unit/race and coverage gates. The three-second/50-ms observer, original
+per-case/CLI deadlines, command flags, and seven real-cluster cases are unchanged.
+
 The real-cluster launcher preserves the original complete E2E/UI package set,
 then appends a separate invocation of the new contract test root with all seven
 subcases to the same raw stream. It does not rerun unrelated Helm-renderer unit
