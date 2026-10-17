@@ -32,6 +32,16 @@ serialize its complete dependency tree, so dependency charts are not accepted.
 Templates are not rendered or executed. Config/default values are inert, fully
 JSON-budget-checked payload, never a second source of executable instructions.
 
+The pinned wire also includes chart/schema modification times and optional
+`modtime` values on **each template or ordinary file**. These exact upstream
+fields accept bounded RFC3339 time strings (including the zero time); omitted
+optional fields are supported, but null, malformed, alternate-case or unknown
+structural fields are rejected. File timestamps do not reset or establish
+preparation freshness. The client-only pinned-binary regression uses an isolated
+memory driver and no cluster identity to produce the real chart wire, then changes
+only the test fixture status to deployed for pure inspection. It does not claim
+an actual installation; the separate real-kind cases continue to provide that.
+
 These checks describe the supplied stored representation. They cannot establish
 original chart provenance, that the stored release was not edited, historical
 CRD absence, authentic ownership, original installed UID, or no external
@@ -97,6 +107,8 @@ certification follows from these tests.
 ## Primary sources
 
 - [Pinned Helm chart wire representation](https://github.com/helm/helm/blob/v4.3.0/pkg/chart/v2/chart.go): stored files/templates, unexported dependency tree.
+- [Pinned Helm chart file representation](https://github.com/helm/helm/blob/v4.3.0/pkg/chart/common/file.go): optional per-file modification timestamp.
+- [Pinned Helm directory loader](https://github.com/helm/helm/blob/v4.3.0/pkg/chart/v2/loader/directory.go): captures filesystem modification time.
 - [Pinned Helm release representation](https://github.com/helm/helm/blob/v4.3.0/pkg/release/v1/release.go): manifests, hooks and apply method.
 - [Helm hook lifecycle](https://helm.sh/docs/topics/charts_hooks/): hooks and their separate lifecycle.
 - [Helm CRD guidance](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/): CRDs outside ordinary rendered resources.

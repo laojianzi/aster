@@ -33,6 +33,14 @@ class HelmUninstallPreparationScopeTests(unittest.TestCase):
                         p.write_text(''.join(json.dumps(e) + '\n' for e in events))
                         self.assertEqual(evidence.summarize(p, required, suite)['valid'], outcome == 'pass')
 
+    def test_pinned_chart_time_regressions_are_mandatory(self):
+        names = contract.UNINSTALL_PREPARATION_REQUIRED['unit-native']
+        self.assertIn('TestHelmUninstallProfilePinnedChartWire', names)
+        for name, count in (('TestHelmUninstallProfileChartTimes', 16),
+                            ('TestHelmUninstallProfileRejectsChartTimeAmbiguity', 36)):
+            self.assertIn(name, names)
+            self.assertEqual(sum(n.startswith(name + '/') for n in names), count)
+
     def test_only_actual_pr87_can_retire_the_exact_branch(self):
         number, branch = 87, 'feat/helm-uninstall-preparation'
         head, tip = 'a' * 40, 'b' * 40

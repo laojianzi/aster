@@ -49,6 +49,17 @@ STATUS_TRANSITION_REQUIRED = {
 
 UNINSTALL_PREPARATION_REQUIRED = {
     'unit-native': (
+        'TestHelmUninstallProfilePinnedChartWire',
+        'TestHelmUninstallProfileChartTimes',
+        *['TestHelmUninstallProfileChartTimes/' + scope + '/' + value
+          for scope in ('chart', 'schema', 'templates', 'files')
+          for value in ('omitted', '0001-01-01T00:00:00Z',
+                        '2026-10-17T12:34:56.123456789Z', '2026-10-17T20:34:56+08:00')],
+        'TestHelmUninstallProfileRejectsChartTimeAmbiguity',
+        *['TestHelmUninstallProfileRejectsChartTimeAmbiguity/' + scope + '/' + mode
+          for scope in ('chart', 'schema', 'templates', 'files')
+          for mode in ('null', 'number', 'object', 'empty', 'malformed', 'over-budget',
+                       'alias', 'unknown-field', 'restricted-path')],
         'TestHelmUninstallPreparationHTTPReadOnly',
         'TestHelmUninstallPreparationHTTPReadOnly/canceled',
         'TestHelmUninstallPreparationHTTPReadOnly/cluster-route',

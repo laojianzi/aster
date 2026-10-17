@@ -257,7 +257,7 @@ func emptyProfileArray(raw []byte) bool {
 }
 func checkProfileChart(ctx context.Context, data []byte) error {
 	chart, ok := profileObject(data, "metadata", "lock", "templates", "values", "schema", "schemamodtime", "files", "modtime")
-	if !ok {
+	if !ok || !validProfileTimestamp(chart, "modtime") || !validProfileTimestamp(chart, "schemamodtime") {
 		return ErrPreparationProfile
 	}
 	metadata, ok := canonicalObject(chart["metadata"], "dependencies", "type", "annotations", "apiVersion")
@@ -319,8 +319,8 @@ func checkProfileChart(ctx context.Context, data []byte) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			f, ok := profileObject(v, "name", "data")
-			if !ok {
+			f, ok := profileObject(v, "name", "data", "modtime")
+			if !ok || !validProfileTimestamp(f, "modtime") {
 				return ErrPreparationProfile
 			}
 			var name, encoded string
@@ -347,6 +347,24 @@ func checkProfileChart(ctx context.Context, data []byte) error {
 	}
 	return ctx.Err()
 }
+
+// Helm v4.3.0 serializes chart/schema times and optional common.File.modtime.
+// These values are inert metadata, never the preparation clock or authority.
+// Omission/zero time is valid; explicit null, aliases and malformed values are
+// not made acceptable by adding the upstream field to the structural allowlist.
+func validProfileTimestamp(fields map[string]json.RawMessage, key string) bool {
+	raw, exists := fields[key]
+	if !exists {
+		return true
+	}
+	raw = bytes.TrimSpace(raw)
+	if len(raw) > 128 || len(raw) < 2 || raw[0] != '"' {
+		return false
+	}
+	var stamp time.Time
+	return json.Unmarshal(raw, &stamp) == nil
+}
+
 func safeProfilePath(s string) bool {
 	if s == "" || len(s) > 512 || path.IsAbs(s) || path.Clean(s) != s || strings.ContainsAny(s, "\\:") {
 		return false
