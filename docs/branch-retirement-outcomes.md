@@ -55,8 +55,8 @@ The accepted correction #82 does not retroactively make failed #81 main
 `test/helm-uninstall-contract` branch can be fast-forwarded, with an exact old-tip
 lease, to this independently reviewed maintenance continuation after corrected
 main qualification. This is branch reuse, not a repeated implementation or a
-rewrite of #81's history. Only the actual new maintenance PR number will be
-registered after creation. After its own merge and fresh-main verification, the
+rewrite of #81's history. The actual maintenance PR **#83** was registered only
+after creation. After its own merge and fresh-main verification, the
 normal guard can retire this reused branch under that PR's exact receipt. No
 `completed-pr-81` tag or successful old-main result is manufactured.
 

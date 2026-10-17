@@ -223,6 +223,35 @@ class RetirementOutcomeTests(unittest.TestCase):
         self.assertEqual(self.report['status'], 'no-registered-completion')
         self.assertFalse(self.f.pushes)
 
+    def test_only_registered_maintenance_pr_can_retire_reused_branch(self):
+        number, branch = 83, 'test/helm-uninstall-contract'
+        self.assertEqual(cleanup.APPROVED[number], branch)
+        self.assertEqual(cleanup.APPROVED[81], branch)
+        self.assertNotIn(80, cleanup.APPROVED)
+        self.assertNotIn(number, cleanup.DEPENDENCY_SCOPES)
+        pr = copy.deepcopy(self.f.pr)
+        pr['number'] = number
+        pr['head']['ref'] = branch
+        refs = {branch: dict(protected=False, commit=dict(sha=self.f.tip))}
+        self.assertEqual(cleanup.select_scope([pr], self.f.head), number)
+        self.assertEqual(cleanup.candidate(pr, self.f.head, refs, [], lambda _: True,
+                                          number=number, branch=branch), self.f.tip)
+        for mode in ('issue-number', 'open', 'unmerged', 'wrong-merge', 'wrong-branch',
+                     'foreign', 'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue-number': p['number'] = 80
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'wrong-merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'wrong-branch': p['head']['ref'] = 'fix/helm-uninstall-absence'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    cleanup.candidate(p, self.f.head, branches, [pr] if mode == 'active' else [],
+                                      lambda _: mode != 'unreachable', number=number, branch=branch)
+
     def test_original_guard_and_permissions_remain(self):
         root = Path(__file__).resolve().parents[1]
         text = (root / '.github/workflows/retire-completed-oidc.yml').read_text()
