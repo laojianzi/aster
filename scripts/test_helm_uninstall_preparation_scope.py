@@ -1,5 +1,7 @@
 """The new preparation is additive, inert and cannot replace write confirmation."""
 import json
+import copy
+import retire_completed_oidc as retirement
 from pathlib import Path
 import tempfile
 import unittest
@@ -30,6 +32,35 @@ class HelmUninstallPreparationScopeTests(unittest.TestCase):
                         p = Path(tmp) / 'tests.jsonl'
                         p.write_text(''.join(json.dumps(e) + '\n' for e in events))
                         self.assertEqual(evidence.summarize(p, required, suite)['valid'], outcome == 'pass')
+
+    def test_only_actual_pr87_can_retire_the_exact_branch(self):
+        number, branch = 87, 'feat/helm-uninstall-preparation'
+        head, tip = 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(86, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        for mode in ('issue-number', 'open', 'unmerged', 'wrong-merge', 'wrong-branch',
+                     'foreign', 'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue-number': p['number'] = 86
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'wrong-merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'wrong-branch': p['head']['ref'] = 'feat/helm-release-status-transition'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
+                                         lambda _: mode != 'unreachable', number=number, branch=branch)
 
     def test_preparation_has_no_mutation_cli_or_activation(self):
         root = Path(__file__).resolve().parents[1]
