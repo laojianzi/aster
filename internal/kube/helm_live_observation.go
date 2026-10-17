@@ -62,6 +62,24 @@ func (b *Backend) ObserveHelmPreview(ctx context.Context, p *helmrelease.Uninsta
 	if _, err = helmrelease.LatestRevisionSet(before, p.Namespace(), p.Revision()); err != nil {
 		return nil, err
 	}
+	observed, err := b.observeHelmItems(ctx, p, false)
+	if err != nil {
+		return nil, err
+	}
+	after, err := b.HelmReleaseMetadata(ctx, p.Namespace())
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return helmrelease.FinishLiveObservation(p, session, before, after, observed, started, time.Now())
+}
+
+// Shared by the readonly observation and the stricter preparation. Callers
+// establish the source/snapshots and share the outer read deadline.
+func (b *Backend) observeHelmItems(ctx context.Context, p *helmrelease.UninstallPreview, restricted bool) ([]helmrelease.LiveItem, error) {
+	items := p.Items()
 	remaining := maxLiveReadBytes
 	discovery := map[string]metav1.APIResourceList{}
 	observed := make([]helmrelease.LiveItem, 0, len(items))
@@ -99,6 +117,9 @@ func (b *Backend) ObserveHelmPreview(ctx context.Context, p *helmrelease.Uninsta
 		if err != nil {
 			return nil, err
 		}
+		if restricted && (gv.Group != "" || gv.Version != "v1" || item.Kind != "ConfigMap" || route.resource != "configmaps" || !route.namespaced) {
+			return nil, helmrelease.ErrPreparationProfile
+		}
 		ns := ""
 		if route.namespaced {
 			ns = p.Namespace()
@@ -130,14 +151,7 @@ func (b *Backend) ObserveHelmPreview(ctx context.Context, p *helmrelease.Uninsta
 		row.ObservedAt = time.Now()
 		observed = append(observed, row)
 	}
-	after, err := b.HelmReleaseMetadata(ctx, p.Namespace())
-	if err != nil {
-		return nil, err
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return helmrelease.FinishLiveObservation(p, session, before, after, observed, started, time.Now())
+	return observed, ctx.Err()
 }
 
 // Legacy unaggregated discovery deliberately omits the top-level apiVersion.
