@@ -165,12 +165,34 @@ python() { shift; go "${@:2}"; }
         self.assertNotIn('-run ', block)
         self.assertNotIn('-timeout', block)
 
+    def test_absence_observer_is_exact_and_still_bounded(self):
+        root = Path(__file__).resolve().parents[1]
+        cluster = (root / 'internal/helmrender/uninstall_contract_e2e_test.go').read_text()
+        hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()
+        helper = hermetic.split('func observeHelmUninstallTargetAbsent(', 1)[1].split('func Test', 1)[0]
+        self.assertIn('ctx, 3*time.Second, "target", cm.UID', cluster)
+        self.assertIn('observed.Name != "target" || observed.Namespace != ns.Name', cluster)
+        self.assertIn('context.WithTimeout(context.Background(), 60*time.Second)', cluster)
+        self.assertIn('"--wait=hookOnly", "--timeout=5s", "--cascade=orphan"', hermetic)
+        self.assertIn('50*time.Millisecond, limit', helper)
+        self.assertGreaterEqual(helper.count('ctx.Err()'), 3)
+        for condition in ('s.Status == metav1.StatusFailure', 's.Code == http.StatusNotFound',
+                          's.Details.Name == expectedName', 's.Details.Kind == "configmaps"',
+                          's.Details.Group == ""', 'len(s.Details.Causes) == 0'):
+            self.assertIn(condition, helper)
+        for mode in ('synthetic-proxy-404', 'other-name', 'other-resource', 'nil-details',
+                     'wrong-code', 'wrong-status', 'cancel-after-read', 'deadline-after-read'):
+            self.assertIn('TestHelmUninstallDeletionObservationRejectsAmbiguousReads/' + mode,
+                          contract_evidence.REQUIRED['unit-native'])
+        self.assertNotIn('.Delete(', helper)
+        self.assertNotIn('tool.uninstall(', helper)
+
     def test_test_only_execution_and_disposable_cluster_guards(self):
         root = Path(__file__).resolve().parents[1]
         hermetic = (root / 'internal/helmrender/uninstall_contract_test.go').read_text()
         cluster = (root / 'internal/helmrender/uninstall_contract_e2e_test.go').read_text()
         self.assertTrue(cluster.startswith('//go:build e2e\n'))
-        self.assertIn('observeHelmUninstallTargetAbsent(ctx, 3*time.Second, cm.UID', cluster)
+        self.assertIn('observeHelmUninstallTargetAbsent(ctx, 3*time.Second, "target", cm.UID', cluster)
         self.assertNotIn('expected real target deletion', cluster)
         for marker in ('readLocal(', 'sha256.Sum256', 'unpackExecutable(', 'isolatedEnvironment(',
                        'exec.CommandContext', 'cmd.WaitDelay', 'httptest.NewServer', 'entry.Options.Preconditions',

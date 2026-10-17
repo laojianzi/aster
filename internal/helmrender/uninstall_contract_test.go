@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -335,17 +336,35 @@ func (f *uninstallAPI) checked(t *testing.T, fn func()) {
 // Treat a successful DELETE acknowledgement as an intermediate observation:
 // only typed NotFound for the exact reviewed UID is success. No mutation/retry
 // is issued by this helper, and persistent/replaced/denied targets fail closed.
-func observeHelmUninstallTargetAbsent(ctx context.Context, limit time.Duration, expected types.UID, getUID func(context.Context) (types.UID, error)) error {
-	if expected == "" || getUID == nil || limit <= 0 {
+func observeHelmUninstallTargetAbsent(ctx context.Context, limit time.Duration, expectedName string, expected types.UID, getUID func(context.Context) (types.UID, error)) error {
+	if expectedName == "" || expected == "" || getUID == nil || limit <= 0 {
 		return fmt.Errorf("invalid deletion observation parameters")
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	return wait.PollUntilContextTimeout(ctx, 50*time.Millisecond, limit, true, func(ctx context.Context) (bool, error) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		current, err := getUID(ctx)
+		// A condition returned after cancellation/deadline is not fresh evidence,
+		// even when the transport reports NotFound. Polling does not check this
+		// on our behalf after a successful condition result.
+		if stopped := ctx.Err(); stopped != nil {
+			return false, stopped
+		}
 		if apierrors.IsNotFound(err) {
-			return true, nil
+			// client-go can synthesize a typed 404 for an unrecognized proxy body.
+			// Require an exact Kubernetes failure envelope, not just its reason.
+			var status apierrors.APIStatus
+			if errors.As(err, &status) {
+				s := status.Status()
+				if s.Status == metav1.StatusFailure && s.Code == http.StatusNotFound && s.Reason == metav1.StatusReasonNotFound && s.Details != nil && s.Details.Name == expectedName && s.Details.Kind == "configmaps" && s.Details.Group == "" && len(s.Details.Causes) == 0 {
+					return true, nil
+				}
+			}
+			return false, fmt.Errorf("ConfigMap absence response does not match the reviewed target")
 		}
 		if err != nil {
 			return false, err
@@ -362,7 +381,7 @@ func TestHelmUninstallDeletionObservationFailsClosed(t *testing.T) {
 	notFound := apierrors.NewNotFound(schema.GroupResource{Resource: "configmaps"}, "target")
 	t.Run("eventual-exact-absence", func(t *testing.T) {
 		calls := 0
-		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, expected, func(context.Context) (types.UID, error) {
+		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, "target", expected, func(context.Context) (types.UID, error) {
 			calls++
 			if calls <= 2 {
 				return expected, nil
@@ -375,7 +394,7 @@ func TestHelmUninstallDeletionObservationFailsClosed(t *testing.T) {
 	})
 	t.Run("persistent-object", func(t *testing.T) {
 		calls := 0
-		err := observeHelmUninstallTargetAbsent(context.Background(), 120*time.Millisecond, expected, func(context.Context) (types.UID, error) {
+		err := observeHelmUninstallTargetAbsent(context.Background(), 120*time.Millisecond, "target", expected, func(context.Context) (types.UID, error) {
 			calls++
 			return expected, nil
 		})
@@ -385,7 +404,7 @@ func TestHelmUninstallDeletionObservationFailsClosed(t *testing.T) {
 	})
 	t.Run("replaced-uid", func(t *testing.T) {
 		calls := 0
-		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, expected, func(context.Context) (types.UID, error) {
+		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, "target", expected, func(context.Context) (types.UID, error) {
 			calls++
 			return "new-uid", nil
 		})
@@ -396,7 +415,7 @@ func TestHelmUninstallDeletionObservationFailsClosed(t *testing.T) {
 	t.Run("denied-not-absent", func(t *testing.T) {
 		calls := 0
 		denied := apierrors.NewForbidden(schema.GroupResource{Resource: "configmaps"}, "target", fmt.Errorf("fixture denied"))
-		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, expected, func(context.Context) (types.UID, error) {
+		err := observeHelmUninstallTargetAbsent(context.Background(), time.Second, "target", expected, func(context.Context) (types.UID, error) {
 			calls++
 			return "", denied
 		})
@@ -408,7 +427,7 @@ func TestHelmUninstallDeletionObservationFailsClosed(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		calls := 0
-		err := observeHelmUninstallTargetAbsent(ctx, time.Second, expected, func(context.Context) (types.UID, error) {
+		err := observeHelmUninstallTargetAbsent(ctx, time.Second, "target", expected, func(context.Context) (types.UID, error) {
 			calls++
 			return "", notFound
 		})
