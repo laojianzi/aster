@@ -84,6 +84,21 @@ also run the new preflight on permitted actual Helm-created releases. Compilatio
 or an unexecuted definition is not server acceptance; exact-head CI and fresh
 merged-main artifacts must be reviewed independently before #88 closure.
 
+### Race-run scheduling correction
+
+The initial PR89 head `bb1633a` failed the existing real renderer's final output
+case at its shared 30-second deadline (CI39109284858); the original archive hash
+is correct and the failure remains nonqualifying evidence. The race command now
+uses `-p=1` so separate package test binaries do not compete for runner resources.
+This is a test-orchestration change, not a change to the renderer, dry-run code,
+assertions or timeouts. All packages, race instrumentation, shuffle, uncached
+execution, the existing five-minute package timeout and the single complete raw
+stream remain; in-package goroutines and concurrent-consumption tests still run.
+The renderer's 15-second operation and 30-second test-parent deadlines are
+unchanged. Independent coverage and all original E2E cases remain mandatory.
+This reduces package-level contention; it does not turn a later timeout into a
+pass or certify arbitrary runner performance. A new exact-head run is required.
+
 Primary contracts: Kubernetes API concepts (dry-run, authorization and generated
 values), fixed v1.37.0 core ConfigMap storage and generic registry/delete handlers.
 The fixed orphan finalizer can return simulated deleting metadata without any

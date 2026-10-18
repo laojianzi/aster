@@ -56,7 +56,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          go test -race -shuffle=on -count=1 -timeout=5m -json ./... | tee artifacts/unit/tests.jsonl
+          # Keep external-process integration packages from competing with other
+          # test binaries for runner CPU. Package tests still use -race and their
+          # existing internal concurrency; no test or operation deadline changes.
+          go test -race -shuffle=on -count=1 -timeout=5m -p=1 -json ./... | tee artifacts/unit/tests.jsonl
       - name: Validate test evidence
         run: |
           python3 -m unittest discover -s scripts -p "test_*.py"
