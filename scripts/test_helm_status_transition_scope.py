@@ -58,7 +58,7 @@ class HelmStatusTransitionScopeTests(unittest.TestCase):
                     retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
                                          lambda _: mode != 'unreachable', number=number, branch=branch)
 
-    def test_codec_has_no_production_transport_or_ui_call_site(self):
+    def test_codec_has_no_unreviewed_transport_or_ui_call_site(self):
         root = Path(__file__).resolve().parents[1]
         codec = root / 'internal/helmrelease/status_transition.go'
         text = codec.read_text()
@@ -71,6 +71,12 @@ class HelmStatusTransitionScopeTests(unittest.TestCase):
         for base in ('cmd', 'internal'):
             for path in (root / base).rglob('*.go'):
                 if path == codec or path.name.endswith('_test.go'): continue
+                if path == root / 'internal/kube/helm_uninstall_dry_run.go':
+                    # #88 permits only the separately acknowledged fixed dry-run
+                    # path, which has its own request/permission/response gates.
+                    self.assertIn('q.Set("dryRun", metav1.DryRunAll)', path.read_text())
+                    self.assertNotIn('FinishUninstallStatus', path.read_text())
+                    continue
                 self.assertNotIn('BuildUninstallStatusPatch(', path.read_text(), str(path))
 
     def test_server_cases_use_disposable_opt_in_and_dry_run(self):

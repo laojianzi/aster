@@ -177,6 +177,18 @@ func TestRealHelmUninstallContractResourcesAndHistory(t *testing.T) {
 				} else if e == nil || prepared != nil {
 					t.Fatal("unsupported actual Helm profile admitted")
 				}
+				if allowed {
+					t.Run("server-dry-run", func(t *testing.T) {
+						consent, e := backend.AcknowledgeHelmUninstallDryRun(prepared, "contract-session", ns.Name, row, true)
+						if e != nil {
+							t.Fatal(e)
+						}
+						result, e := backend.PreflightHelmUninstall(ctx, consent, "contract-session", ns.Name, row)
+						if e != nil || result == nil || !result.Matches(backend, "contract-session", ns.Name, row, time.Now()) {
+							t.Fatal("actual Helm server preflight", e)
+						}
+					})
+				}
 				storage, se := client.CoreV1().Secrets(ns.Name).Get(ctx, row.StorageName, metav1.GetOptions{})
 				target, te := client.CoreV1().ConfigMaps(ns.Name).Get(ctx, cm.Name, metav1.GetOptions{})
 				if se != nil || te != nil || !reflect.DeepEqual(before, storage) || !reflect.DeepEqual(cm, target) {
