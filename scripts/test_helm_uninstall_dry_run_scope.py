@@ -1,10 +1,12 @@
 """Dry-run acknowledgement is never persistent mutation authority."""
+import copy
 import json
 from pathlib import Path
 import tempfile
 import unittest
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
+import retire_completed_oidc as retirement
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +32,36 @@ class HelmUninstallDryRunScopeTests(unittest.TestCase):
                         p = Path(tmp) / 'tests.jsonl'
                         p.write_text(''.join(json.dumps(e) + '\n' for e in events))
                         self.assertEqual(evidence.summarize(p, required, suite)['valid'], outcome == 'pass')
+
+    def test_only_actual_pr89_can_retire_the_exact_branch(self):
+        number, branch = 89, 'feat/helm-uninstall-dry-run'
+        head, tip = 'a' * 40, 'b' * 40
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(88, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        for mode in ('issue', 'open', 'unmerged', 'merge', 'branch', 'base', 'foreign',
+                     'moved', 'protected', 'active', 'unreachable'):
+            with self.subTest(mode=mode):
+                p, branches = copy.deepcopy(pr), copy.deepcopy(refs)
+                if mode == 'issue': p['number'] = 88
+                if mode == 'open': p['state'] = 'open'
+                if mode == 'unmerged': p['merged'] = False
+                if mode == 'merge': p['merge_commit_sha'] = 'c' * 40
+                if mode == 'branch': p['head']['ref'] = 'feat/helm-uninstall-preparation'
+                if mode == 'base': p['base']['ref'] = 'other'
+                if mode == 'foreign': p['head']['repo']['full_name'] = 'foreign/repo'
+                if mode == 'moved': branches[branch]['commit']['sha'] = 'd' * 40
+                if mode == 'protected': branches[branch]['protected'] = True
+                with self.assertRaises(ValueError):
+                    retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
+                                         lambda _: mode != 'unreachable', number=number, branch=branch)
 
     def test_fixed_requests_and_original_expiry(self):
         text = (ROOT / 'internal/kube/helm_uninstall_dry_run.go').read_text()
