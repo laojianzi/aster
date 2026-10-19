@@ -6,6 +6,7 @@ import unittest
 
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
+import retire_completed_oidc as retirement
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,6 +44,30 @@ class HelmUninstallExecutionScopeTests(unittest.TestCase):
             ('artifacts/e2e/tests.jsonl', 'real-cluster-native'),
         ):
             self.assertIn(f'python3 scripts/helm_uninstall_contract_evidence.py {stream} --suite {suite}', workflow)
+
+    def test_only_actual_pr91_registers_recoverable_retirement(self):
+        number, branch = 91, 'feat/helm-uninstall-execution'
+        self.assertEqual(retirement.APPROVED[number], branch)
+        self.assertNotIn(90, retirement.APPROVED)
+        self.assertNotIn(number, retirement.DEPENDENCY_SCOPES)
+        head, tip = 'a' * 40, 'b' * 40
+        pr = dict(number=number, state='closed', merged=True, merge_commit_sha=head,
+                  head=dict(ref=branch, sha=tip, repo=dict(full_name=retirement.REPO)),
+                  base=dict(ref='main', repo=dict(full_name=retirement.REPO)))
+        refs = {branch: dict(protected=False, commit=dict(sha=tip))}
+        self.assertEqual(retirement.select_scope([pr], head), number)
+        self.assertEqual(retirement.candidate(pr, head, refs, [], lambda _: True,
+                                             number=number, branch=branch), tip)
+        with self.assertRaises(ValueError):
+            retirement.candidate(pr, head, refs, [pr], lambda _: True,
+                                 number=number, branch=branch)
+        with self.assertRaises(ValueError):
+            retirement.candidate(pr, head, refs, [], lambda _: True,
+                                 number=90, branch=branch)
+        refs[branch]['commit']['sha'] = 'c' * 40
+        with self.assertRaises(ValueError):
+            retirement.candidate(pr, head, refs, [], lambda _: True,
+                                 number=number, branch=branch)
 
     def test_dormant_backend_has_no_production_desktop_or_cli_call_site(self):
         # Backend qualification does not quietly activate an execution button
