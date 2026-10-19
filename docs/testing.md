@@ -223,6 +223,44 @@ Issue after checking actual guarded retirement and complete-history recovery.
 A workflow summary or a waiting retirement report does not substitute for the
 corresponding original evidence.
 
+## Restricted Helm retained-history execution
+
+The dormant backend executor adds independent execution consent and actual
+conditional effects to the already qualified preparation and dry-run paths.
+There is no desktop/CLI activation or crash-recovery policy in this scope; see
+[the execution contract](helm-uninstall-execution.md).
+
+The complete unit/race and independent coverage streams both require the new
+execution consent, HTTP, revalidation, strict-response, partial/Unknown, exact
+absence and budget cases through `helm_uninstall_contract_evidence.py`. Preserve
+all previous inventories and the unchanged uncached/shuffled race scheduling,
+product/test/package/job deadlines, native suites and real Helm fixtures.
+
+Every configured Kubernetes version additionally requires
+`TestRealHelmUninstallExecutionRetainsHistory`,
+`TestRealHelmUninstallExecutionLastMomentConditions`,
+`TestRealHelmUninstallExecutionRBACAndPartialEffects`, and
+`TestRealHelmUninstallExecutionCommittedResponseLoss`, including their required
+subcases. All use `testcluster.NewHelmMetadata`, which checks the existing
+explicit disposable-cluster configuration before creating a unique namespace.
+
+The success case calls the actual backend executor and independently verifies
+ordered ConfigMap disappearance, retained Secret identity/status/non-lifecycle
+payload, unchanged canary, and no grant replay. Last-moment fixture mutations
+must produce real server UID/resourceVersion conflicts and preserve the changed
+object. RBAC changes become effective through SubjectAccessReview before the
+original persistent request is forwarded and must receive actual Forbidden.
+Begin, DELETE and finish response-loss cases replace only a SUCCESSFUL real
+server reply, then use an unwrapped admin client to confirm persisted effects;
+the product must remain Unknown and send no replay or later mutation.
+
+Synthetic release data limits these new fixtures to Aster's restricted profile.
+The existing actual pinned-Helm scenarios remain required alongside them.
+Compilation-only `-tags=e2e -run '^$'` does not count as execution, and an
+independent observer's later reads do not establish a product recovery feature.
+Final PR and actual merged-main original artifacts remain separate acceptance
+gates before explicit completion and verified recoverable branch retirement.
+
 ## Portable Schema patterns (#48)
 
 Retain every previously required unit/native/real-cluster/OIDC/migration case.

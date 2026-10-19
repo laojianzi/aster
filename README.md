@@ -136,6 +136,16 @@ and actual deletion behavior are not verified. This is not a Helm dry-run or
 executable plan. **Discard inspection** clears it; refreshing or changing scope
 invalidates it without automatically rereading. See [the precise boundaries](docs/helm-uninstall-preview.md).
 
+The backend also provides complete restricted preparation, independently acknowledged
+server dry-run, and a separately confirmed, single-use retained-history execution API.
+The execution profile is limited to the sole deployed Secret revision and explicitly
+reviewed same-namespace ConfigMaps, using conditional status updates, exact UID/RV
+deletes, fixed orphan propagation and bounded actual-absence checks. Its immutable
+per-effect report preserves partial and Unknown outcomes. **Desktop execution remains
+disabled** pending independent recovery and native confirmation/lifecycle qualification.
+See [the execution contract](docs/helm-uninstall-execution.md) and
+[current project progress](docs/PROGRESS.zh-CN.md) for scope and acceptance records.
+
 ## Reviewed issuer sign-out
 
 For an active browser-OIDC connection, **Browser sign-in** shows an optional issuer

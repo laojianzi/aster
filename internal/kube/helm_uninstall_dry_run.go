@@ -36,8 +36,11 @@ type helmDryRunConsentState struct {
 	preparation *HelmUninstallPreparation
 	mu          sync.Mutex
 	used        bool
-	cancel      context.CancelFunc
-	revoked     atomic.Bool
+	// Protected by mu: copies of one successful report may mint only one
+	// independently acknowledged execution consent, including failed attempts.
+	executionMinted bool
+	cancel          context.CancelFunc
+	revoked         atomic.Bool
 }
 
 // AcknowledgeHelmUninstallDryRun must be called only after a separate explicit
@@ -47,10 +50,17 @@ func (b *Backend) AcknowledgeHelmUninstallDryRun(p *HelmUninstallPreparation, se
 	if !acknowledged {
 		return nil, ErrHelmDryRunConsent
 	}
-	if !p.Matches(b, session, ns, row, time.Now()) {
+	if p == nil {
 		return nil, helmrelease.ErrPreparationStale
 	}
-	return &HelmUninstallDryRunConsent{state: &helmDryRunConsentState{preparation: p}}, nil
+	// The caller can replace its public wrapper even though its fields are
+	// private. Freeze that wrapper before qualification so a later replacement
+	// cannot rebind the dry-run report or renew its original execution expiry.
+	private := *p
+	if !private.Matches(b, session, ns, row, time.Now()) {
+		return nil, helmrelease.ErrPreparationStale
+	}
+	return &HelmUninstallDryRunConsent{state: &helmDryRunConsentState{preparation: &private}}, nil
 }
 
 // Discard revokes both in-flight work and any result from this acknowledgement.

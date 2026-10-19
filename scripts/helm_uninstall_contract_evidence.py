@@ -286,8 +286,97 @@ UNINSTALL_DRY_RUN_REQUIRED = {
     ),
 }
 
+UNINSTALL_EXECUTION_REQUIRED = {
+    'unit-native': (
+        'TestHelmUninstallExecutionHTTP',
+        *['TestHelmUninstallExecutionHTTP/' + case for case in
+          ('one-target', 'two-targets', 'delete-status', 'delete-status-code',
+           'delete-pending-then-absent')],
+        'TestHelmUninstallExecutionConsentLifetime',
+        *['TestHelmUninstallExecutionConsentLifetime/' + case for case in
+          ('false', 'nil-report', 'zero-report', 'nil-consent', 'zero-consent', 'discard',
+           'preflight-discard', 'wrong-backend', 'nil-backend', 'wrong-session', 'wrong-namespace',
+           'wrong-revision', 'wrong-uid', 'wrong-release', 'wrong-storage', 'wrong-status',
+           'wrong-version', 'canceled', 'expired-mint', 'expired-dispatch', 'revoked-in-begin',
+           'revoked-in-delete', 'preflight-revoked-in-delete')],
+        'TestHelmUninstallExecutionSingleUse',
+        *['TestHelmUninstallExecutionSingleUse/' + case for case in
+          ('caller-wrapper-reassignment-cannot-change-grant',
+           'owned-wrapper-preserves-original-revocation', 'report-copies-cannot-mint-twice',
+           'concurrent-mint', 'concurrent-execution-copies')],
+        'TestHelmUninstallExecutionRevalidation',
+        *['TestHelmUninstallExecutionRevalidation/' + case for case in
+          ('pre-source-uid', 'pre-source-rv', 'pre-extra-revision', 'pre-storage-denied',
+           'pre-target-uid', 'pre-target-rv', 'pre-target-keep', 'pre-target-hook',
+           'pre-target-finalizer', 'pre-target-owner', 'pre-target-marker', 'source-after-begin',
+           'revision-after-begin', 'payload-after-begin', 'source-after-delete',
+           'revision-after-delete', 'second-replaced')],
+        'TestHelmUninstallExecutionStrictResponses',
+        *['TestHelmUninstallExecutionStrictResponses/' + case for case in
+          ('begin/invalid', 'begin/trailing', 'begin/duplicate', 'begin/media', 'begin/warning',
+           'begin/encoding', 'begin/202', 'begin/change-uid', 'begin/change-name',
+           'begin/change-ns', 'begin/change-empty-rv', 'begin/change-same-rv',
+           'begin/change-unknown', 'begin/change-payload', 'begin/change-status', 'delete/invalid',
+           'delete/trailing', 'delete/duplicate', 'delete/media', 'delete/warning',
+           'delete/encoding', 'delete/202', 'delete/change-uid', 'delete/change-name',
+           'delete/change-ns', 'delete/change-empty-rv', 'delete/change-same-rv',
+           'delete/change-unknown', 'delete/change-full-kind', 'delete/change-finalizer',
+           'delete/change-not-terminating', 'delete/change-marker', 'delete/status-no-uid',
+           'delete/status-wrong-name', 'delete/status-message', 'delete/status-failure',
+           'delete/status-cause', 'finish/invalid', 'finish/trailing', 'finish/duplicate',
+           'finish/media', 'finish/warning', 'finish/encoding', 'finish/202', 'finish/change-uid',
+           'finish/change-name', 'finish/change-ns', 'finish/change-empty-rv',
+           'finish/change-same-rv', 'finish/change-unknown', 'finish/change-payload',
+           'finish/change-status')],
+        'TestHelmUninstallExecutionPartialUnknown',
+        *['TestHelmUninstallExecutionPartialUnknown/' + case for case in
+          ('begin-rejected', 'anonymous422-is-not-attributable', 'delete-rejected',
+           'second-delete-rejected', 'finish-rejected', 'begin-commit-response-loss',
+           'first-delete-commit-response-loss', 'second-delete-commit-response-loss',
+           'finish-commit-response-loss', 'bare-forbidden-is-not-proof', 'proxy-404-is-not-proof',
+           'server-unavailable-is-not-proof', 'write-redirect-not-followed',
+           'cancel-after-delete-dispatch')],
+        'TestHelmUninstallExecutionCanonicalConflictResponses',
+        *['TestHelmUninstallExecutionCanonicalConflictResponses/' + case for case in
+          ('canonical-configmap-409', 'canonical-configmap-409-no-uid',
+           'plural-configmaps-409', 'canonical-configmap-403', 'canonical-configmap-404',
+           'canonical-configmap-422', 'lowercase-configmap', 'uppercase-configmap',
+           'capitalized-plural-configmaps', 'secret-kind', 'deployment-kind',
+           'missing-name', 'wrong-name', 'wrong-group', 'wrong-uid', 'wrong-reason',
+           'wrong-envelope-code', 'success-envelope', 'unexpected-causes',
+           'unexpected-retry-after', 'anonymous-conflict', 'anonymous-invalid',
+           'nil-details', 'canonical-kind-on-secret-request',
+           'singular-secret-kind-on-secret-request', 'plural-secrets-409')],
+        'TestHelmUninstallExecutionAbsence',
+        *['TestHelmUninstallExecutionAbsence/' + case for case in
+          ('delete-pending', 'delete-replacement', 'delete-proxy404', 'delete-wrong404',
+           'delete-cause404', 'delete-uid404', 'delete-null404', 'delete-duplicate404',
+           'delete-trailing404', 'delete-absence-denied', 'delete-absence-budget',
+           'delete-absence-warning', 'delete-late404')],
+        'TestHelmUninstallExecutionBodyAndBudgets',
+        *['TestHelmUninstallExecutionBodyAndBudgets/' + case for case in
+          ('shared-response-budget-stops-further-I-O',
+           'actual-request-body-is-owned-and-unreplayable', 'begin/large-header',
+           'begin/large-stream', 'delete/large-header', 'delete/large-stream',
+           'finish/large-header', 'finish/large-stream')],
+    ),
+    'real-cluster-native': (
+        'TestRealHelmUninstallExecutionRetainsHistory',
+        'TestRealHelmUninstallExecutionLastMomentConditions',
+        *['TestRealHelmUninstallExecutionLastMomentConditions/' + mode for mode in
+          ('storage-rv', 'target-rv', 'target-uid')],
+        'TestRealHelmUninstallExecutionRBACAndPartialEffects',
+        *['TestRealHelmUninstallExecutionRBACAndPartialEffects/' + mode for mode in
+          ('deny-begin', 'deny-second-delete', 'deny-finish')],
+        'TestRealHelmUninstallExecutionCommittedResponseLoss',
+        *['TestRealHelmUninstallExecutionCommittedResponseLoss/' + stage for stage in
+          ('begin', 'delete', 'finish')],
+    ),
+}
+
+
 def required(suite):
-    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ())])
+    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ())])
 
 def main():
     parser = argparse.ArgumentParser()

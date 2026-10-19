@@ -60,10 +60,10 @@ func (p *HelmUninstallPreparation) Matches(b *Backend, session, ns string, row h
 // complete metadata snapshots. Only GET is used, through the existing identity,
 // shared rate limiter, redirects/retry protections and bounded transports.
 //
-// A successful result establishes sampled restrictions only. No server dry-run,
-// independent execution confirmation, conditional write or UI activation is
-// implemented. A future caller must revoke stale results on model changes and
-// separately satisfy the execution/crash-recovery contract before ANY mutation.
+// A successful result establishes sampled restrictions only. This preparation
+// step performs GETs and grants neither dry-run nor execution authority. Callers
+// must separately acknowledge the qualified preflight and execution APIs, revoke
+// stale results on model changes, and satisfy recovery/UI activation contracts.
 func (b *Backend) PrepareHelmUninstall(ctx context.Context, ns string, row helmrelease.Revision, session string, acknowledged bool) (*HelmUninstallPreparation, error) {
 	if !acknowledged {
 		return nil, helmrelease.ErrPreparationConsent
