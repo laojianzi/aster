@@ -213,9 +213,18 @@ func exactHelmExecutionRejection(data []byte, code int, resource, name, uid stri
 	issues, err := strictjson.UnmarshalStrict(data, &s)
 	if err != nil || len(issues) != 0 || !nonNullHelmExecutionEnvelope(data) ||
 		s.APIVersion != "v1" || s.Kind != "Status" || s.Status != metav1.StatusFailure || int(s.Code) != code ||
-		s.Details == nil || s.Details.Name != name || s.Details.Kind != resource || s.Details.Group != "" ||
+		s.Details == nil || s.Details.Name != name || s.Details.Group != "" ||
 		(s.Details.UID != "" && string(s.Details.UID) != uid) || !reflect.DeepEqual(s.ListMeta, metav1.ListMeta{}) {
 		return false
+	}
+	if s.Details.Kind != resource {
+		// Kubernetes BeforeDelete reports a UID/RV precondition conflict using
+		// the object's exact GVK kind as StatusDetails.Kind. Admit only that
+		// core ConfigMap/409 shape for this restricted DELETE route. Other
+		// resources, reasons and anonymous patch failures stay unqualified.
+		if code != http.StatusConflict || resource != "configmaps" || s.Details.Kind != "ConfigMap" {
+			return false
+		}
 	}
 	want := map[int]metav1.StatusReason{
 		400: metav1.StatusReasonBadRequest, 401: metav1.StatusReasonUnauthorized, 403: metav1.StatusReasonForbidden,

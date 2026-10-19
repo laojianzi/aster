@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/laojianzi/aster/internal/helmrelease"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func executeHelmFixture(f *helmExecutionFixture, c *HelmUninstallExecutionConsent) (*HelmUninstallExecution, error) {
@@ -598,6 +599,104 @@ func TestHelmUninstallExecutionPartialUnknown(t *testing.T) {
 		requests, _, _ := f.inspect(t)
 		assertExecutionKinds(t, requests, "begin", "delete")
 	})
+}
+
+// Kubernetes BeforeDelete attributes UID/RV conflicts to the canonical GVK
+// kind, whereas other rejection paths use the plural API resource. Exercise the
+// complete HTTP execution boundary so the allowed shape cannot erase prior
+// effects or broaden another resource, status code, or identity into rejection.
+func TestHelmUninstallExecutionCanonicalConflictResponses(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, kind string
+		edit             func(*metav1.Status)
+		rejected         bool
+	}{
+		{"canonical-configmap-409", "delete-reject-409", "ConfigMap", nil, true},
+		{"canonical-configmap-409-no-uid", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.UID = "" }, true},
+		{"plural-configmaps-409", "delete-reject-409", "configmaps", nil, true},
+		{"canonical-configmap-403", "delete-reject-403", "ConfigMap", nil, false},
+		{"canonical-configmap-404", "delete-reject-404", "ConfigMap", nil, false},
+		{"canonical-configmap-422", "delete-reject-422", "ConfigMap", nil, false},
+		{"lowercase-configmap", "delete-reject-409", "configmap", nil, false},
+		{"uppercase-configmap", "delete-reject-409", "CONFIGMAP", nil, false},
+		{"capitalized-plural-configmaps", "delete-reject-409", "ConfigMaps", nil, false},
+		{"secret-kind", "delete-reject-409", "Secret", nil, false},
+		{"deployment-kind", "delete-reject-409", "Deployment", nil, false},
+		{"missing-name", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.Name = "" }, false},
+		{"wrong-name", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.Name = "other" }, false},
+		{"wrong-group", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.Group = "apps" }, false},
+		{"wrong-uid", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.UID = "replacement" }, false},
+		{"wrong-reason", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Reason = metav1.StatusReasonForbidden }, false},
+		{"wrong-envelope-code", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Code = 403 }, false},
+		{"success-envelope", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Status = metav1.StatusSuccess }, false},
+		{"unexpected-causes", "delete-reject-409", "ConfigMap", func(s *metav1.Status) {
+			s.Details.Causes = []metav1.StatusCause{{Type: metav1.CauseTypeFieldValueInvalid, Message: "PRIVATE_CAUSE"}}
+		}, false},
+		{"unexpected-retry-after", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details.RetryAfterSeconds = 1 }, false},
+		{"anonymous-conflict", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details = &metav1.StatusDetails{} }, false},
+		{"anonymous-invalid", "begin-reject-422", "ConfigMap", func(s *metav1.Status) { s.Details = &metav1.StatusDetails{} }, false},
+		{"nil-details", "delete-reject-409", "ConfigMap", func(s *metav1.Status) { s.Details = nil }, false},
+		{"canonical-kind-on-secret-request", "begin-reject-409", "ConfigMap", nil, false},
+		{"singular-secret-kind-on-secret-request", "begin-reject-409", "Secret", nil, false},
+		{"plural-secrets-409", "begin-reject-409", "secrets", nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newHelmExecutionFixture(t, true)
+			c := f.consent(t)
+			f.mode = tc.mode
+			f.onReject = func(s *metav1.Status) {
+				s.Details.Kind = tc.kind
+				if tc.edit != nil {
+					tc.edit(s)
+				}
+			}
+			want, wantEffect, wantErr := HelmExecutionUnknown, HelmExecutionUnknown, ErrHelmExecutionUnknown
+			failedIndex := 1
+			wantKinds, wantStatus := []string{"begin", "delete"}, "uninstalling"
+			if strings.HasPrefix(tc.mode, "begin-") {
+				failedIndex, wantKinds, wantStatus = 0, []string{"begin"}, "deployed"
+			}
+			if tc.rejected {
+				want, wantEffect, wantErr = HelmExecutionPartial, HelmExecutionRejected, ErrHelmExecutionRejected
+				if failedIndex == 0 {
+					want = HelmExecutionRejected
+				}
+			}
+			r, err := executeHelmFixture(f, c)
+			if !errors.Is(err, wantErr) || r == nil || r.Outcome() != want {
+				t.Fatal("canonical conflict attribution", want, err, r)
+			}
+			assertHelmExecutionPrivate(t, r, err)
+			requests, events, storage := f.inspect(t)
+			assertExecutionKinds(t, requests, wantKinds...)
+			if storage.Labels["status"] != wantStatus {
+				t.Fatal("rejection changed retained storage")
+			}
+			effects := r.Effects()
+			if effects[failedIndex].Outcome != wantEffect {
+				t.Fatal("exact response shape changed effect classification", effects)
+			}
+			for i, effect := range effects {
+				if i < failedIndex && effect.Outcome != HelmExecutionCompleted ||
+					i > failedIndex && effect.Outcome != HelmExecutionNotStarted {
+					t.Fatal("prior effect erased or later mutation scheduled", effects)
+				}
+			}
+			f.mu.Lock()
+			deleted := len(f.deleted)
+			f.mu.Unlock()
+			if deleted != 0 {
+				t.Fatal("a target was deleted after a rejected conditional request")
+			}
+			if _, replayErr := executeHelmFixture(f, c); replayErr == nil {
+				t.Fatal("rejection or uncertainty renewed execution consent")
+			}
+			afterRequests, afterEvents, _ := f.inspect(t)
+			if len(afterRequests) != len(requests) || len(afterEvents) != len(events) {
+				t.Fatal("consumed conflict execution caused further I/O")
+			}
+		})
+	}
 }
 
 func TestHelmUninstallExecutionAbsence(t *testing.T) {

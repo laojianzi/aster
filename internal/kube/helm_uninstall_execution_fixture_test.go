@@ -58,6 +58,7 @@ type helmExecutionFixture struct {
 	dryPatches, dryDeletes int
 	onWrite                func(string)
 	onRead                 func(string)
+	onReject               func(*metav1.Status)
 }
 
 func newHelmExecutionFixture(t *testing.T, two bool) *helmExecutionFixture {
@@ -237,8 +238,12 @@ func (f *helmExecutionFixture) serve(w http.ResponseWriter, r *http.Request) {
 			resource, uid = "configmaps", string(f.objects[name].UID)
 		}
 		w.WriteHeader(code)
-		_ = json.NewEncoder(w).Encode(metav1.Status{TypeMeta: metav1.TypeMeta{Kind: "Status", APIVersion: "v1"}, Status: metav1.StatusFailure,
-			Reason: reason, Code: int32(code), Message: "PRIVATE_ADMISSION", Details: &metav1.StatusDetails{Name: name, Kind: resource, UID: typesUID(uid)}})
+		status := metav1.Status{TypeMeta: metav1.TypeMeta{Kind: "Status", APIVersion: "v1"}, Status: metav1.StatusFailure,
+			Reason: reason, Code: int32(code), Message: "PRIVATE_ADMISSION", Details: &metav1.StatusDetails{Name: name, Kind: resource, UID: typesUID(uid)}}
+		if f.onReject != nil {
+			f.onReject(&status)
+		}
+		_ = json.NewEncoder(w).Encode(status)
 		return
 	}
 	if strings.HasPrefix(fault, "bare-") {

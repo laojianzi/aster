@@ -336,6 +336,17 @@ UNINSTALL_EXECUTION_REQUIRED = {
            'finish-commit-response-loss', 'bare-forbidden-is-not-proof', 'proxy-404-is-not-proof',
            'server-unavailable-is-not-proof', 'write-redirect-not-followed',
            'cancel-after-delete-dispatch')],
+        'TestHelmUninstallExecutionCanonicalConflictResponses',
+        *['TestHelmUninstallExecutionCanonicalConflictResponses/' + case for case in
+          ('canonical-configmap-409', 'canonical-configmap-409-no-uid',
+           'plural-configmaps-409', 'canonical-configmap-403', 'canonical-configmap-404',
+           'canonical-configmap-422', 'lowercase-configmap', 'uppercase-configmap',
+           'capitalized-plural-configmaps', 'secret-kind', 'deployment-kind',
+           'missing-name', 'wrong-name', 'wrong-group', 'wrong-uid', 'wrong-reason',
+           'wrong-envelope-code', 'success-envelope', 'unexpected-causes',
+           'unexpected-retry-after', 'anonymous-conflict', 'anonymous-invalid',
+           'nil-details', 'canonical-kind-on-secret-request',
+           'singular-secret-kind-on-secret-request', 'plural-secrets-409')],
         'TestHelmUninstallExecutionAbsence',
         *['TestHelmUninstallExecutionAbsence/' + case for case in
           ('delete-pending', 'delete-replacement', 'delete-proxy404', 'delete-wrong404',

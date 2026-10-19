@@ -88,6 +88,49 @@ func newHelmExecutionFixture(t *testing.T, ctx context.Context, count int) *helm
 type helmExecutionCall struct {
 	kind, name, uid, rv string
 	status              int
+	failure             helmExecutionFailure
+}
+
+// Record only the bounded identity/status projection needed to compare real
+// Kubernetes rejection shapes. Never retain the server's message or raw body.
+type helmExecutionFailure struct {
+	apiVersion, kind, status string
+	code                     int32
+	reason                   metav1.StatusReason
+	hasDetails               bool
+	name, resource, group    string
+	uid                      string
+	causes                   int
+	retryAfterSeconds        int32
+	emptyMetadata            bool
+}
+
+func observeHelmExecutionFailure(response *http.Response) (helmExecutionFailure, error) {
+	var out helmExecutionFailure
+	body, err := io.ReadAll(io.LimitReader(response.Body, 4097))
+	// Preserve the original bytes and the rest of the original stream for the
+	// product. This observer never manufactures or repairs a response envelope.
+	original := response.Body
+	response.Body = struct {
+		io.Reader
+		io.Closer
+	}{io.MultiReader(bytes.NewReader(body), original), original}
+	if err != nil || len(body) > 4096 {
+		return out, errors.New("fixture persistent failure envelope unavailable")
+	}
+	var status metav1.Status
+	if json.Unmarshal(body, &status) != nil {
+		return out, errors.New("fixture persistent failure envelope is not JSON")
+	}
+	out.apiVersion, out.kind, out.status = status.APIVersion, status.Kind, status.Status
+	out.code, out.reason = status.Code, status.Reason
+	out.emptyMetadata = reflect.DeepEqual(status.ListMeta, metav1.ListMeta{})
+	if status.Details != nil {
+		out.hasDetails = true
+		out.name, out.resource, out.group = status.Details.Name, status.Details.Kind, status.Details.Group
+		out.uid, out.causes, out.retryAfterSeconds = string(status.Details.UID), len(status.Details.Causes), status.Details.RetryAfterSeconds
+	}
+	return out, nil
 }
 
 // All responses originate at the real API server. Faults either change the
@@ -160,9 +203,18 @@ func (a *helmExecutionTransport) RoundTrip(req *http.Request) (*http.Response, e
 		}
 	}
 	response, err := a.base.RoundTrip(req)
+	var failure helmExecutionFailure
+	var observationErr error
+	if err == nil && response != nil && response.StatusCode >= 400 && response.StatusCode < 500 {
+		failure, observationErr = observeHelmExecutionFailure(response)
+	}
 	a.mu.Lock()
 	if response != nil {
 		a.calls[index].status = response.StatusCode
+		a.calls[index].failure = failure
+	}
+	if observationErr != nil {
+		a.fault = observationErr
 	}
 	inject := err == nil && response != nil && response.StatusCode >= 200 && response.StatusCode < 300 && call.kind == a.lose && !a.lost
 	if inject {
@@ -397,15 +449,52 @@ func TestRealHelmUninstallExecutionLastMomentConditions(t *testing.T) {
 				// envelope: keep Unknown despite this independent admin read.
 				want, status, count = kube.HelmExecutionUnknown, "deployed", 1
 			}
-			if !injected || err == nil || result == nil || result.Outcome() != want || len(calls) != count {
-				t.Fatal("last GET-to-write condition was ignored or misclassified", err)
+			if !injected || len(calls) != count {
+				t.Fatal("fixture did not exercise exactly the last GET-to-write condition", err)
 			}
 			last := calls[len(calls)-1]
 			if last.status != http.StatusConflict && last.status != http.StatusUnprocessableEntity {
 				t.Fatal("server did not reject the exact stale condition", last.status)
 			}
-			if mode != "storage-rv" && (last.uid != originalUID || last.rv != originalRV) {
-				t.Fatal("delete replaced reviewed preconditions after the last read")
+			if mode != "storage-rv" {
+				// Pinned Kubernetes BeforeDelete uses the object's canonical
+				// Kind in StatusDetails.Kind for its early UID/RV conflict,
+				// unlike the plural resource used by later storage rejection.
+				exactConflict := helmExecutionFailure{apiVersion: "v1", kind: "Status", status: metav1.StatusFailure,
+					code: 409, reason: metav1.StatusReasonConflict, hasDetails: true,
+					name: last.name, resource: "ConfigMap", emptyMetadata: true}
+				if last.status != http.StatusConflict || last.failure != exactConflict {
+					t.Fatal("server did not return the exact canonical ConfigMap conflict", last.status, last.failure)
+				}
+				if last.uid != originalUID || last.rv != originalRV {
+					t.Fatal("delete replaced reviewed preconditions after the last read")
+				}
+			}
+			if err == nil || result == nil || result.Outcome() != want {
+				t.Fatal("exact last GET-to-write rejection was misclassified", err)
+			}
+			if mode != "storage-rv" {
+				expectedEffects := []struct {
+					kind    string
+					outcome kube.HelmUninstallExecutionOutcome
+				}{
+					{"begin", kube.HelmExecutionCompleted},
+					{"delete", kube.HelmExecutionRejected},
+					{"delete", kube.HelmExecutionNotStarted},
+					{"finish", kube.HelmExecutionNotStarted},
+				}
+				effects := result.Effects()
+				if len(effects) != len(expectedEffects) {
+					t.Fatal("conditional rejection lost an ordered effect")
+				}
+				for i, expected := range expectedEffects {
+					if effects[i].Kind != expected.kind || effects[i].Outcome != expected.outcome {
+						t.Fatal("conditional rejection misclassified an individual effect", i)
+					}
+				}
+				if effects[1].UID != originalUID || effects[1].ResourceVersion != originalRV {
+					t.Fatal("rejected effect lost the original reviewed UID/RV")
+				}
 			}
 			f.retained(t, ctx, status)
 			for i := range f.targets {

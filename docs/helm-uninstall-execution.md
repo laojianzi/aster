@@ -89,6 +89,16 @@ Unknown takes precedence over an aggregate Partial result. A success-shaped but
 malformed, wrong-identity, unexpected or oversized persistent response is not a
 known rejection. A lost response, cancellation or deadline after dispatch can
 therefore be Unknown even if an independent observer later sees a real change.
+
+For a core ConfigMap DELETE, Kubernetes' early UID/resourceVersion precondition
+check identifies the object in a 409/Conflict response using
+`StatusDetails.Kind: ConfigMap`. That exact kind is recognized only for the
+restricted ConfigMap DELETE route and only with 409/Conflict. The resource form
+`configmaps` remains valid for the usual resource-scoped failure envelope.
+Both forms still require the exact name, core group, HTTP/status agreement and
+all other strict envelope checks. No case folding, arbitrary kind mapping or
+missing-identity exception is accepted.
+
 The pinned Kubernetes JSON Patch handler returns an anonymous Invalid/422 when
 a patch test fails; its resource/name details are empty. This fails the exact
 rejection envelope check and remains Unknown even when a separate fixture read
@@ -166,3 +176,12 @@ Related contracts: [preparation](helm-uninstall-preparation.md),
 The precise Invalid/422 behavior is defined by the pinned Kubernetes
 [JSON Patch handler](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiserver/pkg/endpoints/handlers/patch.go)
 and [generic status constructor](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apimachinery/pkg/api/errors/errors.go).
+
+The exact early DELETE precondition response shape is defined by
+`BeforeDelete` in the pinned Kubernetes
+[v1.35.8](https://github.com/kubernetes/kubernetes/blob/v1.35.8/staging/src/k8s.io/apiserver/pkg/registry/rest/delete.go),
+[v1.36.4](https://github.com/kubernetes/kubernetes/blob/v1.36.4/staging/src/k8s.io/apiserver/pkg/registry/rest/delete.go)
+and
+[v1.37.0](https://github.com/kubernetes/kubernetes/blob/v1.37.0/staging/src/k8s.io/apiserver/pkg/registry/rest/delete.go)
+sources. All three pass the object's GVK kind into the conflict constructor for
+both UID and resourceVersion mismatch.
