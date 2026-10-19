@@ -1,20 +1,26 @@
 # Aster 实施状态
 
-## 当前已验收基线与唯一实施范围 — 2026-10-16
+## 本次接续基线与唯一实施范围 — 2026-10-19
 
-**已验收 main：`cdf5d4bc6f73dea13787a89b18bbe3c17c27a360`，MyGo v0.5.5。**
-[#75 完成记录](https://github.com/laojianzi/aster/pull/75#issuecomment-6209972550)
-包含实际主干验收及真实分支清理。#74/#75 和 JOSE v4.1.6 不再重复实施；#11
-依赖 Dashboard 已完成关闭，未来有真实更新再正常处理。
+**接续时已验收 main：`e44c500de13c86e70e9d603074eb198f6d270705`，MyGo v0.5.5。**
+[#88/#89 完成记录](https://github.com/laojianzi/aster/pull/89#issuecomment-6251907650)
+及 [#13 最新接续检查点](https://github.com/laojianzi/aster/issues/13#issuecomment-6251931874)
+记录实际主干验收和分支恢复。#76/#78/#80/#84/#86/#88 及 MyGo/JOSE 历史升级均已完成，
+不因旧文档中的“当前”字样重新实施。接续盘点只有 main、0 开放 PR；#11 与 #13 开放。
 
-**当前实施范围是 [#76](https://github.com/laojianzi/aster/issues/76)：选定修订的不可变 Helm 卸载范围预览。**
-复用 #70/#72 的单次同意、精确 Secret GET、严格解码和作用域取消；增加有界对象身份、
-hooks/keep/CRD 风险标记、两分钟过期与原生只读预览。它不是 `helm uninstall --dry-run`，
-不证明最新修订、live ownership、实际删除范围或执行授权，不调用带凭据 CLI，不修改
-资源、草稿或 Prepared。见 [契约](helm-uninstall-preview.md)。
+**本次唯一新增范围为 [#90](https://github.com/laojianzi/aster/issues/90)：独立单次授权的保留历史卸载执行状态机。**
+复用条件状态编码器、完整目标准备及服务器 dry-run，新增独立执行确认、最后时刻重验、
+条件 begin PATCH、有序精确 UID/RV DELETE、严格确认/实际缺失观察，以及基于真实
+uninstalling RV 的 finish dry-run 和条件完成。仅支持既定的同命名空间 ConfigMap
+profile，保留 release history、固定 orphan，不将部分完成或未知响应报告成全部成功。
+详见 [执行契约](helm-uninstall-execution.md)。桌面执行入口、持久崩溃恢复和恢复操作授权
+仍需分别验收；本范围没有开放真实卸载按钮。
 
-代码与本地验证不是已验收主干；本范围仍需最终 PR/新主干独立验证及真实清理结果，
-再关闭 #76。#13 继续承载未完成的 MVP/发布目标，不以 PR 数量或测试数量替代验收。
+本文件记录范围与接续基线；最终 PR、新合并主干的独立证据及实际清理结果以 #90 的
+单一完成记录为准，验收后才显式关闭该 Issue。#13 继续承载未完成 MVP/发布目标。
+[#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 当前有 purego v0.11.2 和
+JSON Patch v5.9.11 两项待审，保留审批队列；不批准全部、不重复已有升级分支，也不为
+清空队列关闭面板。purego 的非 CGO 信号处理路径及 JSON Patch 模块路径迁移分别审查。
 
 ## 已完成、必须复用的能力
 
@@ -30,6 +36,8 @@ hooks/keep/CRD 风险标记、两分钟过期与原生只读预览。它不是 `
 | 可信本地 chart/values 快照、固定官方 Helm 4.3.0、渲染捕获/丢弃/接受 | #67/#68；不是 Helm release 写入或 GitOps |
 | Helm Secret-driver 元数据协商、单命名空间分页与显式刷新/取消 | #69/#70；不是 release 内容或生命周期写入 |
 | 单次内容同意、精确 Secret GET、UID/resourceVersion 与内容一致性只读摘要 | #71/#72；不认证真实性、不提供生命周期写入 |
+| 不可变卸载范围、最新修订与实时对象观察、受限卸载/精确缺失契约 | #76/#77、#78/#79、#80/#81/#82；不重复只读清单 |
+| 保留原始载荷的条件状态编码、完整受限目标准备、独立服务器 dry-run | #84/#85、#86/#87、#88/#89；读/预检同意不授予持久执行权限 |
 | MyGo v0.4.8/v0.5.1/v0.5.5 来源与运行时、输入/布局/时钟保护 | #58、#74、#75；历史升级不重做 |
 
 证据以各自 Issue/PR 为准，不用合并数或绿色 CI 百分比代替 MVP 完成度。
@@ -42,11 +50,12 @@ hooks/keep/CRD 风险标记、两分钟过期与原生只读预览。它不是 `
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**当前优先产品 P1。** 已完成 #73/#74/#75；依赖当前队列已清空。先完成唯一 #76
-只读卸载范围预览，不把它冒充真实 Helm 生命周期或创建重复依赖工作。
+**当前优先产品 P1。** 按 #13 的最新检查点推进唯一 #90 执行器；直接复用已完成的
+#83 清理保护和 #84/#86/#88 三层能力。#11 的两个依赖候选单独审查，不混入本范围。
 
 **P1 — Helm release / GitOps。** #68/#70/#72 的本地渲染、修订元数据和内容一致性摘要直接复用。
-后续仍需分别定义 release 内容与生命周期检查、install/upgrade/rollback/uninstall、
+卸载执行 API 之后仍需崩溃恢复、独立恢复授权及原生执行确认/生命周期的实际证据；
+其他后续范围为 install/upgrade/rollback 和
 GitOps repository/sync/reconcile 的可信执行、并发、失败/Unknown 与确认边界。
 不得把元数据标签、渲染或普通逐对象 SSA 重命名成完整 Helm 生命周期；不得直接运行
 带集群凭据的 CLI 绕过现有 Prepared、strict dry-run、精确名称确认和 no-force 保护。

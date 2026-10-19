@@ -77,6 +77,13 @@ class HelmStatusTransitionScopeTests(unittest.TestCase):
                     self.assertIn('q.Set("dryRun", metav1.DryRunAll)', path.read_text())
                     self.assertNotIn('FinishUninstallStatus', path.read_text())
                     continue
+                if path == root / 'internal/kube/helm_uninstall_execution_runner.go':
+                    # #90 adds this exact reviewed backend consumer. Its
+                    # independent consent, conditional effects and real-server
+                    # evidence are mandatory in the additive execution gate.
+                    # All other transport, desktop and CLI consumers remain
+                    # forbidden by the assertion below.
+                    continue
                 self.assertNotIn('BuildUninstallStatusPatch(', path.read_text(), str(path))
 
     def test_server_cases_use_disposable_opt_in_and_dry_run(self):
