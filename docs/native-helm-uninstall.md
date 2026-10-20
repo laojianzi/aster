@@ -148,7 +148,11 @@ OS interactions, checked/production migration, OIDC, window and binary artifacts
 Previous #93 runs establish the starting baseline only.
 
 All previous 828 unit and 83 real-cluster Helm contract names, 113 migration roots,
-version pins, budgets and timeouts stay in place. The 56 new native/journal names
+version pins, application budgets and per-test timeouts stay in place. The unit
+CI job has a 20-minute runner budget for complete race and coverage evidence;
+its former 15-minute budget cancelled coverage after the full race run passed.
+The Go package timeout remains five minutes, with serial race package execution.
+The 56 new native/journal names
 (19 roots and 37 named subcases) bring the unit Helm contract to 884 requirements.
 The real-cluster contract also requires the two native E2E roots, for 141 total;
 both migration modes require 169 full names while selecting 132 complete roots.
