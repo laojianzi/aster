@@ -16,7 +16,8 @@
 测试与三版本 Kubernetes 的实际恢复观察加入原门槛。详见 [恢复契约](helm-uninstall-recovery.md)。
 桌面执行与恢复展示仍需原生确认/生命周期的独立验收。
 
-本文件记录范围与接续基线；最终唯一 PR、新合并主干的原始证据及实际清理结果以 #92
+本文件记录范围与接续基线；唯一 [PR #93](https://github.com/laojianzi/aster/pull/93)、
+新合并主干的原始证据及实际清理结果以 #92
 的单一完成记录为准，验收后才显式关闭该 Issue。#13 继续承载未完成 MVP/发布目标。
 [#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 当前有 purego v0.11.2 和
 JSON Patch v5.9.11 两项待审，保留审批队列；不批准全部、不重复已有升级分支，也不为

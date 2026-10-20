@@ -1,6 +1,7 @@
 # Persistent restricted uninstall history and fresh observation
 
-Scope [#92](https://github.com/laojianzi/aster/issues/92) continues the
+Scope [#92](https://github.com/laojianzi/aster/issues/92), sole
+[PR #93](https://github.com/laojianzi/aster/pull/93), continues the
 [restricted executor](helm-uninstall-execution.md). Execution now requires a
 private persistent journal selected in its independent confirmation. Reopening
 that journal is offline and inert. A separate, newly confirmed GET operation
