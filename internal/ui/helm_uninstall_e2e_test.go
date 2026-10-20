@@ -261,14 +261,17 @@ func nativeHelmE2EReach(h *relationshipHarness, label string) {
 	h.tt.Frame()
 	for range 80 {
 		box, found := h.tt.Find(label)
-		if found && box.H >= 18 && box.W >= 20 && box.Y >= viewport.Y && box.Y+box.H <= viewport.Y+viewport.H {
+		// Find returns the clipped visible rectangle. A one-DIP vertical
+		// inset excludes an edge fragment without assuming a font height.
+		if found && box.H > 0 && box.W > 0 && box.X >= viewport.X && box.X+box.W <= viewport.X+viewport.W && box.Y >= viewport.Y+1 && box.Y+box.H <= viewport.Y+viewport.H-1 {
 			return
 		}
 		h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 50)
 		h.tt.Frame()
 	}
 	saveNativeScreenshot(h.t, h.tt)
-	h.t.Fatal("native uninstall control could not be reached", label)
+	box, found := h.tt.Find(label)
+	h.t.Fatalf("native uninstall control could not be reached %q: found=%t visible=%+v viewport=%+v", label, found, box, viewport)
 }
 
 func nativeHelmE2EClick(h *relationshipHarness, label string) {

@@ -278,14 +278,21 @@ func nativeHelmReach(h *relationshipHarness, label string) {
 	h.tt.Frame()
 	for i := 0; i < 100; i++ {
 		bounds, found := h.tt.Find(label)
-		if found && bounds.H >= 15 && bounds.W > 0 && bounds.Y >= viewport.Y && bounds.Y+bounds.H <= viewport.Y+viewport.H {
+		// Find returns the clipped visible rectangle, not the original layout
+		// box. A positive fragment at an edge is insufficient: require vertical
+		// space on both sides. Platform font metrics determine text height, so
+		// a fixed minimum would reject fully visible 12-DIP Core Text labels.
+		if found && bounds.H > 0 && bounds.W > 0 &&
+			bounds.X >= viewport.X && bounds.X+bounds.W <= viewport.X+viewport.W &&
+			bounds.Y >= viewport.Y+1 && bounds.Y+bounds.H <= viewport.Y+viewport.H-1 {
 			return
 		}
 		h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 90)
 		h.tt.Frame()
 	}
 	saveNativeScreenshot(h.t, h.tt)
-	h.t.Fatalf("unreachable Helm control %q", label)
+	bounds, found := h.tt.Find(label)
+	h.t.Fatalf("unreachable Helm control %q: found=%t visible=%+v viewport=%+v", label, found, bounds, viewport)
 }
 
 func nativeHelmClick(h *relationshipHarness, label string) {
