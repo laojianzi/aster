@@ -1,10 +1,17 @@
 # Restricted uninstall contract and Helm v4.3.0 characterization
 
-Scope #80 continues #77/#79. **Desktop uninstall execution is NOT enabled.**
-This increment specifies the first execution profile and tests the already
-approved external Helm binary. It does not add another inventory, a product CLI
-bridge, a delete button, or an executable capability. Existing stored/live
-observations, drafts, history and Prepared plans are unchanged.
+Historical scope #80 continued #77/#79. At that increment, **desktop uninstall
+execution was NOT enabled**. It specified the first execution profile and tested
+the already approved external Helm binary. It did not add another inventory, a
+product CLI bridge, a delete button, or an executable capability. Existing
+stored/live observations, drafts, history and Prepared plans stayed unchanged.
+
+The characterization remains a separate contract. Subsequent increments implement
+the [preparation](helm-uninstall-preparation.md), [server dry-run](helm-uninstall-dry-run.md),
+[executor](helm-uninstall-execution.md) and [private recovery](helm-uninstall-recovery.md).
+Scope #94 connects those APIs to the [native restricted workflow](native-helm-uninstall.md).
+The prospective wording below records the original #80 requirements; current
+desktop behavior and its independent qualification belong to that native scope.
 
 ## Why the CLI cannot be used as an executor
 
@@ -107,8 +114,9 @@ Required effect order for the first profile:
    this final storage write remains a distinct incomplete/Unknown effect.
 
 Admission and release-storage mutation tests, a safe payload-preserving rewrite,
-all current-model confirmation/lifetime guards, UI and actual executor are future
-work. This document and its comparison tests do not implement those steps.
+all current-model confirmation/lifetime guards, UI and the actual executor were
+future work for this characterization increment. The subsequent implementations
+are linked above; this document and its comparison tests do not implement them.
 
 ## Outcome and recovery contract
 

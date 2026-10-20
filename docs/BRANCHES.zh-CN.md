@@ -1,16 +1,22 @@
 # 分支与 PR 接续台账
 
-## 当前接续入口 — 2026-10-19
+## 当前接续入口 — 2026-10-20
 
-本次基线为已验收 `main eba0ef29c21abd0b021746c764d65c9e152109eb`。
-入场盘点为 main 唯一远端分支、58 个 PR（57 merged、仅 #2 closed/unmerged、0 open），
-开放 Issues 为 #11 与 #13。#90/#91 已完成且分支已退役；不重复合并、重建或删除。
-唯一新增范围为 [#92](https://github.com/laojianzi/aster/issues/92) 和
-唯一 [PR #93](https://github.com/laojianzi/aster/pull/93) / `feat/helm-uninstall-recovery`，
-沿现有执行器增加强制持久记录、进程崩溃离线恢复和
-重新明确授权的 GET 核对。精确 PR 编号、最终验证/合并及退役结果以该 Issue 和
-[#13](https://github.com/laojianzi/aster/issues/13) 的最新完成记录为准。
-归档/维护标签保存完整历史，保留全部 36 个现有 tag；#11 两项依赖候选继续独立待审。
+本次基线为已验收 `main 44efc80000203e2e278887dc159c9c20be96cf84`。
+入场盘点为 main 唯一远端分支、59 个 PR（58 merged、仅 #2 closed/unmerged、0 open），
+开放 Issues 为 #11 与 #13。#92/#93 已完成，原始 bundle 的 39 个引用（含 HEAD）、
+279 个全部历史提交在空仓库离线恢复并通过 strict fsck，远端/本地分支已退役。
+详见 [#92 单一完成收据](https://github.com/laojianzi/aster/issues/92#issuecomment-6280541769)；
+不重复合并、重建或删除已完成范围。
+
+唯一新增范围为 [#94](https://github.com/laojianzi/aster/issues/94) /
+[PR #95](https://github.com/laojianzi/aster/pull/95) /
+`feat/native-helm-uninstall`：将既有 preparation、dry-run、executor、journal 和
+GET 核对接入原生独立确认、结果与历史展示、取消/撤销和工作区生命周期。
+PR #95 已实际创建，退役登记只绑定它与这一准确分支；#94 是 Issue 编号。
+本文件没有预先宣称新候选/main 已通过或 #94 已关闭。精确 PR、最终验证/合并及实际
+退役结果以该 Issue 和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。
+归档/维护标签保存完整历史，保留全部 37 个现有 tag；#11 两项依赖候选继续独立待审。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 

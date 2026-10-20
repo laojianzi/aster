@@ -185,7 +185,8 @@ func sameHelmReconciliationLineage(a, b helmrelease.Revision) bool {
 // This NEW acknowledgement covers only the exact current identity's metadata
 // GETs for the reviewed recovery record. Historical expiry is intentionally not
 // consulted: it cannot extend an old grant, and the new grant permits no write.
-// No desktop or CLI call site is activated by this dormant backend API.
+// The native workbench requires this independent acknowledgement after selecting
+// a current metadata revision. Offline history and CLI paths confer no grant.
 func (b *Backend) AcknowledgeHelmUninstallReconciliation(r *HelmUninstallRecovery, session, ns string, row helmrelease.Revision, acknowledged bool) (*HelmUninstallReconciliationConsent, error) {
 	if !acknowledged || b == nil || b.identity == nil || !helmrelease.ValidPreviewSession(session) || !validHelmReconciliationRow(ns, row) {
 		return nil, ErrHelmReconciliationConsent

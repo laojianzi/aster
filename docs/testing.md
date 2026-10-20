@@ -225,11 +225,13 @@ corresponding original evidence.
 
 ## Restricted Helm retained-history execution
 
-The dormant backend executor adds independent execution consent and actual
-conditional effects to the already qualified preparation and dry-run paths.
-There is no desktop/CLI activation. Scope #92 adds mandatory journal history and
-fresh GET-only recovery; see [the execution contract](helm-uninstall-execution.md)
-and [the recovery contract](helm-uninstall-recovery.md).
+The backend executor adds independent execution consent and actual conditional
+effects to the qualified preparation and dry-run paths. Scope #92 adds mandatory
+journal history and fresh GET-only recovery; scope #94 connects the separate
+[native confirmation and recovery flow](native-helm-uninstall.md).
+Only the admitted native controller and its journal-owned worker may invoke these
+APIs; ordinary preview/content paths and the CLI remain outside the boundary.
+See [execution](helm-uninstall-execution.md) and [recovery](helm-uninstall-recovery.md).
 
 The complete unit/race and independent coverage streams both require the new
 execution consent, HTTP, revalidation, strict-response, partial/Unknown, exact
@@ -272,6 +274,55 @@ identity and `helm-journal-summary.json` inside their original migration ZIPs.
 exact package identity and one complete run/pass per name, with no skip or fail.
 The resulting fourteen original artifacts contain twenty-eight raw JSONL streams.
 Windows/macOS cross-compilation never substitutes for those real filesystem tests.
+
+### Native restricted uninstall and recovery (#94 / PR #95)
+
+[PR #95](https://github.com/laojianzi/aster/pull/95) is the sole implementation for
+[#94](https://github.com/laojianzi/aster/issues/94).
+
+Keep the exact previous 828 unit and 83 real-cluster Helm contract names, all 113
+migration roots, every old native suite and all four original workflows. The native
+scope adds its actual UI/journal roots and named subcases to `test_evidence.py` for
+full unit/race, independent coverage, native OS, real-cluster and both checked and
+production migration streams. `run_migration_tests.py` selects their root tests and
+passes every mandatory full name to validation; a root pass cannot conceal a
+missing, skipped, failed or unfinished required subcase.
+
+The increment adds 56 local names (19 roots and 37 subcases), plus two native E2E
+roots in real-cluster streams: the combined Helm contract now requires 884 unit
+and 141 real-cluster names. Migration retains the old 113 roots and adds these
+56 names, requiring 169 full names while selecting 132 roots. The scope regression
+freezes the old inventories independently and removes each new name in turn,
+then also injects failure, skip and unfinished results at every applicable gate.
+
+The new native tests exercise separate prepare/dry-run/execute confirmations,
+exact-name/IME handling, original expiry, immutable reviewed target identities,
+input/selection/context/session/window invalidation, cancelled work and stale
+callbacks, private journal release, and separate server/record outcomes. Recovery
+loads offline and requires a new current selection and GET acknowledgement before
+network reads. Damaged checked prefixes remain visible but cannot authorize GETs;
+history reads and successful current observations never clear Unknown or the
+unresolved-operation admission block.
+
+Every configured Kubernetes version additionally runs
+`TestNativeHelmUninstallAgainstRealCluster` and
+`TestNativeHelmRecoveryAgainstRealCluster`. The first follows actual native clicks
+through preparation, dry-run, final confirmation and two real ConfigMap deletes,
+then independently checks retained release storage and an unchanged canary. The
+second drops the response only after a real successful first DELETE, verifies
+Unknown and the real partial effects, closes the old Workbench, opens a fresh one
+with a new session, loads the same private journal and explicitly GET-observes
+absent/original current facts while retaining historical Unknown.
+
+The scope source regression admits production API calls only in
+`internal/ui/helm_uninstall.go` and its `helm_uninstall_journal.go` worker helper.
+The original preparation, dry-run, execution and recovery regressions keep their
+backend constraints and migrate the old dormant assertion to these exact consumers.
+No workflow pin, package/job deadline, native library, module version or product
+budget changes are part of this scope. Final PR and independently qualified actual
+main need new original artifacts; definitions, local passes or earlier #93 ZIPs
+do not establish the new candidate's acceptance. Physical IME, accessibility and
+signed release qualification remain separate.
 
 ## Portable Schema patterns (#48)
 

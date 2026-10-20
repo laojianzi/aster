@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import test_evidence as evidence
 import helm_uninstall_contract_evidence as contract
+from helm_native_scope import CALL_SITES, production_calls
 
 
 class HelmUninstallPreparationScopeTests(unittest.TestCase):
@@ -70,7 +71,7 @@ class HelmUninstallPreparationScopeTests(unittest.TestCase):
                     retirement.candidate(p, head, branches, [pr] if mode == 'active' else [],
                                          lambda _: mode != 'unreachable', number=number, branch=branch)
 
-    def test_preparation_has_no_mutation_cli_or_activation(self):
+    def test_preparation_has_no_mutation_and_only_admitted_native_consumer(self):
         root = Path(__file__).resolve().parents[1]
         paths = (root / 'internal/helmrelease/uninstall_preparation.go',
                  root / 'internal/kube/helm_uninstall_preparation.go')
@@ -85,10 +86,10 @@ class HelmUninstallPreparationScopeTests(unittest.TestCase):
         self.assertIn('b.observeHelmItems(ctx, profile.Preview(), true)', text)
         self.assertIn('helmrelease.ReadTimeout', text)
         self.assertIn('owner  *backendIdentity', text)
-        for base in ('cmd', 'internal/ui'):
-            for path in (root / base).rglob('*.go'):
-                if not path.name.endswith('_test.go'):
-                    self.assertNotIn('PrepareHelmUninstall(', path.read_text())
+        # Scope #94 activates one independently confirmed native controller.
+        # The preparation remains GET-only and all other UI/CLI paths stay out.
+        name = 'PrepareHelmUninstall'
+        self.assertEqual(production_calls(root, name), CALL_SITES[name])
 
     def test_real_server_and_actual_helm_coverage_is_preserved(self):
         root = Path(__file__).resolve().parents[1]

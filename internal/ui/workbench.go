@@ -135,10 +135,12 @@ type Workbench struct {
 	schemaBinding       draftIdentity
 	planBinding         draftIdentity
 
-	previewCancel context.CancelFunc
-	previewEpoch  uint64
-	delivery      deliveryState
-	helmReleases  helmReleaseState
+	previewCancel   context.CancelFunc
+	previewEpoch    uint64
+	delivery        deliveryState
+	helmReleases    helmReleaseState
+	helmUninstall   helmUninstallState
+	helmJournalPath string
 
 	vaultMutation, vaultUncertain                             bool
 	vaultOpen, vaultPending                                   bool
@@ -178,6 +180,7 @@ func New() *Workbench {
 	w.vaultDuration = "1 hour"
 	w.oidcPort = "0"
 	w.vaultStore = credentialvault.Client{}
+	w.helmJournalPath, _ = defaultHelmJournalPath()
 	w.kinds = catalog()
 	w.currentKind = w.kinds[0]
 	w.kindChoice = w.currentKind.Label()
@@ -298,5 +301,8 @@ func (w *Workbench) Close() {
 	if w.life != nil {
 		w.life.Close()
 	}
+	// Closed windows discard emit callbacks. All workers are now joined, so
+	// no persistent operation remains even when its UI completion was dropped.
+	w.pendingWrites = 0
 }
 func parseReplicaCount(text string) (int64, error) { return strconv.ParseInt(text, 10, 64) }

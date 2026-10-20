@@ -1,4 +1,4 @@
-"""Execution evidence remains additive and its desktop activation stays closed."""
+"""Execution evidence remains additive and native activation has one owner."""
 import json
 from pathlib import Path
 import tempfile
@@ -7,6 +7,7 @@ import unittest
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 import retire_completed_oidc as retirement
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,16 +70,11 @@ class HelmUninstallExecutionScopeTests(unittest.TestCase):
             retirement.candidate(pr, head, refs, [], lambda _: True,
                                  number=number, branch=branch)
 
-    def test_dormant_backend_has_no_production_desktop_or_cli_call_site(self):
-        # Backend qualification does not quietly activate an execution button
-        # before native confirmation, lifecycle and crash recovery are reviewed.
-        for directory in ('cmd', 'internal/ui'):
-            for path in (ROOT / directory).rglob('*.go'):
-                if path.name.endswith('_test.go'):
-                    continue
-                text = path.read_text()
-                self.assertNotIn('AcknowledgeHelmUninstallExecution(', text, str(path))
-                self.assertNotIn('ExecuteHelmUninstall(', text, str(path))
+    def test_only_journal_owned_native_worker_can_acknowledge_and_execute(self):
+        # Scope #94 admits only the worker whose lifetime owns the concrete
+        # journal. Ordinary preview/content/CLI paths cannot call execution.
+        for name in ('AcknowledgeHelmUninstallExecution', 'ExecuteHelmUninstall'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
 
 
 if __name__ == '__main__':

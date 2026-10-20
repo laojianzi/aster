@@ -1,7 +1,9 @@
 # Restricted Helm uninstall server dry-run
 
-Scope #88 continues the qualified #84 codec and #86 preparation. It adds no
-persistent product mutation, desktop uninstall UI or credentialed Helm CLI.
+Scope #88 continues the qualified #84 codec and #86 preparation. This API performs
+bounded reads and server dry-run without persistent product mutation. The separate
+[native workflow](native-helm-uninstall.md) invokes it after independent dry-run
+confirmation and cannot promote its result into execution consent automatically.
 
 ## Independent, single-use acknowledgement
 
@@ -14,8 +16,11 @@ this code neither grants those permissions nor escalates identity.
 A copied consent handle shares the same private consumption state. The first
 attempt consumes it before network access, including failed/canceled attempts.
 `Discard` revokes the handle, cancels in-flight work and invalidates a returned
-report. A future UI must call it on input, selection, session, namespace, backend
-or connection changes and teardown. The original preparation's 30-real-second
+report. The native controller revokes it on invalidating selection, session,
+namespace, backend or connection changes and teardown. A successful report keeps
+its original grant until separately confirmed execution or revocation; discarding
+the grant when the preflight worker returns would also invalidate that report.
+The original preparation's 30-real-second
 expiry is never renewed. The complete preflight additionally shares the existing
 10-second deadline, including rate limiting, decoding and all requests.
 
@@ -63,11 +68,11 @@ Orphan propagation can leave dependents outside the reviewed target list.
 
 Only the deployed-to-uninstalling update can be preflighted against current
 storage. The final retained-history transition needs the actual later
-uninstalling UID/RV and must be separately dry-run/revalidated by the future
-executor. This implementation does not pretend to admit a hypothetical future
+uninstalling UID/RV and is separately dry-run/revalidated by the
+[executor](helm-uninstall-execution.md). This API does not admit a hypothetical future
 storage version. Independent execution confirmation, ordered persistent effects,
-validated acknowledgements/exact absence, partial/Unknown outcomes, explicit
-reconciliation and crash-recovery policy remain prerequisites before activation.
+validated acknowledgements/exact absence, partial/Unknown outcomes and private
+journal/recovery remain separate boundaries of the native flow.
 
 ## Evidence
 

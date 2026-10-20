@@ -12,7 +12,9 @@ func (w *Workbench) View(c *ui.Context) {
 	w.syncFind()
 	w.syncDelivery()
 	w.syncHelmReleases()
+	w.syncHelmUninstall()
 	w.expireHelmUninstall(time.Now())
+	w.expireHelmUninstallFlow(time.Now())
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Direction(ui.LeftToRight).Fill().Background(t.Background).Children(func() {
@@ -28,6 +30,7 @@ func (w *Workbench) View(c *ui.Context) {
 			if ui.TextInput(c.Key("field.namespace"), &w.namespace).Label("Namespace").Placeholder("Namespace or *").Width(150).Changed() {
 				w.clearOIDC()
 				w.deliveryNamespaceChanged()
+				w.clearHelmUninstall()
 			}
 			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending || w.oidcPending).OnClick(func() {
 				w.connect()
@@ -85,6 +88,10 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).Basis(0).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+			if w.helmUninstall.open {
+				w.helmUninstallView(c)
+				return
+			}
 			if w.helmReleases.open {
 				w.helmReleasesView(c)
 				return
@@ -129,6 +136,7 @@ func (w *Workbench) View(c *ui.Context) {
 					ui.Button(c, "Deliver manifests").Disabled(w.backend == nil || w.pendingWrites != 0).OnClick(w.openDelivery)
 					if w.detail == nil {
 						ui.Button(c, "Helm releases").Disabled(w.backend == nil || w.pendingWrites != 0).OnClick(w.openHelmReleases)
+						ui.Button(c, "Helm recovery").Disabled(w.pendingWrites != 0).OnClick(w.openHelmRecovery)
 					}
 				})
 				labels := make([]string, 0, len(w.kinds))

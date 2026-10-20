@@ -17,7 +17,9 @@ jobs:
   test:
     name: Unit, race and native interactions
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Keep complete race and coverage evidence in one job, including cold builds.
+    # This runner budget does not increase any test or application deadline.
+    timeout-minutes: 20
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/unit
     steps:
