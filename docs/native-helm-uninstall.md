@@ -10,6 +10,12 @@ completion evidence belongs to #94. This document describes the implementation
 and acceptance contract, not a claim that a new candidate, merged main or release
 has already qualified.
 
+Scope [#96](https://github.com/laojianzi/aster/issues/96) adds an optional
+[local journal admission explanation](helm-journal-admission.md) to these same
+panes. Its existing-only check does not change the three confirmations below or
+permit execution from a saved result. The #94/#95 acceptance and branch retirement
+are recorded in the [completed receipt](https://github.com/laojianzi/aster/issues/94#issuecomment-6289174151).
+
 ## Explicit preparation, dry-run and execution
 
 Start from a selected deployed revision in the Helm metadata view. Opening the

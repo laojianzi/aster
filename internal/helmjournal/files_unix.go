@@ -11,16 +11,29 @@ import (
 )
 
 func openPrivateRoot(path string) (*privateRoot, error) {
+	return openPrivateRootMode(path, true)
+}
+
+func openExistingPrivateRoot(path string) (*privateRoot, error) {
+	return openPrivateRootMode(path, false)
+}
+
+func openPrivateRootMode(path string, create bool) (*privateRoot, error) {
 	created := false
-	if err := os.Mkdir(path, 0700); err != nil {
-		if !errors.Is(err, os.ErrExist) {
-			return nil, ErrUnavailable
+	if create {
+		if err := os.Mkdir(path, 0700); err != nil {
+			if !errors.Is(err, os.ErrExist) {
+				return nil, ErrUnavailable
+			}
+		} else {
+			created = true
 		}
-	} else {
-		created = true
 	}
 	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
 	if err != nil {
+		if !create && errors.Is(err, os.ErrNotExist) {
+			return nil, errStoreNotInitialized
+		}
 		return nil, ErrUnavailable
 	}
 	dir := os.NewFile(uintptr(fd), path)

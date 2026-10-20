@@ -102,18 +102,27 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
         for suite, frozen in LEGACY_CONTRACT.items():
             with self.subTest(suite=suite):
                 new = set(evidence.HELM_NATIVE_UNINSTALL_REQUIRED[suite])
+                # The later admission scope freezes the complete aa84 inventory
+                # separately; only its independently registered additions are
+                # excluded when checking this older pre-#94 baseline.
+                admission = set(evidence.HELM_JOURNAL_ADMISSION_REQUIRED[suite])
+                admission.update(contract.JOURNAL_ADMISSION_REQUIRED.get(suite, ()))
                 required = contract.required(suite)
                 self.assertEqual(len(required), len(set(required)))
                 self.assertTrue(new <= set(required))
-                self.assertEqual(inventory(set(required) - new), frozen)
+                self.assertTrue(admission <= set(required))
+                self.assertFalse(new & admission)
+                self.assertEqual(inventory(set(required) - new - admission), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
             with self.subTest(suite=suite):
                 new = set(evidence.HELM_NATIVE_UNINSTALL_REQUIRED[suite])
-                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new), frozen)
+                admission = set(evidence.HELM_JOURNAL_ADMISSION_REQUIRED[suite])
+                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission), frozen)
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
-        self.assertEqual(inventory(set(migration.REQUIRED) - set(evidence.HELM_NATIVE_UNINSTALL_NAMES)),
+        self.assertEqual(inventory(set(migration.REQUIRED) - set(evidence.HELM_NATIVE_UNINSTALL_NAMES)
+                                   - set(evidence.HELM_JOURNAL_ADMISSION_NAMES)),
                          LEGACY_MIGRATION)
 
     def test_native_cases_are_added_to_every_applicable_suite(self):
@@ -192,7 +201,7 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
         cluster = (ROOT / 'internal/ui/helm_uninstall_e2e_test.go').read_text()
         self.assertTrue(cluster.startswith('//go:build e2e\n'))
 
-    def test_production_api_calls_are_restricted_to_the_two_admitted_files(self):
+    def test_production_api_calls_are_restricted_to_the_exact_admitted_files(self):
         for name, admitted in CALL_SITES.items():
             with self.subTest(api=name):
                 self.assertEqual(production_calls(ROOT, name), admitted)

@@ -177,6 +177,10 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(APPROVED[57], 'feat/native-schema-list-set')
         self.assert_completion_scope_guards(57, 56, 55)
 
+    def test_helm_journal_admission_retirement_requires_its_own_completed_inactive_merge(self):
+        self.assertEqual(APPROVED[97], 'feat/helm-journal-admission')
+        self.assert_completion_scope_guards(97, 96, 95)
+
     def assert_completion_scope_guards(self, number, issue, previous):
         from retire_completed_oidc import DEPENDENCY_SCOPES
         branch = APPROVED[number]

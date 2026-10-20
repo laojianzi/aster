@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 from test_evidence import required_for_suite, summarize
+from helm_journal_evidence import ADMISSION_REQUIRED as JOURNAL_ADMISSION_NAMES
 
 REQUIRED = {
     'unit-native': (
@@ -698,8 +699,27 @@ UNINSTALL_RECOVERY_REQUIRED = {
 }
 
 
+JOURNAL_ADMISSION_BACKEND_NAMES = (
+    'TestHelmUninstallJournalAdmissionReadOnly',
+    *['TestHelmUninstallJournalAdmissionReadOnly/' + case
+      for case in ('not-initialized', 'existing-no-blocker', 'retained-unknown',
+                   'unrelated-corruption', 'busy', 'unavailable', 'capacity',
+                   'metadata-statuses', 'grants-unchanged', 'opaque-accessors')],
+    'TestHelmUninstallJournalAdmissionScopeBinding',
+    *['TestHelmUninstallJournalAdmissionScopeBinding/' + case
+      for case in ('exact-presentation', 'invalid-selection', 'owner-lifetime',
+                   'same-local-guard', 'frozen-connection')],
+    'TestHelmUninstallJournalAdmissionCancellation',
+    *['TestHelmUninstallJournalAdmissionCancellation/' + case
+      for case in ('nil', 'cancelled', 'expired', 'bounded-scan', 'after-reader-close')],
+)
+JOURNAL_ADMISSION_REQUIRED = {
+    'unit-native': (*JOURNAL_ADMISSION_NAMES, *JOURNAL_ADMISSION_BACKEND_NAMES),
+}
+
+
 def required(suite):
-    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ())])
+    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ()), *JOURNAL_ADMISSION_REQUIRED.get(suite, ())])
 
 def main():
     parser = argparse.ArgumentParser()

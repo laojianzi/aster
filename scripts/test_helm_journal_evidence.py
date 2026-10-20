@@ -28,7 +28,8 @@ class HelmJournalEvidenceTests(unittest.TestCase):
                                    Test=journal.REQUIRED[0] + '/reopened'))
         self.assertTrue(self.validate(events)['valid'])
 
-    def test_every_required_root_must_actually_run_and_pass(self):
+    def test_every_required_full_name_must_actually_run_and_pass(self):
+        self.assertTrue(self.validate(self.events())['valid'])
         for name in journal.REQUIRED:
             for outcome in ('missing', 'fail', 'skip', 'unfinished', 'pass-without-run'):
                 with self.subTest(name=name, outcome=outcome):

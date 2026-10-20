@@ -1,18 +1,22 @@
 package helmjournal
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 )
 
 const lockName = "journal.lock"
+
+func validStorePath(dir string) bool {
+	return filepath.IsAbs(dir) && filepath.Clean(dir) == dir && dir != filepath.VolumeName(dir)+string(os.PathSeparator)
+}
 
 // Store holds a permanent OS lock until Close. It serializes cooperating
 // processes using this directory, not all clients using the same cluster.
@@ -61,7 +65,7 @@ type writerState struct {
 // existing directory must already satisfy the platform's current-user privacy
 // contract. It never changes an existing directory's owner or permissions.
 func Open(dir string) (*Store, error) {
-	if !filepath.IsAbs(dir) || filepath.Clean(dir) != dir || dir == filepath.VolumeName(dir)+string(os.PathSeparator) {
+	if !validStorePath(dir) {
 		return nil, ErrInvalid
 	}
 	r, err := openPrivateRoot(dir)
@@ -88,6 +92,15 @@ func Open(dir string) (*Store, error) {
 }
 
 func (s *Store) usable() error {
+	err := s.checkUsable()
+	if err == ErrUnavailable {
+		s.poisoned = true
+	}
+	return err
+}
+
+// checkUsable shares the execution predicate without changing lease state.
+func (s *Store) checkUsable() error {
 	if s == nil || s.storeState == nil || s.closed {
 		return ErrClosed
 	}
@@ -95,7 +108,6 @@ func (s *Store) usable() error {
 		return ErrUnavailable
 	}
 	if s.root.check() != nil || s.root.checkFile(lockName, s.lock) != nil {
-		s.poisoned = true
 		return ErrUnavailable
 	}
 	return nil
@@ -120,48 +132,11 @@ func (s *Store) List() ([]string, error) {
 }
 
 func (s *Store) inventory() ([]string, int64, error) {
-	dir, err := s.root.root.Open(".")
+	ids, report, err := s.inventoryAdmission(context.Background())
 	if err != nil {
-		return nil, 0, ErrUnavailable
+		return nil, 0, err
 	}
-	entries, readErr := dir.ReadDir(MaxRecords + 2)
-	closeErr := dir.Close()
-	if readErr != nil && readErr != io.EOF || closeErr != nil {
-		return nil, 0, ErrUnavailable
-	}
-	if len(entries) > MaxRecords+1 {
-		return nil, 0, ErrBudget
-	}
-	ids := make([]string, 0, len(entries))
-	var size int64
-	for _, entry := range entries {
-		if entry.Name() == lockName {
-			continue
-		}
-		id, ok := recordID(entry.Name())
-		if !ok || entry.Type() != 0 {
-			return nil, 0, ErrCorrupt
-		}
-		f, err := s.root.openFile(entry.Name(), false, false)
-		if err != nil {
-			return nil, 0, err
-		}
-		st, statErr := f.Stat()
-		closeErr := f.Close()
-		if statErr != nil || closeErr != nil {
-			return nil, 0, ErrUnavailable
-		}
-		if st.Size() > MaxOperationBytes {
-			return nil, 0, ErrBudget
-		}
-		size += st.Size()
-		if size > MaxStoreBytes {
-			return nil, 0, ErrBudget
-		}
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	return ids, size, nil
+	return ids, report.Bytes, nil
 }
 
 // Load reads a complete bounded file, preserving a fully verified prefix when
@@ -220,21 +195,8 @@ func (s *Store) Begin(p Plan) (*Writer, error) {
 	if !validPlan(p) {
 		return nil, ErrInvalid
 	}
-	ids, total, err := s.inventory()
-	if err != nil {
+	if _, err := s.admissionLocked(context.Background(), AdmissionScope{Binding: p.Binding, Namespace: p.Namespace, StorageUID: p.Revision.UID}); err != nil {
 		return nil, err
-	}
-	if len(ids) >= MaxRecords {
-		return nil, ErrBudget
-	}
-	for _, id := range ids {
-		old, err := s.load(id)
-		if err != nil {
-			return nil, err
-		}
-		if old.Plan.Binding == p.Binding && old.Plan.Namespace == p.Namespace && old.Plan.Revision.UID == p.Revision.UID && unresolved(old) {
-			return nil, ErrUnresolved
-		}
 	}
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
@@ -250,11 +212,6 @@ func (s *Store) Begin(p Plan) (*Writer, error) {
 	}
 	data := append([]byte(journalMagic), encoded...)
 	defer clear(data)
-	// Reserve the full maximum operation space before starting. The live writer
-	// can finish without silently exceeding the store's overall bound.
-	if total+MaxOperationBytes > MaxStoreBytes {
-		return nil, ErrBudget
-	}
 	f, err := s.root.openFile(id+".wal", true, true)
 	if err != nil {
 		return nil, err

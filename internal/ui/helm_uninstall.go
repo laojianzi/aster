@@ -45,6 +45,7 @@ type helmUninstallState struct {
 	recoveryErr                                     error
 	observation                                     *kube.HelmUninstallRecoveryObservation
 	reconcileConsent                                *kube.HelmUninstallReconciliationConsent
+	admission                                       *kube.HelmJournalAdmissionReview
 }
 
 func (u *helmUninstallState) revoke() {
@@ -63,6 +64,7 @@ func (u *helmUninstallState) revoke() {
 	}
 	u.prepareAck, u.dryRunAck, u.executeAck, u.reconcileAck = false, false, false, false
 	u.confirmation, u.confirmationComposing = "", false
+	u.admission = nil
 }
 
 func (w *Workbench) clearHelmUninstall() {
@@ -156,6 +158,9 @@ func (w *Workbench) stopHelmUninstall() {
 	if u.busy != "" {
 		u.stopRequested = true
 		u.status = "Stopping; waiting for the current worker to finish and release its journal. Dispatched effects may have committed."
+		if u.busy == helmAdmissionBusy {
+			u.status = "Stopping the local journal check; waiting for its worker to release the private journal."
+		}
 	} else {
 		u.status = "Pending confirmations revoked. Retained results describe historical effects only."
 	}
@@ -284,6 +289,7 @@ func (w *Workbench) executeHelmUninstall() {
 		return
 	}
 	epoch, backend, session, ns, row, path, dryRun := u.epoch, u.backend, u.session, u.namespace, u.row, u.journalPath, u.dryRun
+	u.admission = nil
 	grant := u.dryRunConsent
 	stopParent := u.dryRunParentStop
 	u.prepareAck, u.dryRunAck, u.executeAck = false, false, false
@@ -322,6 +328,12 @@ func (w *Workbench) executeHelmUninstall() {
 }
 
 func (w *Workbench) loadHelmRecovery() {
+	w.loadHelmRecoverySelection("")
+}
+
+// A blocker link uses the existing bounded history load and details. It does
+// not retain an execution acknowledgement or mint a current-observation grant.
+func (w *Workbench) loadHelmRecoverySelection(selectedID string) {
 	w.syncHelmUninstall()
 	u := &w.helmUninstall
 	if !w.helmUninstallEligible() || u.mode != "history" || u.journalPath == "" {
@@ -350,6 +362,15 @@ func (w *Workbench) loadHelmRecovery() {
 			}
 			current.history = entries
 			current.status = fmt.Sprintf("%d local record(s). Select a record to review immutable history.", len(entries))
+			if selectedID != "" {
+				for _, entry := range entries {
+					if entry.id == selectedID {
+						w.selectHelmRecovery(selectedID)
+						return
+					}
+				}
+				current.status = "The previously reported record is no longer in this local history. No observation was authorized."
+			}
 		})
 	})
 }

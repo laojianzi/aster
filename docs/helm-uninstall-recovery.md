@@ -68,6 +68,11 @@ fresh GET observation does **not** clear this guard. There is no resolution or
 override API in this scope. A different directory or an independent Kubernetes
 client is not coordinated by this local lock.
 
+Scope [#96](https://github.com/laojianzi/aster/issues/96) adds a
+[read-only local explanation](helm-journal-admission.md) of this exact guard and
+its existing capacity reservation. The check opens only an existing directory
+and lock; it cannot initialize history, mutate records or clear uncertainty.
+
 ## File and process boundaries
 
 `internal/helmjournal` enforces a 64 KiB frame limit, 256 KiB operation limit,

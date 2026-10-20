@@ -41,6 +41,14 @@ func privateSecurity(directory bool) (*windows.SECURITY_DESCRIPTOR, error) {
 }
 
 func openPrivateRoot(path string) (*privateRoot, error) {
+	return openPrivateRootMode(path, true)
+}
+
+func openExistingPrivateRoot(path string) (*privateRoot, error) {
+	return openPrivateRootMode(path, false)
+}
+
+func openPrivateRootMode(path string, create bool) (*privateRoot, error) {
 	volume := filepath.VolumeName(path)
 	if len(volume) != 2 || volume[1] != ':' {
 		return nil, ErrUnavailable
@@ -49,22 +57,27 @@ func openPrivateRoot(path string) (*privateRoot, error) {
 	if err != nil || windows.GetDriveType(v) != windows.DRIVE_FIXED {
 		return nil, ErrUnavailable
 	}
-	sd, err := privateSecurity(true)
-	if err != nil {
-		return nil, err
-	}
-	sa := windows.SecurityAttributes{Length: uint32(unsafe.Sizeof(windows.SecurityAttributes{})), SecurityDescriptor: sd}
 	p, err := windows.UTF16PtrFromString(path)
 	if err != nil {
 		return nil, ErrInvalid
 	}
-	if err := windows.CreateDirectory(p, &sa); err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
-		return nil, ErrUnavailable
+	if create {
+		sd, err := privateSecurity(true)
+		if err != nil {
+			return nil, err
+		}
+		sa := windows.SecurityAttributes{Length: uint32(unsafe.Sizeof(windows.SecurityAttributes{})), SecurityDescriptor: sd}
+		if err := windows.CreateDirectory(p, &sa); err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
+			return nil, ErrUnavailable
+		}
+		runtime.KeepAlive(sd)
 	}
-	runtime.KeepAlive(sd)
 	h, err := windows.CreateFile(p, windows.GENERIC_READ|windows.READ_CONTROL, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE, nil,
 		windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
+		if !create && errors.Is(err, os.ErrNotExist) {
+			return nil, errStoreNotInitialized
+		}
 		return nil, ErrUnavailable
 	}
 	dir := os.NewFile(uintptr(h), path)

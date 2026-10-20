@@ -51,6 +51,7 @@ func (w *Workbench) helmUninstallReviewView(c *ui.Context) {
 	ui.Text(c, fmt.Sprintf("Storage: %s · UID %s · RV %s", s.row.StorageName, s.row.UID, s.row.ResourceVersion)).Label("Helm uninstall storage identity").FontSize(11)
 	ui.Text(c, "This profile permits one deployed stored revision and 1–32 plain ConfigMaps in this namespace. Unsupported releases are rejected as a whole.").FontSize(12)
 	ui.Text(c, "Execution retains Helm history, uses Orphan deletion, and may stop after a partial or uncertain effect. Cancellation does not undo an accepted request.").Label("Helm uninstall consequences").FontSize(12)
+	w.helmAdmissionView(c)
 	if s.preparation == nil && !s.attempted {
 		guardedCheckbox(c, fmt.Sprintf("helm.prepare.ack.%d", s.epoch), &s.prepareAck, helmPrepareConsentLabel, editable).Label("Helm preparation consent")
 		ui.Button(c, "Prepare restricted uninstall").Disabled(!editable || !s.prepareAck).OnClick(w.prepareHelmUninstall)
@@ -102,6 +103,7 @@ func (w *Workbench) helmRecoveryView(c *ui.Context) {
 	s := &w.helmUninstall
 	idle := s.busy == "" && w.pendingWrites == 0 && w.ctx.Err() == nil
 	ui.Text(c, "Loading local history is offline. It restores recorded facts only; current cluster reads require a new connection, current revision selection and separate confirmation.").Label("Helm recovery boundary").FontSize(12)
+	w.helmAdmissionView(c)
 	ui.Button(c, "Reload local history").Disabled(!idle || s.journalPath == "").OnClick(w.loadHelmRecovery)
 	ui.Column(c.Key("helm.recovery.history")).Label("Helm recovery records").Gap(4).Children(func() {
 		for _, entry := range s.history {

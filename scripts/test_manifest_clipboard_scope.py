@@ -39,7 +39,7 @@ class ManifestClipboardScopeTests(unittest.TestCase):
             self.assertEqual(set(got), {'TestOldContract', *names,
                                       *evidence.INTEGER_MAP_REQUIRED.get(suite, ()),
                                       *evidence.INTEGER_SET_REQUIRED.get(suite, ()),
-                                      *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ())})
+                                      *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ())})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])
@@ -50,9 +50,9 @@ class ManifestClipboardScopeTests(unittest.TestCase):
             required = evidence.required_for_suite(suite, ['TestOldContract'])
             # Test every clipboard name, one name from each preceding integer
             # scope, and the explicit old requirement. Never count skips as PASS.
-            excluded_cases = [*names, 'TestOldContract',
+            excluded_cases = [None, *names, 'TestOldContract',
                               evidence.INTEGER_MAP_REQUIRED[suite][0],
-                              evidence.INTEGER_SET_REQUIRED[suite][0], None]
+                              evidence.INTEGER_SET_REQUIRED[suite][0]]
             for excluded in excluded_cases:
                 with self.subTest(suite=suite, excluded=excluded), tempfile.TemporaryDirectory() as temp:
                     path = Path(temp) / 'tests.jsonl'
