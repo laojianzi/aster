@@ -42,11 +42,16 @@ func helmAdmissionFileFacts(t *testing.T, dir string) map[string]helmAdmissionFi
 		}
 		fact := helmAdmissionFileFact{info: info}
 		if info.Mode().IsRegular() {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
+			// Zero size uniquely establishes empty contents, including the
+			// permanent lock that Windows refuses to read while it is held.
+			fact.sum = sha256.Sum256(nil)
+			if info.Size() != 0 {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				fact.sum = sha256.Sum256(data)
 			}
-			fact.sum = sha256.Sum256(data)
 		}
 		facts[name] = fact
 	}

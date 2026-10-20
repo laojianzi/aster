@@ -38,9 +38,15 @@ func admissionFiles(t *testing.T, dir string) map[string]admissionFileFact {
 		mustJournal(t, err)
 		fact := admissionFileFact{info: st}
 		if st.Mode().IsRegular() {
-			data, err := os.ReadFile(path)
-			mustJournal(t, err)
-			fact.hash = sha256.Sum256(data)
+			// A zero-length file has exactly the empty byte sequence. Windows
+			// denies ReadFile on the empty permanent lock while its mandatory
+			// byte-range lock is held; stat still verifies its size and identity.
+			fact.hash = sha256.Sum256(nil)
+			if st.Size() != 0 {
+				data, err := os.ReadFile(path)
+				mustJournal(t, err)
+				fact.hash = sha256.Sum256(data)
+			}
 		}
 		out[entry.Name()] = fact
 	}

@@ -89,8 +89,13 @@ func helmAdmissionFiles(t *testing.T, path string) map[string]helmAdmissionFile 
 		if !info.Mode().IsRegular() {
 			t.Fatal("unexpected fixture journal entry")
 		}
-		data, err := os.ReadFile(filepath.Join(path, entry.Name()))
-		nativeHelmJournalMust(t, err)
+		// An empty file's bytes follow from its verified size. Reading the
+		// permanent empty lock itself is denied by Windows while it is held.
+		var data []byte
+		if info.Size() != 0 {
+			data, err = os.ReadFile(filepath.Join(path, entry.Name()))
+			nativeHelmJournalMust(t, err)
+		}
 		files[entry.Name()] = helmAdmissionFile{Mode: info.Mode(), Data: string(data)}
 	}
 	return files
