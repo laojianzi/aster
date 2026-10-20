@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -41,6 +42,8 @@ type helmExecutionFixture struct {
 	active                 atomic.Bool
 	dry                    *dryRunFixture
 	b                      *Backend
+	journal                *HelmUninstallJournal
+	journalDir             string
 	p                      *HelmUninstallPreparation
 	preflight              *HelmUninstallDryRun
 	dryConsent             *HelmUninstallDryRunConsent
@@ -104,6 +107,16 @@ func newHelmExecutionFixture(t *testing.T, two bool) *helmExecutionFixture {
 		t.Fatal(err)
 	}
 	f.dry.b = f.b
+	f.journalDir = filepath.Join(t.TempDir(), "journal")
+	f.journal, err = OpenHelmUninstallJournal(f.journalDir)
+	if err != nil {
+		t.Fatal("private journal", err)
+	}
+	t.Cleanup(func() {
+		if err := f.journal.Close(); err != nil {
+			t.Error("close journal", err)
+		}
+	})
 	f.p, err = f.b.PrepareHelmUninstall(context.Background(), "team", selectedHelmRevision(), "session", true)
 	if err != nil {
 		t.Fatal("preparation", err)
@@ -120,7 +133,7 @@ func newHelmExecutionFixture(t *testing.T, two bool) *helmExecutionFixture {
 
 func (f *helmExecutionFixture) consent(t *testing.T) *HelmUninstallExecutionConsent {
 	t.Helper()
-	c, err := f.b.AcknowledgeHelmUninstallExecution(f.preflight, "session", "team", selectedHelmRevision(), true)
+	c, err := f.b.AcknowledgeHelmUninstallExecution(f.preflight, "session", "team", selectedHelmRevision(), true, f.journal)
 	if err != nil || c == nil {
 		t.Fatal("execution acknowledgement", err)
 	}

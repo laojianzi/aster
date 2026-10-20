@@ -2,14 +2,14 @@
 
 ## 当前接续入口 — 2026-10-19
 
-本次基线为已验收 `main e44c500de13c86e70e9d603074eb198f6d270705`。
-入场盘点为 main 唯一远端分支、57 个 PR（56 merged、仅 #2 closed/unmerged、0 open），
-开放 Issues 为 #11 与 #13。#88/#89 已完成且分支已退役；不重复合并、重建或删除。
-唯一新增范围为 [#90](https://github.com/laojianzi/aster/issues/90) 和
-`feat/helm-uninstall-execution`，复用现有编码器、准备和 dry-run，实现受限执行状态机。
-精确 PR 编号、最终验证/合并及退役结果以该 Issue 和
+本次基线为已验收 `main eba0ef29c21abd0b021746c764d65c9e152109eb`。
+入场盘点为 main 唯一远端分支、58 个 PR（57 merged、仅 #2 closed/unmerged、0 open），
+开放 Issues 为 #11 与 #13。#90/#91 已完成且分支已退役；不重复合并、重建或删除。
+唯一新增范围为 [#92](https://github.com/laojianzi/aster/issues/92) 和
+`feat/helm-uninstall-recovery`，沿现有执行器增加强制持久记录、进程崩溃离线恢复和
+重新明确授权的 GET 核对。精确 PR 编号、最终验证/合并及退役结果以该 Issue 和
 [#13](https://github.com/laojianzi/aster/issues/13) 的最新完成记录为准。
-归档/维护标签是完整历史的恢复引用，保留；#11 两项真实依赖候选继续独立待审。
+归档/维护标签保存完整历史，保留全部 36 个现有 tag；#11 两项依赖候选继续独立待审。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 

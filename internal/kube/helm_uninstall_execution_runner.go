@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/laojianzi/aster/internal/helmjournal"
 	"github.com/laojianzi/aster/internal/helmrelease"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +30,7 @@ type helmExecutionRun struct {
 	ctx              context.Context
 	active, dispatch func() error
 	out              *HelmUninstallExecution
+	journal          *helmjournal.Writer
 	session, ns      string
 	row              helmrelease.Revision
 	source           []byte
@@ -96,6 +98,9 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 		return err
 	}
 	r.out.effects[0].Outcome = HelmExecutionCompleted
+	if err := r.recordEffect(0); err != nil {
+		return err
+	}
 
 	for i, target := range r.out.targets {
 		// Complete source history and exact stored bytes are checked around the
@@ -121,14 +126,14 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 			return ErrHelmExecutionResponse
 		}
 		effect := &r.out.effects[i+1]
-		response, dispatched, rejected, err := r.mutate(http.MethodDelete, "configmaps", target.Name, body, maxLiveObjectBytes)
+		response, dispatched, rejected, err := r.mutate(i+1, http.MethodDelete, "configmaps", target.Name, body, maxLiveObjectBytes)
 		clear(body)
 		if err != nil {
-			return helmExecutionMutationError(effect, dispatched, rejected, err)
+			return r.mutationError(i+1, dispatched, rejected, err)
 		}
 		if err := validateHelmExecutionDelete(response, target, r.row.Release); err != nil {
 			clear(response)
-			return helmExecutionMutationError(effect, true, false, err)
+			return r.mutationError(i+1, true, false, err)
 		}
 		var envelope struct {
 			Metadata struct {
@@ -139,6 +144,9 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 		clear(response)
 		effect.ObservedResourceVersion = envelope.Metadata.ResourceVersion
 		effect.Outcome = HelmExecutionAcceptedPending
+		if err := r.recordEffect(i + 1); err != nil {
+			return err
+		}
 		if err := r.active(); err != nil {
 			return err
 		}
@@ -146,6 +154,9 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 			return err
 		}
 		effect.Outcome = HelmExecutionCompleted
+		if err := r.recordEffect(i + 1); err != nil {
+			return err
+		}
 		if err := r.guardSource(); err != nil {
 			return err
 		}
@@ -197,6 +208,9 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 		return err
 	}
 	r.out.effects[last].Outcome = HelmExecutionCompleted
+	if err := r.recordEffect(last); err != nil {
+		return err
+	}
 	// All required final observations have already qualified inside the deadline.
 	// A subsequent discard cannot erase these completed historical facts.
 	return nil
@@ -204,21 +218,45 @@ func (r *helmExecutionRun) run(p *HelmUninstallPreparation) error {
 
 func (r *helmExecutionRun) storageEffect(index int, patch []byte, nextStatus string) error {
 	effect := &r.out.effects[index]
-	response, dispatched, rejected, err := r.mutate(http.MethodPatch, "secrets", r.row.StorageName, patch, helmrelease.MaxSecretBytes)
+	response, dispatched, rejected, err := r.mutate(index, http.MethodPatch, "secrets", r.row.StorageName, patch, helmrelease.MaxSecretBytes)
 	if err != nil {
-		return helmExecutionMutationError(effect, dispatched, rejected, err)
+		return r.mutationError(index, dispatched, rejected, err)
 	}
 	defer clear(response)
 	next, err := validateHelmExecutionStorage(r.ctx, r.source, patch, response, r.ns, r.row, nextStatus)
 	if err != nil {
-		return helmExecutionMutationError(effect, true, false, err)
+		return r.mutationError(index, true, false, err)
 	}
 	effect.Outcome = HelmExecutionAcceptedPending
 	effect.ObservedResourceVersion = next.ResourceVersion
 	r.row, r.out.storage = next, next
+	if err := r.recordEffect(index); err != nil {
+		return err
+	}
 	clear(r.source)
 	r.source = bytes.Clone(response)
 	return r.active()
+}
+
+func (r *helmExecutionRun) recordEffect(index int) error {
+	if r.journal == nil || r.out == nil || index < 0 || index >= len(r.out.effects) {
+		return ErrHelmExecutionJournal
+	}
+	e := r.out.effects[index]
+	if err := r.journal.Record(index, string(e.Outcome), e.ObservedResourceVersion); err != nil {
+		return errors.Join(ErrHelmExecutionJournal, err)
+	}
+	return nil
+}
+
+func (r *helmExecutionRun) mutationError(index int, dispatched, rejected bool, err error) error {
+	err = helmExecutionMutationError(&r.out.effects[index], dispatched, rejected, err)
+	if dispatched {
+		if journalErr := r.recordEffect(index); journalErr != nil {
+			return errors.Join(err, journalErr)
+		}
+	}
+	return err
 }
 
 // Read failure after a known acknowledgement is not an unknown write. The

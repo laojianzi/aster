@@ -3,8 +3,10 @@
 This backend scope continues the qualified status codec, restricted preparation,
 and server dry-run preflight. It introduces ordered, conditional persistent
 effects for the same narrow ConfigMap profile. There is no desktop or CLI call
-site, automatic resume, operation persistence, or crash-recovery UI. Those
-activation and recovery policies must be qualified separately.
+site or automatic resume. Scope #92 adds mandatory private operation history
+and independently confirmed read-only recovery; see the
+[recovery contract](helm-uninstall-recovery.md). Native execution/recovery UI
+and lifecycle activation must still be qualified separately.
 
 ## Independent execution confirmation
 
@@ -14,7 +16,8 @@ The sequence is `PrepareHelmUninstall`, an independent dry-run acknowledgement,
 authority. The execution acknowledgement covers the exact current backend,
 session, namespace, release/revision, reviewed identities, retained history,
 orphan consequences, fresh sensitive reads and admission checks, and possible
-partial or Unknown effects.
+partial or Unknown effects. Its final required argument selects the concrete
+private persistent journal and authorizes saving the bounded identity ledger.
 
 Only one execution consent can be minted from a successful dry-run report.
 Copies of that consent share its private consumption and revocation state. The
@@ -29,6 +32,8 @@ Execution retains the original preparation's thirty-second expiry. Its entire
 request/read/observation sequence additionally shares the existing ten-second
 deadline. It cannot renew either boundary by preparing again. The backend,
 session, namespace and original selection must match at each admission point.
+Synchronous disk I/O may delay return beyond that deadline; successful journal
+sync is followed by a fresh authority/deadline check before network dispatch.
 
 ## Supported profile and ordered effects
 
@@ -83,7 +88,7 @@ release data, patch, response body or renewed execution authority.
 | AcceptedPending | A strict acknowledgement was accepted, but the required later observation has not established completion. |
 | Completed | That effect met its acknowledgement and observation requirements. A DELETE needs exact absence, not just a terminating object. |
 | Partial | At least one earlier effect completed, while the complete ordered operation did not. Inspect the individual entries. |
-| Unknown | A dispatched effect may have committed but its authoritative acknowledgement cannot be established. Earlier verified effects remain recorded. |
+| Unknown | An effect has a durable intent but its authoritative acknowledgement cannot be established. This includes a crash after sync and before dispatch. Earlier verified effects remain recorded. |
 
 Unknown takes precedence over an aggregate Partial result. A success-shaped but
 malformed, wrong-identity, unexpected or oversized persistent response is not a
@@ -114,11 +119,12 @@ UID, or malformed/truncated response cannot establish deletion. Each observation
 has a short local budget inside the unchanged overall deadline. The executor
 does not replay a write after ambiguous observation or expose a resume token.
 
-The report remains historical information after expiry or Discard. A future
-reconciliation and crash-recovery policy must distinguish persisted server state
-from lost local state and obtain new explicit authority before any further
-mutation. No existing desktop path calls these APIs until that policy and the
-native confirmation/lifecycle contract have been qualified.
+The report remains historical information after expiry or Discard. The private
+journal and fresh GET-only reconciliation keep current server facts separate
+from historical uncertainty and restore no mutation authority. Their precise
+persistence/failure and unresolved-operation rules are in the recovery contract.
+No existing desktop path calls execution until native confirmation/lifecycle
+and recovery presentation have been qualified.
 
 ## Evidence and its limits
 

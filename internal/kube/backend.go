@@ -18,13 +18,14 @@ import (
 type backendIdentity struct{ marker byte }
 
 type Backend struct {
-	identity    *backendIdentity
-	metricsHTTP *http.Client
-	config      *rest.Config
-	typed       kubernetes.Interface
-	dynamic     dynamic.Interface
-	discovery   discovery.DiscoveryInterface
-	writes      rest.Interface
+	identity           *backendIdentity
+	helmJournalBinding string
+	metricsHTTP        *http.Client
+	config             *rest.Config
+	typed              kubernetes.Interface
+	dynamic            dynamic.Interface
+	discovery          discovery.DiscoveryInterface
+	writes             rest.Interface
 }
 
 func New(config *rest.Config) (*Backend, error) {
@@ -38,6 +39,7 @@ func New(config *rest.Config) (*Backend, error) {
 		return nil, fmt.Errorf("kube: exec credentials must be resolved through the bounded connection authenticator")
 	}
 	cfg := copyConnectionConfig(config)
+	journalBinding := helmUninstallConnectionBinding(cfg)
 	cfg.Wrap(func(base http.RoundTripper) http.RoundTripper { return rejectAPIRedirects{base: base} })
 	if cfg.UserAgent == "" {
 		cfg.UserAgent = "aster"
@@ -77,7 +79,7 @@ func New(config *rest.Config) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("write client: %w", err)
 	}
-	return &Backend{identity: &backendIdentity{marker: 1}, metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
+	return &Backend{identity: &backendIdentity{marker: 1}, helmJournalBinding: journalBinding, metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
 }
 func (b *Backend) ServerVersion() (string, error) {
 	v, err := b.discovery.ServerVersion()
