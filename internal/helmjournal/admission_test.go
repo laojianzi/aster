@@ -24,8 +24,11 @@ type admissionFileFact struct {
 	hash [sha256.Size]byte
 }
 
-func admissionFiles(t *testing.T, dir string) map[string]admissionFileFact {
+func admissionFiles(t *testing.T, dir string, ownedLock ...*os.File) map[string]admissionFileFact {
 	t.Helper()
+	if len(ownedLock) > 1 || len(ownedLock) == 1 && ownedLock[0] == nil {
+		t.Fatal("invalid snapshot lock handle")
+	}
 	entries, err := os.ReadDir(dir)
 	mustJournal(t, err)
 	out := make(map[string]admissionFileFact, len(entries)+1)
@@ -43,7 +46,25 @@ func admissionFiles(t *testing.T, dir string) map[string]admissionFileFact {
 			// byte-range lock is held; stat still verifies its size and identity.
 			fact.hash = sha256.Sum256(nil)
 			if st.Size() != 0 {
-				data, err := os.ReadFile(path)
+				var data []byte
+				if entry.Name() == lockName && len(ownedLock) == 1 {
+					// A deliberately damaged nonempty lock must still be read in
+					// full. Windows allows its owner handle to read the locked
+					// range, but refuses a second handle, even in this process.
+					lockedInfo, statErr := ownedLock[0].Stat()
+					mustJournal(t, statErr)
+					if !os.SameFile(st, lockedInfo) || st.Size() != lockedInfo.Size() || st.Mode() != lockedInfo.Mode() {
+						t.Fatal("snapshot lock handle does not match the directory entry")
+					}
+					data = make([]byte, st.Size())
+					var n int
+					n, err = ownedLock[0].ReadAt(data, 0)
+					if n != len(data) {
+						t.Fatal("snapshot did not read the complete damaged lock")
+					}
+				} else {
+					data, err = os.ReadFile(path)
+				}
 				mustJournal(t, err)
 				fact.hash = sha256.Sum256(data)
 			}
@@ -53,9 +74,9 @@ func admissionFiles(t *testing.T, dir string) map[string]admissionFileFact {
 	return out
 }
 
-func unchangedAdmissionFiles(t *testing.T, dir string, before map[string]admissionFileFact) {
+func unchangedAdmissionFiles(t *testing.T, dir string, before map[string]admissionFileFact, ownedLock ...*os.File) {
 	t.Helper()
-	after := admissionFiles(t, dir)
+	after := admissionFiles(t, dir, ownedLock...)
 	if len(before) != len(after) {
 		t.Fatal("read-only review added or removed a directory entry")
 	}
@@ -266,13 +287,16 @@ func TestHelmJournalAdmissionIntegrity(t *testing.T) {
 		_, err = f.WriteAt([]byte{'!'}, 1)
 		mustJournal(t, err)
 		mustJournal(t, f.Close())
-		before := admissionFiles(t, dir)
+		before := admissionFiles(t, dir, s.lock)
+		if before[lockName].hash != sha256.Sum256([]byte{0, '!'}) {
+			t.Fatal("fixture did not preserve the complete damaged lock bytes")
+		}
 		got, err := s.ReviewAdmission(context.Background(), admissionScope(testPlan()))
 		requireAdmission(t, got, err, AdmissionUnavailable, ErrUnavailable)
 		if s.poisoned || got.InventoryComplete {
 			t.Fatal("read-only failure changed the store's poison state")
 		}
-		unchangedAdmissionFiles(t, dir, before)
+		unchangedAdmissionFiles(t, dir, before, s.lock)
 	})
 }
 
