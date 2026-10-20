@@ -2,21 +2,20 @@
 
 ## 当前接续入口 — 2026-10-20
 
-本次基线为已验收 `main 44efc80000203e2e278887dc159c9c20be96cf84`。
-入场盘点为 main 唯一远端分支、59 个 PR（58 merged、仅 #2 closed/unmerged、0 open），
-开放 Issues 为 #11 与 #13。#92/#93 已完成，原始 bundle 的 39 个引用（含 HEAD）、
-279 个全部历史提交在空仓库离线恢复并通过 strict fsck，远端/本地分支已退役。
-详见 [#92 单一完成收据](https://github.com/laojianzi/aster/issues/92#issuecomment-6280541769)；
+本次基线为已验收 `main aa84d7adb3a3c4d19d58d7a39443e49b2eb51490`。
+入场盘点为 main 唯一远端分支、60 个 PR（59 merged、仅 #2 closed/unmerged、0 open），
+开放 Issues 为 #11 与 #13。#94/#95 已完成，原始 bundle 的 40 个引用（含 HEAD）、
+284 个全部历史提交在空仓库离线恢复并通过 strict fsck，远端/本地分支已退役。
+详见 [#94 单一完成收据](https://github.com/laojianzi/aster/issues/94#issuecomment-6289174151)；
 不重复合并、重建或删除已完成范围。
 
-唯一新增范围为 [#94](https://github.com/laojianzi/aster/issues/94) /
-[PR #95](https://github.com/laojianzi/aster/pull/95) /
-`feat/native-helm-uninstall`：将既有 preparation、dry-run、executor、journal 和
-GET 核对接入原生独立确认、结果与历史展示、取消/撤销和工作区生命周期。
-PR #95 已实际创建，退役登记只绑定它与这一准确分支；#94 是 Issue 编号。
-本文件没有预先宣称新候选/main 已通过或 #94 已关闭。精确 PR、最终验证/合并及实际
-退役结果以该 Issue 和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。
-归档/维护标签保存完整历史，保留全部 37 个现有 tag；#11 两项依赖候选继续独立待审。
+唯一新增范围为 [#96](https://github.com/laojianzi/aster/issues/96) /
+`feat/helm-journal-admission`：复用同一个 Begin 准入判定，提供 existing-only 的本地
+只读阻止原因、匹配记录和容量预留说明，接入已有原生卸载与恢复面板。
+报告不是执行授权，不能改变 Unknown 或解除未决记录保护。本文件没有预先宣称
+候选/main 已通过或 #96 已关闭。实际唯一 PR、验证/合并及可恢复退役结果以该 Issue
+和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。
+归档/维护标签保存完整历史，保留全部 38 个现有 tag；#11 两项依赖候选继续独立待审。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 

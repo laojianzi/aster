@@ -147,18 +147,40 @@ func initialSnapshot(id string, p Plan) Snapshot {
 }
 
 func unresolved(s Snapshot) bool {
-	if s.Corrupt || !s.Closed {
-		return true
+	blocked, _ := explainUnresolved(s)
+	return blocked
+}
+
+func explainUnresolved(s Snapshot) (bool, UnresolvedKind) {
+	// A corrupt prefix cannot be explained as a complete historical outcome.
+	// Admission rejects its load before using this classification.
+	if s.Corrupt {
+		return true, ""
+	}
+	if !s.Closed {
+		return true, UnresolvedUnclosed
 	}
 	any := false
 	all := len(s.Effects) > 0
+	unknown, pending := false, false
 	for _, e := range s.Effects {
 		any = any || e.Outcome == Completed || e.Outcome == AcceptedPending || e.Outcome == Unknown
 		all = all && e.Outcome == Completed
+		unknown = unknown || e.Outcome == Unknown
+		pending = pending || e.Outcome == AcceptedPending
 	}
 	// A complete success or a confirmed attempt with no accepted/unknown effect
 	// is historical. Partial, pending and unknown effects cannot be bypassed.
-	return any && !all
+	if !any || all {
+		return false, ""
+	}
+	if unknown {
+		return true, UnresolvedUnknown
+	}
+	if pending {
+		return true, UnresolvedPending
+	}
+	return true, UnresolvedPartial
 }
 
 func recordID(name string) (string, bool) {

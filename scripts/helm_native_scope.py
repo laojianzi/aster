@@ -1,4 +1,4 @@
-"""Exact native consumers admitted by the restricted uninstall UI scope.
+"""Exact native consumers for restricted uninstall and local admission review.
 
 This is a source-boundary regression helper, not a substitute for exercising
 the native confirmations, lifecycle cancellation and actual backend requests.
@@ -16,6 +16,7 @@ CALL_SITES = {
     'OpenHelmUninstallJournal': {'internal/ui/helm_uninstall_journal.go': 2},
     'AcknowledgeHelmUninstallExecution': {'internal/ui/helm_uninstall_journal.go': 1},
     'ExecuteHelmUninstall': {'internal/ui/helm_uninstall_journal.go': 1},
+    'ReviewHelmUninstallJournalAdmission': {'internal/ui/helm_admission.go': 1},
 }
 
 

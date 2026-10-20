@@ -74,7 +74,7 @@ class BooleanCollectionsScopeTests(unittest.TestCase):
             self.assertEqual(set(got), {'TestOldContract', *names,
                              *evidence.INTEGER_MAP_REQUIRED.get(suite, ()),
                              *evidence.INTEGER_SET_REQUIRED.get(suite, ()),
-                             *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ())})
+                             *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ())})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])
@@ -82,10 +82,10 @@ class BooleanCollectionsScopeTests(unittest.TestCase):
     def test_cli_rejects_each_missing_new_name_and_old_scope(self):
         for suite, names in evidence.BOOLEAN_COLLECTIONS_REQUIRED.items():
             required = evidence.required_for_suite(suite, ['TestOldContract'])
-            excluded_cases = [*names, 'TestOldContract',
+            excluded_cases = [None, *names, 'TestOldContract',
                               evidence.INTEGER_MAP_REQUIRED[suite][0],
                               evidence.INTEGER_SET_REQUIRED[suite][0],
-                              evidence.MANIFEST_CLIPBOARD_REQUIRED[suite][0], None]
+                              evidence.MANIFEST_CLIPBOARD_REQUIRED[suite][0]]
             for excluded in excluded_cases:
                 with self.subTest(suite=suite, excluded=excluded), tempfile.TemporaryDirectory() as temp:
                     path = Path(temp) / 'tests.jsonl'

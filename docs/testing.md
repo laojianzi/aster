@@ -237,7 +237,9 @@ The complete unit/race and independent coverage streams both require the new
 execution consent, HTTP, revalidation, strict-response, partial/Unknown, exact
 absence and budget cases through `helm_uninstall_contract_evidence.py`. Preserve
 all previous inventories and the unchanged uncached/shuffled race scheduling,
-product/test/package/job deadlines, native suites and real Helm fixtures.
+product/test/package deadlines, native suites and real Helm fixtures. The accepted
+PR #95 baseline uses a 20-minute outer unit CI job budget; this includes its full
+race and independent coverage runs and does not change their Go package deadlines.
 
 Every configured Kubernetes version additionally requires
 `TestRealHelmUninstallExecutionRetainsHistory`,
@@ -318,11 +320,86 @@ The scope source regression admits production API calls only in
 `internal/ui/helm_uninstall.go` and its `helm_uninstall_journal.go` worker helper.
 The original preparation, dry-run, execution and recovery regressions keep their
 backend constraints and migrate the old dormant assertion to these exact consumers.
-No workflow pin, package/job deadline, native library, module version or product
-budget changes are part of this scope. Final PR and independently qualified actual
-main need new original artifacts; definitions, local passes or earlier #93 ZIPs
+PR #95 changed only the outer unit CI job budget from 15 to 20 minutes after its
+original runner budget cancelled an otherwise progressing coverage run. Workflow
+pins, Go package deadlines, native libraries, module versions and product budgets
+remained unchanged. Final PR and independently qualified actual main need new
+original artifacts; definitions, local passes or earlier #93 ZIPs
 do not establish the new candidate's acceptance. Physical IME, accessibility and
 signed release qualification remain separate.
+
+### Read-only local journal admission (#96)
+
+The [#96](https://github.com/laojianzi/aster/issues/96)
+`helm-journal-admission` increment explains the local admission check for an
+existing private store and the currently selected release metadata. It reads
+the existing directory and permanent lock, takes only a temporary nonblocking OS
+lock, and releases its handles before returning. Missing directories or locks
+remain absent and report uninitialized storage. The check must not create or
+repair storage, write or sync a WAL, acquire a writer lease, clear history, or mint,
+consume or extend any execution consent.
+
+`NoBlocker` describes the bounded inspection at that instant. It cannot promise a
+subsequent write or grant authority to uninstall. Every actual `Begin` must repeat
+the same inventory, record-count, ordered-record, unresolved-scope and maximum
+operation-space reservation checks. An operation that becomes unresolved after a
+successful review must still block execution before any HTTP request. Closed
+complete or rejected-only history remains distinct from unclosed, Unknown,
+accepted-pending and partial history. The unresolved key remains the connection
+binding, namespace and release-storage UID; a new resourceVersion or preparation
+does not bypass it, and corruption anywhere in the store still blocks admission.
+
+The core tests compare the entire persistent inventory before and after review,
+including entry names, bytes, file identity and private modes. They cover existing
+empty and historical stores, missing paths and locks, held locks and active leases,
+unsafe paths, corruption, count and byte boundaries, cancellation and changed
+state between review and `Begin`. Capacity-reservation cases use valid bounded
+records, so corrupt padding cannot masquerade as a tested capacity limit. The
+backend wrapper additionally proves zero transport calls and exact backend,
+session, namespace and selected-revision binding. The check does not establish a
+supported uninstall profile, and it leaves the original expiry of any separate
+preparation or dry-run consent unchanged. A review result cannot restore a
+discarded or consumed execution grant.
+
+The new required names are separate from the accepted #94 inventories: all 56
+local native names and both original real-cluster roots remain intact. The
+accepted main `aa84d7adb3a3c4d19d58d7a39443e49b2eb51490` contributes the frozen
+884 unit and 141 real-cluster Helm contract names, 169 migration full names,
+and eight original platform-journal roots. The complete required-name census in
+`scripts/fixtures/helm_journal_admission_baseline.json` is checked against
+independent counts and SHA-256 hashes in `test_helm_journal_admission_scope.py`.
+Only the separately registered admission additions are removed when verifying
+the older pre-#94 guards. A fixture must first pass with all old and new names;
+then each new full name is independently removed, failed, skipped or left
+unfinished to prove rejection for that exact omission.
+
+Full unit/race and independent coverage require the core, backend and native
+admission cases. The existing three native OS jobs and both checked/production
+migration modes require the complete new native roots and named lifecycle
+children. The three actual OS journal streams separately require every new core
+name with exact package identity and one run/pass pair. Native tests use explicit
+review actions, preserve recorded outcomes, invalidate stale or cancelled results,
+and exercise the actual final admission recheck. The two new rendering roots
+cover the review and history/minimum-window flow; fast controller cases cover
+the remaining lifecycle transitions without duplicating entire rendered flows.
+The source guard admits the new review API at exactly one call site in
+`internal/ui/helm_admission.go`; the previous preparation, dry-run, execution and
+recovery consumers retain their exact file/count restrictions.
+
+Each configured Kubernetes version also requires
+`TestNativeHelmJournalAdmissionAgainstRealCluster` alongside the two unchanged
+#94 native E2E roots. It uses an existing unresolved journal and actual native
+review actions, verifies no additional product HTTP or WAL changes during the
+local check, and confirms that the result does not lift the unresolved-operation
+guard. Independent server reads verify unchanged live identities; they are not
+counted as product transport calls or execution authority.
+
+The evidence topology remains fourteen original artifacts and twenty-eight raw
+JSONL streams. This increment changes no workflow bytes, pins, module versions,
+native libraries, runner budgets, Go package deadlines or product budgets. Keep
+fresh final-PR and actual-main archives separate, compare every old package/full
+name with the accepted baseline plus the reviewed additions, and inspect the
+new native and real-cluster screenshots before qualification.
 
 ## Portable Schema patterns (#48)
 

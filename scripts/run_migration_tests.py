@@ -6,11 +6,12 @@ import re
 import subprocess
 import sys
 
-from test_evidence import HELM_NATIVE_UNINSTALL_NAMES
+from test_evidence import HELM_JOURNAL_ADMISSION_NAMES, HELM_NATIVE_UNINSTALL_NAMES
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
     *HELM_NATIVE_UNINSTALL_NAMES,
+    *HELM_JOURNAL_ADMISSION_NAMES,
 
     'TestNativeHelmLiveObservationConsentAndExpiry',
     'TestNativeHelmLiveObservationStaleResults',

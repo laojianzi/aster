@@ -9,7 +9,7 @@ import sys
 from test_evidence import summarize
 
 PACKAGE = 'github.com/laojianzi/aster/internal/helmjournal'
-REQUIRED = (
+RECOVERY_REQUIRED = (
     'TestHelmJournalRoundTripAndImmutableCopies',
     'TestHelmJournalProcessCrashRecovery',
     'TestHelmJournalProcessLockExclusion',
@@ -19,6 +19,44 @@ REQUIRED = (
     'TestHelmJournalPrivateFilesAndPaths',
     'TestHelmJournalConcurrentLeaseAndClose',
 )
+
+# Admission checks supplement the original eight recovery roots. Keep their
+# separate inventories so neither scope can silently replace the other's names.
+ADMISSION_REQUIRED = (
+    'TestHelmJournalAdmissionReadOnly',
+    'TestHelmJournalAdmissionHistoryPolicy',
+    *['TestHelmJournalAdmissionHistoryPolicy/' + case
+      for case in ('unclosed-not-started', 'unclosed-completed', 'closed-not-started',
+                   'closed-rejected', 'closed-unknown', 'closed-pending',
+                   'closed-partial', 'closed-completed')],
+    'TestHelmJournalAdmissionExactScope',
+    *['TestHelmJournalAdmissionExactScope/' + case
+      for case in ('binding', 'namespace', 'storage-uid', 'resource-version', 'preparation-id')],
+    'TestHelmJournalAdmissionIntegrity',
+    *['TestHelmJournalAdmissionIntegrity/' + case
+      for case in ('unrelated-corrupt-record', 'invalid-directory-entry', 'changed-lock-no-poison')],
+    'TestHelmJournalAdmissionLifecycle',
+    *['TestHelmJournalAdmissionLifecycle/' + case
+      for case in ('nil-handle', 'zero-handle', 'closed-handle', 'copied-closed-handle',
+                   'poisoned-store', 'active-writer', 'blocked-sync')],
+    'TestHelmJournalAdmissionContext',
+    *['TestHelmJournalAdmissionContext/' + case
+      for case in ('nil', 'cancelled', 'expired', 'bounded-scan')],
+    'TestHelmJournalAdmissionExistingOnly',
+    *['TestHelmJournalAdmissionExistingOnly/' + case
+      for case in ('missing-directory', 'missing-parent', 'missing-lock',
+                   'missing-lock-with-history', 'invalid-path-and-scope',
+                   'private-path', 'redirects', 'hardlinks')],
+    'TestHelmJournalAdmissionProcessLock',
+    'TestHelmJournalAdmissionRechecksAfterReview',
+    'TestHelmJournalAdmissionCleanupFailure',
+    *['TestHelmJournalAdmissionCleanupFailure/' + case for case in ('no-blocker', 'blocked')],
+    'TestHelmJournalAdmissionCapacity',
+    *['TestHelmJournalAdmissionCapacity/' + case
+      for case in ('record-limit', 'entry-limit', 'operation-bytes',
+                   'store-bytes', 'reservation-boundary')],
+)
+REQUIRED = (*RECOVERY_REQUIRED, *ADMISSION_REQUIRED)
 
 
 def validate(path):

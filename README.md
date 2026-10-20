@@ -163,6 +163,13 @@ or absent targets beside the historical results. These reads retain Unknown and 
 not clear unresolved records or authorize another execution. The UI provides no
 alternate-directory retry, replay, resolution, purge or repair action.
 
+With current metadata selected, **Check local journal admission** explains the
+first known local blocker and the existing record/byte limits, including the full
+256 KiB operation reservation. It only reads an already initialized private
+journal and lock; missing storage stays uninitialized. The report makes no
+cluster request and grants no execution permission. Actual execution rechecks
+the same policy under its lock. See [the admission contract](docs/helm-journal-admission.md).
+
 See [the native workflow](docs/native-helm-uninstall.md),
 [execution](docs/helm-uninstall-execution.md),
 [recovery](docs/helm-uninstall-recovery.md), and

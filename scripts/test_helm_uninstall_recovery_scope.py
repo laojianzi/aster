@@ -71,7 +71,8 @@ class HelmUninstallRecoveryScopeTests(unittest.TestCase):
         native = (ROOT / '.github/workflows/native-migration.yml').read_text()
         self.assertIn('go test -race -shuffle=on -count=1 -timeout=3m -json ./internal/helmjournal/...', native)
         self.assertIn('python scripts/helm_journal_evidence.py artifacts/journal/tests.jsonl', native)
-        self.assertTrue(set(journal.REQUIRED) <= set(contract.UNINSTALL_RECOVERY_REQUIRED['unit-native']))
+        self.assertTrue(set(journal.RECOVERY_REQUIRED) <= set(contract.UNINSTALL_RECOVERY_REQUIRED['unit-native']))
+        self.assertTrue(set(journal.RECOVERY_REQUIRED) <= set(journal.REQUIRED))
 
     def test_recovery_has_only_independently_admitted_native_consumers(self):
         for name in ('AcknowledgeHelmUninstallExecution', 'ExecuteHelmUninstall',
