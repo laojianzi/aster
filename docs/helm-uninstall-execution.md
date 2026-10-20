@@ -2,11 +2,12 @@
 
 This backend scope continues the qualified status codec, restricted preparation,
 and server dry-run preflight. It introduces ordered, conditional persistent
-effects for the same narrow ConfigMap profile. There is no desktop or CLI call
-site or automatic resume. Scope #92 adds mandatory private operation history
+effects for the same narrow ConfigMap profile. Scope #92 adds mandatory private operation history
 and independently confirmed read-only recovery; see the
-[recovery contract](helm-uninstall-recovery.md). Native execution/recovery UI
-and lifecycle activation must still be qualified separately.
+[recovery contract](helm-uninstall-recovery.md). Scope #94 adds the separately
+scoped [native confirmation and recovery workflow](native-helm-uninstall.md).
+Only its journal-owned worker calls acknowledgement/execution; other desktop
+paths and the CLI cannot invoke it. Automatic resume remains unavailable.
 
 ## Independent execution confirmation
 
@@ -123,8 +124,10 @@ The report remains historical information after expiry or Discard. The private
 journal and fresh GET-only reconciliation keep current server facts separate
 from historical uncertainty and restore no mutation authority. Their precise
 persistence/failure and unresolved-operation rules are in the recovery contract.
-No existing desktop path calls execution until native confirmation/lifecycle
-and recovery presentation have been qualified.
+The native worker closes its journal independently of UI publication and calls
+execution only after the separate exact-name, persistence and effect confirmation.
+Its lifecycle and original-evidence acceptance requirements are specified in the
+[native contract](native-helm-uninstall.md).
 
 ## Evidence and its limits
 

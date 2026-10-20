@@ -7,6 +7,7 @@ import unittest
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 import retire_completed_oidc as retirement
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -81,16 +82,13 @@ class HelmUninstallDryRunScopeTests(unittest.TestCase):
         self.assertEqual(text.count('b.metricsHTTP.Do(req)'), 1)
         self.assertEqual(text.count('if err := revalidate(); err != nil {'), 2)
 
-    def test_no_ui_activation_or_inherited_read_permission(self):
+    def test_only_admitted_native_consumer_and_no_inherited_read_permission(self):
         text = (ROOT / 'internal/kube/helm_uninstall_dry_run.go').read_text()
         self.assertIn('type HelmUninstallDryRunConsent struct{ state *helmDryRunConsentState }', text)
         self.assertIn('if !acknowledged {', text)
         self.assertIn('if s.used || s.revoked.Load()', text)
-        for directory in ('cmd', 'internal/ui'):
-            for p in (ROOT / directory).rglob('*.go'):
-                if p.name.endswith('_test.go'): continue
-                self.assertNotIn('PreflightHelmUninstall(', p.read_text())
-                self.assertNotIn('AcknowledgeHelmUninstallDryRun(', p.read_text())
+        for name in ('PreflightHelmUninstall', 'AcknowledgeHelmUninstallDryRun'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
         preparation = (ROOT / 'internal/kube/helm_uninstall_preparation.go').read_text()
         self.assertNotIn('PreflightHelmUninstall(', preparation)
         self.assertNotIn('AcknowledgeHelmUninstallDryRun(', preparation)

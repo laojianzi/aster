@@ -11,9 +11,9 @@ import (
 	"github.com/laojianzi/aster/internal/helmrelease"
 )
 
-// This API deliberately has no desktop call site. A future UI must separately
-// qualify confirmation/lifecycle handling and private crash recovery before it
-// exposes persistent uninstall. No operation or consent is restored on restart.
+// The native workbench exposes this API through independently reviewed consent,
+// lifecycle and private-journal handling. Preview and recovery records never
+// confer execution authority. No operation or consent is restored on restart.
 var (
 	ErrHelmExecutionConsent  = errors.New("Helm uninstall requires fresh, independent, single-use execution confirmation.")
 	ErrHelmExecutionRejected = errors.New("The exact Helm uninstall effect was rejected by the server.")

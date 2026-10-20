@@ -1,8 +1,10 @@
 # Restricted uninstall eligibility and target preparation
 
-Scope #86 follows #84/#85. **Desktop uninstall execution is not enabled.**
-This is a full stored-content restriction check plus an immutable current-target
-preparation, not another general inventory and not `operation.Prepared`.
+Scope #86 follows #84/#85 and supplies the full stored-content restriction check
+plus immutable current-target preparation. It is not another general inventory
+or `operation.Prepared`. The separately admitted [native flow](native-helm-uninstall.md)
+reuses this API with its own explicit preparation acknowledgement; this read step
+does not grant dry-run or persistent execution authority.
 
 ## Supported sampled profile
 
@@ -46,8 +48,8 @@ These checks describe the supplied stored representation. They cannot establish
 original chart provenance, that the stored release was not edited, historical
 CRD absence, authentic ownership, original installed UID, or no external
 dependents. Source and live snapshots are not a multi-object transaction. The
-future first executor must retain history, use disclosed orphan propagation and
-independently confirm the **current reviewed identities**, not imply recursive
+restricted executor retains history, uses disclosed orphan propagation and
+independently confirms the **current reviewed identities**, not imply recursive
 release ownership. The general inspector/preview remains intentionally broader.
 
 ## Read path and immutable result
@@ -79,10 +81,11 @@ its model reference when inputs, selection, window or connection change. A match
 only checks local lifetime/scope; it cannot detect subsequent cluster mutations.
 
 No raw manifest, values, chart, Secret, status patch, token or arbitrary annotation
-is kept in the public result. No production UI or HTTP mutation calls this API.
+is kept in the public result. Only the admitted native controller invokes this
+API as a user action; preparation itself issues no persistent mutation.
 A successful preparation is **not server dry-run or execution permission**.
 
-## Tests and remaining execution gates
+## Tests and related execution gates
 
 Unit/HTTP tests exercise complete-content exclusions, limits, precise routing,
 permission, paging/history changes, mutation-free requests, cancelled/expired
@@ -95,11 +98,12 @@ storage; keep/hooks/missing or mismatched markers reject, and recreated resource
 are displayed only with their new current UID. Test fixture writes are isolated
 setup/teardown, not product preparation effects.
 
-Before execution activation, separate work must implement last-moment revalidation,
-server dry-run for the conditional storage and DELETE requests, independent
-single-use execution confirmation, exact conditional effects, validated responses
-and absence, ordered partial/Unknown outcomes, explicit reconciliation and private
-crash recovery. Existing #84 encoding alone is not authorization. Other Helm
+The separate [dry-run](helm-uninstall-dry-run.md),
+[executor](helm-uninstall-execution.md) and [recovery](helm-uninstall-recovery.md)
+contracts implement last-moment revalidation, conditional requests, independent
+single-use confirmation, strict responses/absence, ordered partial/Unknown results
+and private crash history. Their native use is qualified through the separate
+[UI scope](native-helm-uninstall.md); #84 encoding alone is not authorization. Other Helm
 lifecycle/GitOps and release qualification remain separate; enterprise authority
 stays deferred P3/outside first MVP. No physical UI/IME/GPU/accessibility/signing
 certification follows from these tests.

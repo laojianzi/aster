@@ -12,6 +12,7 @@ import (
 )
 
 func (w *Workbench) clearHelmInspection() {
+	w.clearHelmUninstall()
 	r := &w.helmReleases
 	r.contentEpoch++
 	if r.contentCancel != nil {
@@ -133,6 +134,10 @@ func (w *Workbench) helmInspectionView(c *ui.Context) {
 			ui.Button(c, "Discard inspection").OnClick(w.clearHelmInspection)
 		})
 		ui.Text(c, r.contentStatus).Label("Helm inspection status").FontSize(11)
+		ui.Row(c).Gap(8).Children(func() {
+			ui.Button(c, "Review restricted uninstall").Disabled(r.busy || r.inspecting || w.pendingWrites != 0 || r.selected.Status != "deployed").OnClick(w.openHelmUninstall)
+			ui.Button(c, "Review recovery history").Disabled(r.busy || r.inspecting || w.pendingWrites != 0).OnClick(w.openHelmRecovery)
+		})
 		if s := r.inspection; s != nil {
 			ui.Text(c, "Chart: "+s.ChartName+" · "+s.ChartVersion).Label("Helm inspection chart").SingleLine().FontSize(12)
 			ui.Text(c, fmt.Sprintf("Withheld: %d manifest bytes · %d hooks · %d supplied values", s.ManifestBytes, s.HookCount, s.SuppliedValues)).Label("Helm inspection summary").FontSize(11)

@@ -8,6 +8,7 @@ import helm_journal_evidence as journal
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 import retire_completed_oidc as retirement
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,15 +73,10 @@ class HelmUninstallRecoveryScopeTests(unittest.TestCase):
         self.assertIn('python scripts/helm_journal_evidence.py artifacts/journal/tests.jsonl', native)
         self.assertTrue(set(journal.REQUIRED) <= set(contract.UNINSTALL_RECOVERY_REQUIRED['unit-native']))
 
-    def test_recovery_does_not_activate_desktop_or_cli_mutation(self):
-        for directory in ('cmd', 'internal/ui'):
-            for path in (ROOT / directory).rglob('*.go'):
-                if path.name.endswith('_test.go'):
-                    continue
-                text = path.read_text()
-                for call in ('AcknowledgeHelmUninstallExecution(', 'ExecuteHelmUninstall(',
-                             'AcknowledgeHelmUninstallReconciliation(', 'ObserveHelmUninstallRecovery('):
-                    self.assertNotIn(call, text, str(path))
+    def test_recovery_has_only_independently_admitted_native_consumers(self):
+        for name in ('AcknowledgeHelmUninstallExecution', 'ExecuteHelmUninstall',
+                     'AcknowledgeHelmUninstallReconciliation', 'ObserveHelmUninstallRecovery'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
 
     def test_offline_journal_and_get_observer_cannot_restore_a_write_path(self):
         for path in (ROOT / 'internal/helmjournal').glob('*.go'):

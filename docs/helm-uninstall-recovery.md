@@ -5,8 +5,8 @@ Scope [#92](https://github.com/laojianzi/aster/issues/92), sole
 [restricted executor](helm-uninstall-execution.md). Execution now requires a
 private persistent journal selected in its independent confirmation. Reopening
 that journal is offline and inert. A separate, newly confirmed GET operation
-can observe current metadata. Desktop execution and recovery controls still
-require native confirmation and lifecycle qualification before activation.
+can observe current metadata. Scope #94 integrates these already qualified APIs
+through the separately reviewed [native controls and lifecycle](native-helm-uninstall.md).
 
 ## Required execution journal
 
@@ -165,7 +165,7 @@ storage after an unknown begin does not prove that attempt caused the status.
 Even uninstalled metadata and all recorded targets absent do not establish full
 manifest agreement, historical causality or eligibility to resume writes.
 
-## Evidence and remaining activation work
+## Backend evidence and native integration
 
 The original 172 required execution names and all older Helm gates remain.
 New file/HTTP integration tests check actual write-ahead bytes at the server,
@@ -195,7 +195,10 @@ Cross-compilation alone cannot qualify another platform's locks or ACLs.
 Final PR and actual merged main each require their own original four gates and
 raw source/test/coverage/Kubernetes/native/binary artifacts. The Issue closes
 only after actual-main review, guarded branch retirement and independent
-full-history bundle restoration. This backend scope leaves native execution and
-recovery presentation, lifecycle teardown and explicit resolution policies for
-subsequent qualification. Other Helm/GitOps and release targets remain in #13;
+full-history bundle restoration. The backend scope is completed in
+[#92's receipt](https://github.com/laojianzi/aster/issues/92#issuecomment-6280541769).
+Scope #94 separately qualifies native execution/recovery presentation and lifecycle
+teardown. It retains unresolved records and their admission block; an API or UI
+policy to resolve, clear or purge them remains outside this increment.
+Other Helm/GitOps and release targets remain in #13;
 enterprise authority remains deferred P3 and #11 dependency decisions separate.

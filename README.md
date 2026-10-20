@@ -115,7 +115,8 @@ server dry-run and exact-name confirmation are still separate for every object.
 
 Inputs, process duration and output are bounded; this is not an OS sandbox. The desktop
 never downloads tools/charts or runs PATH Helm, plugins or a shell. Helm release management
-and GitOps reconciliation are not implemented. See [workflow, trust and limits](docs/local-helm-rendering.md)
+through install/upgrade/rollback and GitOps reconciliation remain outside this local
+rendering path. See [workflow, trust and limits](docs/local-helm-rendering.md)
 and [#67](https://github.com/laojianzi/aster/issues/67) / [PR #68](https://github.com/laojianzi/aster/pull/68)
 for actual qualification. The existing Schema/clipboard/dependency scopes are reused.
 
@@ -136,18 +137,37 @@ and actual deletion behavior are not verified. This is not a Helm dry-run or
 executable plan. **Discard inspection** clears it; refreshing or changing scope
 invalidates it without automatically rereading. See [the precise boundaries](docs/helm-uninstall-preview.md).
 
-The backend also provides complete restricted preparation, independently acknowledged
-server dry-run, and a separately confirmed, single-use retained-history execution API.
-The execution profile is limited to the sole deployed Secret revision and explicitly
-reviewed same-namespace ConfigMaps, using conditional status updates, exact UID/RV
-deletes, fixed orphan propagation and bounded actual-absence checks. Its immutable
-per-effect report preserves partial and Unknown outcomes. **Desktop execution remains
-disabled** pending native confirmation/lifecycle and recovery presentation qualification.
-Execution now requires a private persistent effect journal. Reopening it restores
-inert history; fresh single-use GET confirmation can observe current facts while
-preserving historical Unknown outcomes. See [the recovery boundaries](docs/helm-uninstall-recovery.md).
-See [the execution contract](docs/helm-uninstall-execution.md) and
-[current project progress](docs/PROGRESS.zh-CN.md) for scope and acceptance records.
+## Restricted Helm uninstall and recovery
+
+The separate native uninstall flow reuses the qualified preparation, server dry-run
+and retained-history executor. It requires three independent confirmations: read
+the sensitive source and current identities, perform server dry-run, then perform
+the reviewed persistent operation. Final confirmation also requires the exact
+release name and agreement to retain the private operation journal. IME composition
+does not submit a confirmation. The original preparation expires after thirty
+seconds; no refresh or retry silently extends it.
+
+The profile remains limited to the sole deployed Secret revision and 1–32 reviewed
+same-namespace ConfigMaps. Conditional status updates, exact UID/resourceVersion
+deletes, fixed orphan propagation and bounded actual-absence checks remain in the
+existing executor. Reports show ordered per-effect results separately from journal
+completion. Cancellation can leave partial or Unknown effects and never rolls back
+a dispatched request.
+
+The desktop uses one fixed private `.aster-helm-uninstall` directory directly under
+the current user's home. Each background task owns and closes its journal handle,
+including when a window closes before its result can be displayed. Offline history
+does not require a Kubernetes connection. A new explicit GET confirmation against
+the current connection and selected revision can show present, modified, replaced
+or absent targets beside the historical results. These reads retain Unknown and do
+not clear unresolved records or authorize another execution. The UI provides no
+alternate-directory retry, replay, resolution, purge or repair action.
+
+See [the native workflow](docs/native-helm-uninstall.md),
+[execution](docs/helm-uninstall-execution.md),
+[recovery](docs/helm-uninstall-recovery.md), and
+[current project progress](docs/PROGRESS.zh-CN.md) for the admitted scope and its
+separate final-candidate/main acceptance records.
 
 ## Reviewed issuer sign-out
 

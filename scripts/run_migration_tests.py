@@ -2,11 +2,16 @@
 """Run the named migration contract in both builds; absent/skipped cases fail."""
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
+from test_evidence import HELM_NATIVE_UNINSTALL_NAMES
+
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
+    *HELM_NATIVE_UNINSTALL_NAMES,
+
     'TestNativeHelmLiveObservationConsentAndExpiry',
     'TestNativeHelmLiveObservationStaleResults',
     'TestNativeHelmLiveObservationFailureClearsResult',
@@ -142,6 +147,14 @@ TERMINAL_REQUIRED = [
     'TestTerminalNativeUnicodeInputAndOSC52CannotWriteClipboard',
 ]
 
+
+def root_test_pattern(required):
+    # Go interprets '/' as nested subtest patterns. Select each whole root once,
+    # then require every complete root/subcase name in the independent JSON gate.
+    roots = dict.fromkeys(name.split('/', 1)[0] for name in required)
+    return '^(' + '|'.join(re.escape(name) for name in roots) + ')$'
+
+
 if __name__ == '__main__':
     output = Path(os.environ.get('ASTER_TEST_ARTIFACTS', ROOT / 'artifacts'))
     output.mkdir(parents=True, exist_ok=True)
@@ -153,7 +166,7 @@ if __name__ == '__main__':
                 ('migration-terminal', './internal/nativeterm', TERMINAL_REQUIRED)):
             path = output / (component + '-' + mode + '.jsonl')
             args = ['go', 'test', '-count=1', '-timeout=3m', '-json', package,
-                    '-run', '^(' + '|'.join(required) + ')$']
+                    '-run', root_test_pattern(required)]
             if mode == 'production':
                 args.insert(2, '-tags=mygo_noinspector')
             with path.open('w', encoding='utf-8') as log:

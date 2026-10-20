@@ -138,8 +138,76 @@ HELM_LIVE_OBSERVATION_REQUIRED = {'native-os-interactions': ('TestNativeHelmLive
                  'TestNativeHelmLiveObservationFailureClearsResult',
                  'TestNativeHelmLiveObservationScaledInventory')}
 
+
+# Require complete named native cases, including children. A passing parent does
+# not establish that a cancellation, stale-selection or platform-layout case ran.
+HELM_NATIVE_JOURNAL_NAMES = (
+    'TestNativeHelmJournalStablePrivateHomePath',
+    'TestNativeHelmJournalHistoryCreatesPrivateStoreAndReleasesLock',
+    'TestNativeHelmJournalHistoryKeepsOutcomesIntegrityAndOriginalBytes',
+    'TestNativeHelmJournalCancelledWorkersDoNotCreateStorage',
+    *['TestNativeHelmJournalCancelledWorkersDoNotCreateStorage/' + case
+      for case in ('history', 'execution')],
+    'TestNativeHelmJournalBusyWorkersPreserveOwnerLock',
+    'TestNativeHelmJournalFailedExecutionAcknowledgementReleasesLock',
+    'TestNativeHelmJournalInventoryFailureDoesNotPublishPartialHistory',
+    *['TestNativeHelmJournalInventoryFailureDoesNotPublishPartialHistory/' + case
+      for case in ('unexpected-file', 'record-over-budget')],
+    'TestNativeHelmJournalHistoryDoesNotClearUnresolvedAdmission',
+)
+
+HELM_NATIVE_UI_NAMES = (
+    'TestNativeHelmUninstallExplicitConfirmations',
+    'TestNativeHelmUninstallQueuedInputAndComposition',
+    *['TestNativeHelmUninstallQueuedInputAndComposition/' + case
+      for case in ('busy-consent', 'exact-text-and-composition')],
+    'TestNativeHelmUninstallStaleCallbacks',
+    *['TestNativeHelmUninstallStaleCallbacks/' + case
+      for case in ('selection', 'refresh', 'close', 'namespace', 'context',
+                   'backend', 'session', 'directory', 'disconnect',
+                   'credentials', 'teardown')],
+    'TestNativeHelmUninstallCancellationAndJournalRelease',
+    *['TestNativeHelmUninstallCancellationAndJournalRelease/' + case
+      for case in ('stop', 'close', 'disconnect', 'teardown')],
+    'TestNativeHelmUninstallExpiryAndPrivateFailure',
+    *['TestNativeHelmUninstallExpiryAndPrivateFailure/' + case
+      for case in ('expiry', 'private-failure')],
+    'TestNativeHelmRecoveryOfflineAndFreshObservation',
+    'TestNativeHelmRecoveryCorruptionAndBusyStore',
+    *['TestNativeHelmRecoveryCorruptionAndBusyStore/' + case
+      for case in ('corrupt', 'busy')],
+    'TestNativeHelmUninstallMinimumWindow',
+    *[f'TestNativeHelmUninstallMinimumWindow/scale-{scale}-rtl-{rtl}'
+      for scale in ('1', '1.25', '1.5') for rtl in ('false', 'true')],
+)
+
+HELM_NATIVE_LIFECYCLE_NAMES = (
+    'TestNativeHelmUninstallParentContextRevokesDryRun',
+    *['TestNativeHelmUninstallParentContextRevokesDryRun/' + case
+      for case in ('connection', 'application')],
+    'TestNativeHelmUninstallLatePhaseCallbacks',
+    *['TestNativeHelmUninstallLatePhaseCallbacks/' + phase + '/' + scope
+      for phase in ('dry-run', 'recovery') for scope in ('new-pane', 'session')],
+    'TestNativeHelmUninstallWorkspaceJournalIsolation',
+)
+
+HELM_NATIVE_UNINSTALL_NAMES = (
+    *HELM_NATIVE_JOURNAL_NAMES, *HELM_NATIVE_UI_NAMES, *HELM_NATIVE_LIFECYCLE_NAMES,
+)
+HELM_NATIVE_UNINSTALL_REQUIRED = {
+    suite: HELM_NATIVE_UNINSTALL_NAMES
+    for suite in ('unit-native', 'native-os-interactions',
+                  'migration-checked', 'migration-production')
+}
+HELM_NATIVE_UNINSTALL_REQUIRED['real-cluster-native'] = (
+    *HELM_NATIVE_UNINSTALL_NAMES,
+    'TestNativeHelmUninstallAgainstRealCluster',
+    'TestNativeHelmRecoveryAgainstRealCluster',
+)
+
+
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:
