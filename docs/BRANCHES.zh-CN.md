@@ -10,8 +10,9 @@
 不重复合并、重建或删除已完成范围。
 
 唯一新增范围为 [#96](https://github.com/laojianzi/aster/issues/96) /
-`feat/helm-journal-admission`：复用同一个 Begin 准入判定，提供 existing-only 的本地
+[PR #97](https://github.com/laojianzi/aster/pull/97) / `feat/helm-journal-admission`：复用同一个 Begin 准入判定，提供 existing-only 的本地
 只读阻止原因、匹配记录和容量预留说明，接入已有原生卸载与恢复面板。
+PR #97 已实际创建，退役登记只绑定该 PR 与这个准确分支。
 报告不是执行授权，不能改变 Unknown 或解除未决记录保护。本文件没有预先宣称
 候选/main 已通过或 #96 已关闭。实际唯一 PR、验证/合并及可恢复退役结果以该 Issue
 和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。

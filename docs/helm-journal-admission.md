@@ -1,6 +1,8 @@
 # Read-only Helm journal admission explanation
 
-Scope [#96](https://github.com/laojianzi/aster/issues/96) continues the completed
+Scope [#96](https://github.com/laojianzi/aster/issues/96), sole
+[PR #97](https://github.com/laojianzi/aster/pull/97) on `feat/helm-journal-admission`,
+continues the completed
 [native restricted uninstall and recovery](native-helm-uninstall.md) on qualified
 main `aa84d7adb3a3c4d19d58d7a39443e49b2eb51490`. It explains the existing local
 journal policy through the same native panes. The implementation and acceptance

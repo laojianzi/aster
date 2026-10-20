@@ -10,7 +10,8 @@
 入场盘点只有 main、0 开放 PR、38 个保留标签；#11 与 #13 开放，#94 已关闭。
 
 **本次唯一新增范围为 [#96](https://github.com/laojianzi/aster/issues/96)：只读 journal 准入说明。**
-唯一分支 `feat/helm-journal-admission`。在已有卸载审查和恢复面板中，明确点击后读取
+唯一 [PR #97](https://github.com/laojianzi/aster/pull/97) / `feat/helm-journal-admission` 分支。
+在已有卸载审查和恢复面板中，明确点击后读取
 已经初始化的私有目录与永久锁，显示首个已知阻止、canonical 记录 ID、完整容量统计
 及完整 256 KiB 操作预留。缺目录或锁只说明未初始化/未检查，不创建、不修复。
 使用当前 Backend 冻结绑定、namespace 与 metadata UID，直接复用实际 Begin 的同一
