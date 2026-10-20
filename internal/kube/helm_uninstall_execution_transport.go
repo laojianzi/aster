@@ -28,7 +28,7 @@ func validHelmExecutionHeaders(resp *http.Response) bool {
 // redirect, collection route, arbitrary policy or privilege-changing transport.
 // An error after Do begins is Unknown unless a bounded, exact Kubernetes failure
 // envelope proves a definitive rejection. Bare status codes/proxy bodies do not.
-func (r *helmExecutionRun) mutate(method, resource, name string, body []byte, limit int) ([]byte, bool, bool, error) {
+func (r *helmExecutionRun) mutate(index int, method, resource, name string, body []byte, limit int) ([]byte, bool, bool, error) {
 	if method != http.MethodPatch && method != http.MethodDelete ||
 		method == http.MethodPatch && resource != "secrets" || method == http.MethodDelete && resource != "configmaps" ||
 		len(body) == 0 || len(body) > helmrelease.MaxSecretBytes || r.remaining <= 0 {
@@ -62,6 +62,21 @@ func (r *helmExecutionRun) mutate(method, resource, name string, body []byte, li
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept-Encoding", "identity")
+	if r.journal == nil || r.out == nil || index < 0 || index >= len(r.out.effects) {
+		return nil, false, false, ErrHelmExecutionJournal
+	}
+	effect := &r.out.effects[index]
+	if effect.Name != name || effect.Namespace != r.ns ||
+		method == http.MethodDelete && effect.Kind != "delete" ||
+		method == http.MethodPatch && effect.Kind != "begin" && effect.Kind != "finish" {
+		return nil, false, false, ErrHelmExecutionJournal
+	}
+	// Durable write-ahead intent is the only route to a persistent HTTP call.
+	// A crash from here through response recording conservatively means Unknown.
+	if err := r.journal.Intent(index, effect.ResourceVersion); err != nil {
+		return nil, false, false, ErrHelmExecutionJournal
+	}
+	effect.Outcome = HelmExecutionUnknown
 	if err := r.dispatch(); err != nil {
 		return nil, false, false, err
 	}

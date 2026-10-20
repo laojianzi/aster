@@ -56,6 +56,16 @@ jobs:
       - name: Prepare approved Helm for both migration modes
         shell: bash
         run: python scripts/prepare_helm.py --github-env "$GITHUB_ENV" --evidence-dir artifacts/helm
+      - name: Actual journal persistence and process recovery on this OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/journal
+          go version > artifacts/journal/environment.txt
+          git rev-parse HEAD >> artifacts/journal/environment.txt
+          go env GOOS GOARCH >> artifacts/journal/environment.txt
+          go test -race -shuffle=on -count=1 -timeout=3m -json ./internal/helmjournal/... | tee artifacts/journal/tests.jsonl
+          python scripts/helm_journal_evidence.py artifacts/journal/tests.jsonl
       - name: Mandatory ordinary and production-tag migration regressions
         run: python scripts/run_migration_tests.py
       - name: Build the production-tag desktop

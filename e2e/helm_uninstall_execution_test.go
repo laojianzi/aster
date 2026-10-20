@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -33,9 +34,11 @@ const helmExecutionSession = "real-uninstall-execution"
 
 type helmExecutionFixture struct {
 	testcluster.HelmMetadataFixture
-	storage *corev1.Secret
-	targets []*corev1.ConfigMap
-	canary  *corev1.ConfigMap
+	storage    *corev1.Secret
+	targets    []*corev1.ConfigMap
+	canary     *corev1.ConfigMap
+	journalDir string
+	journal    *kube.HelmUninstallJournal
 }
 
 // NewHelmMetadata reaches testcluster.Config before creating anything. The
@@ -45,6 +48,13 @@ type helmExecutionFixture struct {
 func newHelmExecutionFixture(t *testing.T, ctx context.Context, count int) *helmExecutionFixture {
 	t.Helper()
 	f := &helmExecutionFixture{HelmMetadataFixture: testcluster.NewHelmMetadata(t, 1)}
+	f.journalDir = filepath.Join(t.TempDir(), "journal")
+	var journalErr error
+	f.journal, journalErr = kube.OpenHelmUninstallJournal(f.journalDir)
+	if journalErr != nil {
+		t.Fatal("private execution journal", journalErr)
+	}
+	t.Cleanup(func() { _ = f.journal.Close() })
 	var manifest strings.Builder
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("execution-target-%d", i+1)
@@ -272,10 +282,10 @@ func prepareHelmExecution(t *testing.T, ctx context.Context, f *helmExecutionFix
 	if err != nil {
 		t.Fatal("actual server preflight", err)
 	}
-	if consent, err := b.AcknowledgeHelmUninstallExecution(dry, helmExecutionSession, f.Namespace, row, false); err == nil || consent != nil {
+	if consent, err := b.AcknowledgeHelmUninstallExecution(dry, helmExecutionSession, f.Namespace, row, false, f.journal); err == nil || consent != nil {
 		t.Fatal("preflight was treated as execution acknowledgement")
 	}
-	consent, err := b.AcknowledgeHelmUninstallExecution(dry, helmExecutionSession, f.Namespace, row, true)
+	consent, err := b.AcknowledgeHelmUninstallExecution(dry, helmExecutionSession, f.Namespace, row, true, f.journal)
 	if err != nil {
 		t.Fatal("execution acknowledgement", err)
 	}

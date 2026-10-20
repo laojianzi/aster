@@ -168,7 +168,7 @@ func TestHelmUninstallExecutionConsentLifetime(t *testing.T) {
 				if mode == "expired-mint" {
 					report = expiredExecutionPreflight(t, f, time.Now().Add(-time.Minute))
 				}
-				c, err := b.AcknowledgeHelmUninstallExecution(report, session, ns, row, mode != "false")
+				c, err := b.AcknowledgeHelmUninstallExecution(report, session, ns, row, mode != "false", f.journal)
 				if err == nil || c != nil {
 					t.Fatal("unqualified report minted execution")
 				}
@@ -368,11 +368,11 @@ func TestHelmUninstallExecutionSingleUse(t *testing.T) {
 		f := newHelmExecutionFixture(t, false)
 		c := f.consent(t)
 		copied := *f.preflight
-		if other, err := f.b.AcknowledgeHelmUninstallExecution(&copied, "session", "team", selectedHelmRevision(), true); err == nil || other != nil {
+		if other, err := f.b.AcknowledgeHelmUninstallExecution(&copied, "session", "team", selectedHelmRevision(), true, f.journal); err == nil || other != nil {
 			t.Fatal("copied preflight minted second consent")
 		}
 		c.Discard()
-		if other, err := f.b.AcknowledgeHelmUninstallExecution(f.preflight, "session", "team", selectedHelmRevision(), true); err == nil || other != nil {
+		if other, err := f.b.AcknowledgeHelmUninstallExecution(f.preflight, "session", "team", selectedHelmRevision(), true, f.journal); err == nil || other != nil {
 			t.Fatal("discard reset mint authority")
 		}
 		_, events, _ := f.inspect(t)
@@ -389,7 +389,7 @@ func TestHelmUninstallExecutionSingleUse(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				copied := *f.preflight
-				c, err := f.b.AcknowledgeHelmUninstallExecution(&copied, "session", "team", selectedHelmRevision(), true)
+				c, err := f.b.AcknowledgeHelmUninstallExecution(&copied, "session", "team", selectedHelmRevision(), true, f.journal)
 				if err == nil && c != nil {
 					wins.Add(1)
 					c.Discard()
@@ -763,7 +763,7 @@ func TestHelmUninstallExecutionBodyAndBudgets(t *testing.T) {
 		if _, _, err := runner.read(context.Background(), "secrets", selectedHelmRevision().StorageName, helmrelease.MaxSecretBytes, false); err == nil {
 			t.Fatal("exhausted read admitted")
 		}
-		if _, dispatched, _, err := runner.mutate(http.MethodPatch, "secrets", selectedHelmRevision().StorageName, []byte("[]"), helmrelease.MaxSecretBytes); err == nil || dispatched {
+		if _, dispatched, _, err := runner.mutate(0, http.MethodPatch, "secrets", selectedHelmRevision().StorageName, []byte("[]"), helmrelease.MaxSecretBytes); err == nil || dispatched {
 			t.Fatal("exhausted mutation admitted")
 		}
 		requests, after, _ := f.inspect(t)

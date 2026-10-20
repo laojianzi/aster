@@ -142,7 +142,10 @@ The execution profile is limited to the sole deployed Secret revision and explic
 reviewed same-namespace ConfigMaps, using conditional status updates, exact UID/RV
 deletes, fixed orphan propagation and bounded actual-absence checks. Its immutable
 per-effect report preserves partial and Unknown outcomes. **Desktop execution remains
-disabled** pending independent recovery and native confirmation/lifecycle qualification.
+disabled** pending native confirmation/lifecycle and recovery presentation qualification.
+Execution now requires a private persistent effect journal. Reopening it restores
+inert history; fresh single-use GET confirmation can observe current facts while
+preserving historical Unknown outcomes. See [the recovery boundaries](docs/helm-uninstall-recovery.md).
 See [the execution contract](docs/helm-uninstall-execution.md) and
 [current project progress](docs/PROGRESS.zh-CN.md) for scope and acceptance records.
 

@@ -227,8 +227,9 @@ corresponding original evidence.
 
 The dormant backend executor adds independent execution consent and actual
 conditional effects to the already qualified preparation and dry-run paths.
-There is no desktop/CLI activation or crash-recovery policy in this scope; see
-[the execution contract](helm-uninstall-execution.md).
+There is no desktop/CLI activation. Scope #92 adds mandatory journal history and
+fresh GET-only recovery; see [the execution contract](helm-uninstall-execution.md)
+and [the recovery contract](helm-uninstall-recovery.md).
 
 The complete unit/race and independent coverage streams both require the new
 execution consent, HTTP, revalidation, strict-response, partial/Unknown, exact
@@ -256,10 +257,21 @@ the product must remain Unknown and send no replay or later mutation.
 
 Synthetic release data limits these new fixtures to Aster's restricted profile.
 The existing actual pinned-Helm scenarios remain required alongside them.
-Compilation-only `-tags=e2e -run '^$'` does not count as execution, and an
-independent observer's later reads do not establish a product recovery feature.
+Compilation-only `-tags=e2e -run '^$'` does not count as execution. The separate
+required recovery cases exercise the actual product journal reopen and newly
+authorized GET API; independent observer reads alone do not establish recovery.
 Final PR and actual merged-main original artifacts remain separate acceptance
 gates before explicit completion and verified recoverable branch retirement.
+
+The mandatory recovery names are additive in `UNINSTALL_RECOVERY_REQUIRED` at
+the existing full race, independent coverage and three actual Kubernetes gates.
+All three native migration OS jobs also run `./internal/helmjournal/...` with
+`-race -shuffle=on -count=1`, keeping raw `artifacts/journal/tests.jsonl`, environment
+identity and `helm-journal-summary.json` inside their original migration ZIPs.
+`helm_journal_evidence.py` requires the actual named file/process/lock tests,
+exact package identity and one complete run/pass per name, with no skip or fail.
+The resulting fourteen original artifacts contain twenty-eight raw JSONL streams.
+Windows/macOS cross-compilation never substitutes for those real filesystem tests.
 
 ## Portable Schema patterns (#48)
 

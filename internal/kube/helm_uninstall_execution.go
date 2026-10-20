@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/laojianzi/aster/internal/helmjournal"
 	"github.com/laojianzi/aster/internal/helmrelease"
 )
 
@@ -57,6 +58,8 @@ type HelmUninstallExecution struct {
 	effects                    []HelmUninstallExecutionEffect
 	outcome                    HelmUninstallExecutionOutcome
 	started, finished, expires time.Time
+	journalID                  string
+	journalComplete            bool
 }
 
 func (r *HelmUninstallExecution) PreparationID() string {
@@ -114,6 +117,19 @@ func (r *HelmUninstallExecution) FinishedAt() time.Time {
 	return r.finished
 }
 
+func (r *HelmUninstallExecution) JournalID() string {
+	if r == nil {
+		return ""
+	}
+	return r.journalID
+}
+
+// JournalComplete only attests that this invocation saved its terminal frame
+// and closed the operation file. Server effects retain their own outcomes.
+func (r *HelmUninstallExecution) JournalComplete() bool {
+	return r != nil && r.journalComplete
+}
+
 type HelmUninstallExecutionConsent struct{ state *helmExecutionConsentState }
 type helmExecutionConsentState struct {
 	// Public wrapper structs can be reassigned by their owners. Retain a private
@@ -122,6 +138,8 @@ type helmExecutionConsentState struct {
 	preparation *HelmUninstallPreparation
 	finished    time.Time
 	origin      *helmDryRunConsentState
+	journal     *HelmUninstallJournal
+	binding     string
 	mu          sync.Mutex
 	used        bool
 	cancel      context.CancelFunc
@@ -133,10 +151,15 @@ type helmExecutionConsentState struct {
 // history, orphan consequences and ordered partial/Unknown outcomes. It also
 // authorizes the fresh sensitive reads and server dry-runs required immediately
 // before these conditional effects. GET/dry-run agreement alone cannot mint it.
-// It never extends the original preparation's thirty-second lifetime.
-func (b *Backend) AcknowledgeHelmUninstallExecution(r *HelmUninstallDryRun, session, ns string, row helmrelease.Revision, acknowledged bool) (*HelmUninstallExecutionConsent, error) {
-	if !acknowledged || r == nil || r.state == nil || r.finished.IsZero() {
+// This confirmation also selects and authorizes the private persistent metadata
+// journal. It never extends the original preparation's thirty-second lifetime.
+func (b *Backend) AcknowledgeHelmUninstallExecution(r *HelmUninstallDryRun, session, ns string, row helmrelease.Revision, acknowledged bool, journal *HelmUninstallJournal) (*HelmUninstallExecutionConsent, error) {
+	if !acknowledged || r == nil || r.state == nil || r.finished.IsZero() || journal == nil || journal.store == nil {
 		return nil, ErrHelmExecutionConsent
+	}
+	binding, err := b.helmUninstallJournalBinding()
+	if err != nil {
+		return nil, ErrHelmExecutionJournal
 	}
 	s, finished := r.state, r.finished
 	s.mu.Lock()
@@ -152,7 +175,11 @@ func (b *Backend) AcknowledgeHelmUninstallExecution(r *HelmUninstallDryRun, sess
 		return nil, helmrelease.ErrPreparationStale
 	}
 	s.executionMinted = true
-	return &HelmUninstallExecutionConsent{state: &helmExecutionConsentState{preparation: &p, finished: finished, origin: s}}, nil
+	// Freeze both caller-owned wrappers; the concrete store copy retains shared
+	// private lifetime/lock state even if either original wrapper is reassigned.
+	storeCopy := *journal.store
+	j := &HelmUninstallJournal{store: &storeCopy}
+	return &HelmUninstallExecutionConsent{state: &helmExecutionConsentState{preparation: &p, finished: finished, origin: s, journal: j, binding: binding}}, nil
 }
 
 func (s *helmExecutionConsentState) matches(b *Backend, session, ns string, row helmrelease.Revision, now time.Time) bool {
@@ -178,11 +205,13 @@ func (c *HelmUninstallExecutionConsent) Discard() {
 }
 
 // ExecuteHelmUninstall consumes independent execution consent before any I/O,
-// including failed/canceled attempts. Its total real deadline is ten seconds or
-// the ORIGINAL preparation expiry, whichever arrives first. No retry, parallel
+// including failed/canceled attempts. Network dispatch shares ten seconds or
+// the ORIGINAL preparation expiry, whichever arrives first. Synchronous OS file
+// I/O can block beyond a context deadline; qualification is rechecked after it
+// returns and before any network dispatch. No retry, parallel
 // write, force, history purge, CLI, automatic reconciliation or rollback exists.
 func (b *Backend) ExecuteHelmUninstall(ctx context.Context, c *HelmUninstallExecutionConsent, session, ns string, row helmrelease.Revision) (*HelmUninstallExecution, error) {
-	if c == nil || c.state == nil || c.state.preparation == nil || c.state.origin == nil {
+	if c == nil || c.state == nil || c.state.preparation == nil || c.state.origin == nil || c.state.journal == nil || c.state.journal.store == nil {
 		return nil, ErrHelmExecutionConsent
 	}
 	s := c.state
@@ -243,12 +272,32 @@ func (b *Backend) ExecuteHelmUninstall(ctx context.Context, c *HelmUninstallExec
 		defer origin.mu.Unlock()
 		return active()
 	}
+	if err := active(); err != nil {
+		out.finished = time.Now()
+		return out, err
+	}
+	writer, err := s.journal.store.Begin(helmjournal.Plan{Binding: s.binding, PreparationID: p.ID(),
+		Namespace: ns, Revision: p.Revision(), Targets: p.Targets(), Started: out.started, Expires: p.ExpiresAt()})
+	if err != nil {
+		out.finished = time.Now()
+		return out, errors.Join(ErrHelmExecutionJournal, err)
+	}
+	defer writer.Abort()
+	out.journalID = writer.ID()
 	runner := helmExecutionRun{b: b, ctx: ctx, active: active, dispatch: dispatch,
-		out: out, session: session, ns: ns, row: row,
+		out: out, journal: writer, session: session, ns: ns, row: row,
 		remaining: helmrelease.MaxSecretBytes + maxLiveReadBytes}
-	err := runner.run(p)
+	err = runner.run(p)
 	out.finished = time.Now()
 	out.outcome = helmExecutionOutcome(out.effects, err)
+	if journalErr := writer.Finish(out.finished); journalErr != nil {
+		// Persistence failure cannot erase independently observed server facts.
+		// The explicit error and false JournalComplete distinguish durable history
+		// from this invocation's in-memory evidence; reopened bytes may be older.
+		err = errors.Join(err, ErrHelmExecutionJournal, journalErr)
+	} else {
+		out.journalComplete = true
+	}
 	return out, err
 }
 
@@ -279,7 +328,7 @@ func helmExecutionOutcome(effects []HelmUninstallExecutionEffect, err error) Hel
 		rejected = rejected || e.Outcome == HelmExecutionRejected
 		all = all && e.Outcome == HelmExecutionCompleted
 	}
-	if err == nil && all {
+	if all {
 		return HelmExecutionCompleted
 	}
 	if completed {
