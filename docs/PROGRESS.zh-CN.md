@@ -9,7 +9,8 @@
 进程中断后的离线历史和新授权 GET 核对已经完成，直接复用。接续盘点只有 main、
 0 开放 PR、37 个保留标签；#11 与 #13 开放，#92 已关闭。
 
-**本次唯一新增范围为 [#94](https://github.com/laojianzi/aster/issues/94)：原生受限卸载确认、执行结果和恢复展示。**
+**本次唯一新增范围为 [#94](https://github.com/laojianzi/aster/issues/94) /
+[PR #95](https://github.com/laojianzi/aster/pull/95)：原生受限卸载确认、执行结果和恢复展示。**
 使用唯一 `feat/native-helm-uninstall` 分支接入已有后端。准备、服务器 dry-run 和真实执行
 分别明确确认；最终确认还绑定精确 release 名称及固定 home 下 `.aster-helm-uninstall`
 目录的持久记录保存。原 30 秒准备时限保持，输入/选择/会话变更和关闭会撤销未完成授权。

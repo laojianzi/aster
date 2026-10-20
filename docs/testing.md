@@ -275,7 +275,10 @@ exact package identity and one complete run/pass per name, with no skip or fail.
 The resulting fourteen original artifacts contain twenty-eight raw JSONL streams.
 Windows/macOS cross-compilation never substitutes for those real filesystem tests.
 
-### Native restricted uninstall and recovery (#94)
+### Native restricted uninstall and recovery (#94 / PR #95)
+
+[PR #95](https://github.com/laojianzi/aster/pull/95) is the sole implementation for
+[#94](https://github.com/laojianzi/aster/issues/94).
 
 Keep the exact previous 828 unit and 83 real-cluster Helm contract names, all 113
 migration roots, every old native suite and all four original workflows. The native

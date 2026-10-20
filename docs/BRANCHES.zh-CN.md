@@ -10,9 +10,10 @@
 不重复合并、重建或删除已完成范围。
 
 唯一新增范围为 [#94](https://github.com/laojianzi/aster/issues/94) /
+[PR #95](https://github.com/laojianzi/aster/pull/95) /
 `feat/native-helm-uninstall`：将既有 preparation、dry-run、executor、journal 和
 GET 核对接入原生独立确认、结果与历史展示、取消/撤销和工作区生命周期。
-PR 编号以实际创建结果登记，不提前占用 Issue 编号或推测下一个编号。
+PR #95 已实际创建，退役登记只绑定它与这一准确分支；#94 是 Issue 编号。
 本文件没有预先宣称新候选/main 已通过或 #94 已关闭。精确 PR、最终验证/合并及实际
 退役结果以该 Issue 和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。
 归档/维护标签保存完整历史，保留全部 37 个现有 tag；#11 两项依赖候选继续独立待审。

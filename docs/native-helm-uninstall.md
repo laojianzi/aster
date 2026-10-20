@@ -4,10 +4,11 @@ Scope [#94](https://github.com/laojianzi/aster/issues/94) follows the completed
 [#92/#93 backend recovery scope](https://github.com/laojianzi/aster/issues/92#issuecomment-6280541769).
 It connects the existing preparation, server dry-run, execution, private journal
 and fresh GET observer to one native workflow. It does not replace those APIs or
-broaden the admitted release profile. The sole implementation branch is
-`feat/native-helm-uninstall`; its actual PR and completion evidence are recorded
-in #94. This document describes the implementation and acceptance contract, not
-a claim that a new candidate, merged main or release has already qualified.
+broaden the admitted release profile. The sole implementation is
+[PR #95](https://github.com/laojianzi/aster/pull/95) on `feat/native-helm-uninstall`;
+completion evidence belongs to #94. This document describes the implementation
+and acceptance contract, not a claim that a new candidate, merged main or release
+has already qualified.
 
 ## Explicit preparation, dry-run and execution
 
