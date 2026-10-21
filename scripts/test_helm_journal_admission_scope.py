@@ -10,6 +10,7 @@ import helm_journal_evidence as journal
 import helm_uninstall_contract_evidence as contract
 import run_migration_tests as migration
 import test_evidence as evidence
+from go_toolchain_policy import previous_toolchain_bytes
 from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -245,7 +246,9 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
         # unchanged 5-minute Go package budget; neither is raised by admission.
         for source, frozen in self.baseline['unchanged_source_sha256'].items():
             with self.subTest(source=source):
-                self.assertEqual(hashlib.sha256((ROOT / source).read_bytes()).hexdigest(), frozen)
+                # PR #98 admits only the exact reviewed Go patch tokens.
+                data = previous_toolchain_bytes(source, (ROOT / source).read_bytes())
+                self.assertEqual(hashlib.sha256(data).hexdigest(), frozen)
 
 
 if __name__ == '__main__':
