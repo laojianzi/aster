@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from test_evidence import summarize
+from helm_journal_archive_evidence import ARCHIVE_REQUIRED
 
 PACKAGE = 'github.com/laojianzi/aster/internal/helmjournal'
 RECOVERY_REQUIRED = (
@@ -56,7 +57,7 @@ ADMISSION_REQUIRED = (
       for case in ('record-limit', 'entry-limit', 'operation-bytes',
                    'store-bytes', 'reservation-boundary')],
 )
-REQUIRED = (*RECOVERY_REQUIRED, *ADMISSION_REQUIRED)
+REQUIRED = (*RECOVERY_REQUIRED, *ADMISSION_REQUIRED, *ARCHIVE_REQUIRED)
 
 
 def validate(path):

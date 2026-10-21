@@ -101,7 +101,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 old = self.old_names('contract/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & added)
-                self.assertEqual(set(current), old | added)
+                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())))
         for suite, added in evidence.HELM_JOURNAL_ADMISSION_REQUIRED.items():
             with self.subTest(automatic=suite):
                 current = evidence.required_for_suite(suite, [])
@@ -117,7 +117,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
         for suite, names in evidence.HELM_NATIVE_UNINSTALL_REQUIRED.items():
             self.assertEqual(set(names), real if suite == 'real-cluster-native' else local)
         self.assertEqual(set(journal.RECOVERY_REQUIRED), self.old_names('journal'))
-        self.assertEqual(set(journal.REQUIRED), self.old_names('journal') | set(journal.ADMISSION_REQUIRED))
+        self.assertEqual(set(journal.REQUIRED), self.old_names('journal') | set(journal.ADMISSION_REQUIRED) | set(journal.ARCHIVE_REQUIRED))
         self.assertFalse(set(journal.RECOVERY_REQUIRED) & set(journal.ADMISSION_REQUIRED))
         self.assertEqual(len(journal.REQUIRED), len(set(journal.REQUIRED)))
         self.assertEqual(set(migration.REQUIRED), self.old_names('migration')

@@ -76,7 +76,10 @@ and lock; it cannot initialize history, mutate records or clear uncertainty.
 ## File and process boundaries
 
 `internal/helmjournal` enforces a 64 KiB frame limit, 256 KiB operation limit,
-128 operation files and a 16 MiB store budget. Each length-framed canonical JSON
+128 active operation files and a 16 MiB active store budget. The separately
+reviewed [terminal-record archive core](helm-journal-archive.md) retains originals
+under a distinct 128-record / 16 MiB archive limit; it does not purge disk bytes
+or clear uncertainty. Each length-framed canonical JSON
 record has a version, consecutive sequence, predecessor digest and payload
 checksum. Strict parsing rejects duplicate/unknown/null fields, invalid UTF-8,
 unknown versions, impossible effect transitions, changed target routes/order,
@@ -207,3 +210,11 @@ teardown. It retains unresolved records and their admission block; an API or UI
 policy to resolve, clear or purge them remains outside this increment.
 Other Helm/GitOps and release targets remain in #13;
 enterprise authority remains deferred P3 and #11 dependency decisions separate.
+
+## Terminal-record archive core
+
+Scope #99 adds independently confirmed archival of fully checked terminal records
+that are already nonblocking under the original unresolved predicate. Full WAL
+bytes remain in the same private store; active and archived quotas are separate.
+There is no native action yet. See the [archive contract](helm-journal-archive.md)
+for exact confirmation, no-replace, crash and downgrade boundaries.

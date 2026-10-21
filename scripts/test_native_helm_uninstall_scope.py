@@ -112,7 +112,10 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                 self.assertTrue(new <= set(required))
                 self.assertTrue(admission <= set(required))
                 self.assertFalse(new & admission)
-                self.assertEqual(inventory(set(required) - new - admission), frozen)
+                archive = set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ()))
+                self.assertTrue(archive <= set(required))
+                self.assertFalse(archive & (new | admission))
+                self.assertEqual(inventory(set(required) - new - admission - archive), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():

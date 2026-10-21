@@ -3,9 +3,7 @@ package helmjournal
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
-	"sort"
 
 	"github.com/laojianzi/aster/internal/helmrelease"
 )
@@ -38,6 +36,7 @@ const (
 	AdmissionReserveBytes   AdmissionReason = "ReserveBytes"
 	AdmissionUnresolved     AdmissionReason = "Unresolved"
 	AdmissionCancelled      AdmissionReason = "Cancelled"
+	AdmissionArchiveLimit   AdmissionReason = "ArchiveLimit"
 )
 
 type UnresolvedKind string
@@ -59,6 +58,8 @@ type Admission struct {
 	Records           int
 	Bytes             int64
 	InventoryComplete bool
+	ArchivedRecords   int
+	ArchivedBytes     int64
 	UnresolvedKind    UnresolvedKind
 }
 
@@ -250,62 +251,9 @@ func (s *Store) admissionLocked(ctx context.Context, scope AdmissionScope) (Admi
 // inventoryAdmission shares List's original bounded inventory checks. A partial
 // scan never publishes a verified zero count/size or an arbitrary entry name.
 func (s *Store) inventoryAdmission(ctx context.Context) ([]string, Admission, error) {
-	out := Admission{Reason: AdmissionUnavailable}
-	if reason, err := admissionContext(ctx); err != nil {
-		out.Reason = reason
+	inv, out, err := s.inventoryJournal(ctx)
+	if err != nil {
 		return nil, out, err
 	}
-	dir, err := s.root.root.Open(".")
-	if err != nil {
-		return nil, out, ErrUnavailable
-	}
-	entries, readErr := dir.ReadDir(MaxRecords + 2)
-	closeErr := dir.Close()
-	if readErr != nil && readErr != io.EOF || closeErr != nil {
-		return nil, out, ErrUnavailable
-	}
-	if len(entries) > MaxRecords+1 {
-		out.Reason = AdmissionRecordLimit
-		return nil, out, ErrBudget
-	}
-	ids := make([]string, 0, len(entries))
-	var total int64
-	for _, entry := range entries {
-		if reason, contextErr := admissionContext(ctx); contextErr != nil {
-			out.Reason = reason
-			return nil, out, contextErr
-		}
-		if entry.Name() == lockName {
-			continue
-		}
-		id, ok := recordID(entry.Name())
-		if !ok || entry.Type() != 0 {
-			out.Reason = AdmissionCorrupt
-			return nil, out, ErrCorrupt
-		}
-		f, openErr := s.root.openFile(entry.Name(), false, false)
-		if openErr != nil {
-			out.RecordID = id
-			return nil, out, openErr
-		}
-		st, statErr := f.Stat()
-		closeErr := f.Close()
-		if statErr != nil || closeErr != nil {
-			out.RecordID = id
-			return nil, out, ErrUnavailable
-		}
-		if st.Size() > MaxOperationBytes {
-			out.Reason, out.RecordID = AdmissionOperationBytes, id
-			return nil, out, ErrBudget
-		}
-		total += st.Size()
-		if total > MaxStoreBytes {
-			out.Reason = AdmissionStoreBytes
-			return nil, out, ErrBudget
-		}
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	out.Reason, out.Records, out.Bytes, out.InventoryComplete = AdmissionNoBlocker, len(ids), total, true
-	return ids, out, nil
+	return inv.active, out, nil
 }
