@@ -21,20 +21,22 @@ func validStorePath(dir string) bool {
 // Store holds a permanent OS lock until Close. It serializes cooperating
 // processes using this directory, not all clients using the same cluster.
 // Copies share private lock and lease state. No method repairs, deletes or
-// replays a record.
+// replays a record. Explicit archival preserves the original bytes under a
+// separately bounded retained-history name.
 type Store struct {
 	*storeState
 }
 
 type storeState struct {
-	mu       sync.Mutex
-	root     *privateRoot
-	lock     *os.File
-	active   *writerState
-	closed   bool
-	poisoned bool
-	newSink  func(*os.File) durableSink
-	syncRoot func() error
+	mu            sync.Mutex
+	root          *privateRoot
+	lock          *os.File
+	active        *writerState
+	closed        bool
+	poisoned      bool
+	newSink       func(*os.File) durableSink
+	syncRoot      func() error
+	renameArchive func(string, string) error
 }
 
 type durableSink interface {
@@ -203,6 +205,11 @@ func (s *Store) Begin(p Plan) (*Writer, error) {
 		return nil, ErrUnavailable
 	}
 	id := hex.EncodeToString(random[:])
+	// A retained ID cannot become a new active operation, even in the unlikely
+	// event of a random-ID collision. Do not overwrite, retry or hide its archive.
+	if _, err := s.root.root.Lstat(id + archivedSuffix); !os.IsNotExist(err) {
+		return nil, ErrUnavailable
+	}
 	p = clonePlan(p)
 	p.Started, p.Expires = p.Started.UTC(), p.Expires.UTC()
 	first := frame{Version: 1, Sequence: 1, Event: "start", ID: id, Plan: &p}

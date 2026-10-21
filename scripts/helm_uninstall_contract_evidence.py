@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from test_evidence import required_for_suite, summarize
 from helm_journal_evidence import ADMISSION_REQUIRED as JOURNAL_ADMISSION_NAMES
+from helm_journal_archive_evidence import ARCHIVE_REQUIRED
 
 REQUIRED = {
     'unit-native': (
@@ -718,8 +719,11 @@ JOURNAL_ADMISSION_REQUIRED = {
 }
 
 
+JOURNAL_ARCHIVE_REQUIRED = {'unit-native': ARCHIVE_REQUIRED}
+
+
 def required(suite):
-    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ()), *JOURNAL_ADMISSION_REQUIRED.get(suite, ())])
+    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ()), *JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *JOURNAL_ARCHIVE_REQUIRED.get(suite, ())])
 
 def main():
     parser = argparse.ArgumentParser()

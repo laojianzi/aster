@@ -138,3 +138,14 @@ provides no purge, resolve, guard override, repair, replay or resume operation.
 Future policy must first define whether any history can be removed or marked
 resolved, the exact operation/identity and evidence required, explicit user
 confirmation, and conservative behavior after interruption or failed storage.
+
+## Subsequent archival core (#99)
+
+The [bounded terminal archive](helm-journal-archive.md) adds a separately limited
+retained-history class. Active admission still reserves the original full
+operation allowance. Archived records are parsed and must already be terminal
+and resolved before exclusion from active quota; forged Unknown archives,
+duplicate IDs or corruption fail closed. Complete inventory reports expose
+active and archived counts/bytes separately. Archival reclaims active quota,
+not disk space, and does not create execution authority. Native archive controls
+remain a subsequent scope.
