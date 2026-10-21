@@ -118,6 +118,20 @@ func TestHelmJournalArchiveRoundTrip(t *testing.T) {
 	s, dir := testStore(t)
 	id := archiveHistory(t, s, "completed")
 	before := admissionFiles(t, dir)
+	// Capture identity through a real handle while the original name exists.
+	// Windows path-based FileInfo lazily resolves its file ID; doing that only
+	// after rename would query the now-absent old path rather than the old file.
+	f, err := s.root.openFile(id+".wal", false, false)
+	mustJournal(t, err)
+	identity, err := f.Stat()
+	mustJournal(t, err)
+	mustJournal(t, f.Close())
+	fact := before[id+".wal"]
+	if !os.SameFile(fact.info, identity) || fact.info.Size() != identity.Size() || fact.info.Mode() != identity.Mode() {
+		t.Fatal("archive snapshot identity does not match the original path")
+	}
+	fact.info = identity
+	before[id+".wal"] = fact
 	original, err := s.Load(id)
 	mustJournal(t, err)
 	review, err := s.PrepareArchive(context.Background(), id)
@@ -146,7 +160,9 @@ func TestHelmJournalArchiveRoundTrip(t *testing.T) {
 	after := admissionFiles(t, dir)
 	old, new := before[id+".wal"], after[id+archivedSuffix]
 	if len(after) != len(before) || old.hash != new.hash || !os.SameFile(old.info, new.info) || old.info.Mode() != new.info.Mode() || !os.SameFile(before[lockName].info, after[lockName].info) {
-		t.Fatal("archive changed bytes, identity, permissions or lock")
+		t.Fatalf("archive changed: entries %d/%d, same bytes %v, same identity %v, mode %v/%v, same lock %v",
+			len(before), len(after), old.hash == new.hash, os.SameFile(old.info, new.info),
+			old.info.Mode(), new.info.Mode(), os.SameFile(before[lockName].info, after[lockName].info))
 	}
 	if _, ok := after[id+".wal"]; ok {
 		t.Fatal("active copy remains")
