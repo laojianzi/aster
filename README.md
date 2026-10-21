@@ -187,7 +187,7 @@ the issuer logged out or revoked Kubernetes JWTs. See [sign-out boundaries](docs
 
 ## Development
 
-The checked-in module and CI pin **Go 1.27.2**, **MyGo v0.5.5**, and Kubernetes Go libraries
+The checked-in module and CI pin **Go 1.27.3**, **MyGo v0.5.5**, and Kubernetes Go libraries
 **v0.37.1**. See the [MyGo upgrade review](docs/dependency-review-mygo-0.5.5.md)
 and [complete 0.3–0.5 feature decisions](docs/mygo-0.3-0.5-feature-ledger.md).
 
