@@ -27,6 +27,7 @@ func (w *Workbench) helmAdmissionView(c *ui.Context) {
 	ui.Text(c, "Checked: "+s.admission.CheckedAt().UTC().Format("15:04:05 UTC")+" · historical local snapshot").Label("Helm admission checked at").FontSize(11)
 	if r.InventoryComplete {
 		ui.Text(c, fmt.Sprintf("Retained records: %d / %d · retained bytes: %d / %d", r.Records, helmjournal.MaxRecords, r.Bytes, helmjournal.MaxStoreBytes)).Label("Helm admission capacity").FontSize(11)
+		ui.Text(c, fmt.Sprintf("Archived records: %d / %d · retained archive bytes: %d / %d", r.ArchivedRecords, helmjournal.MaxArchivedRecords, r.ArchivedBytes, helmjournal.MaxArchivedBytes)).Label("Helm admission archive capacity").FontSize(11)
 	} else {
 		ui.Text(c, "Record count and retained bytes were not completely verified.").Label("Helm admission capacity unknown").FontSize(11)
 	}

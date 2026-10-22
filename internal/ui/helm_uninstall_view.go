@@ -110,11 +110,17 @@ func (w *Workbench) helmRecoveryView(c *ui.Context) {
 			text := entry.id
 			if r := entry.recovery; r != nil {
 				text = fmt.Sprintf("%s · %s/%s · %s", entry.id, r.Namespace(), r.Revision().Release, r.Outcome())
+				if r.Archived() {
+					text = "Archived · " + text
+				} else {
+					text = "Active · " + text
+				}
 			}
 			ui.Button(c, text).Label("Select Helm recovery " + entry.id).Disabled(!idle).OnClick(func() { w.selectHelmRecovery(entry.id) })
 		}
 	})
 	if r := s.recovery; r != nil {
+		w.helmArchiveView(c)
 		ui.Text(c, "Selected record: "+r.ID()).Label("Helm recovery identity").FontSize(12)
 		ui.Text(c, fmt.Sprintf("Recorded release: %s/%s · revision %d · storage UID %s", r.Namespace(), r.Revision().Release, r.Revision().Number, r.Revision().UID)).Label("Helm recovery source").FontSize(12)
 		ui.Text(c, "Historical outcome: "+string(r.Outcome())).Label("Helm recovery outcome").Bold().FontSize(14)
