@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 import helm_journal_evidence as journal
+import helm_native_archive_evidence as native_archive
 import helm_uninstall_contract_evidence as contract
 import run_migration_tests as migration
 import test_evidence as evidence
@@ -101,14 +102,14 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 old = self.old_names('contract/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & added)
-                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())))
+                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite))
         for suite, added in evidence.HELM_JOURNAL_ADMISSION_REQUIRED.items():
             with self.subTest(automatic=suite):
                 current = evidence.required_for_suite(suite, [])
                 old = self.old_names('automatic/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & set(added))
-                self.assertEqual(set(current), old | set(added))
+                self.assertEqual(set(current), old | set(added) | set(native_archive.AUTOMATIC.get(suite, ())))
 
     def test_previous_native_uninstall_migration_and_journal_scopes_remain_intact(self):
         local = self.old_names('native-uninstall/local')
@@ -117,11 +118,11 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
         for suite, names in evidence.HELM_NATIVE_UNINSTALL_REQUIRED.items():
             self.assertEqual(set(names), real if suite == 'real-cluster-native' else local)
         self.assertEqual(set(journal.RECOVERY_REQUIRED), self.old_names('journal'))
-        self.assertEqual(set(journal.REQUIRED), self.old_names('journal') | set(journal.ADMISSION_REQUIRED) | set(journal.ARCHIVE_REQUIRED))
+        self.assertEqual(set(journal.REQUIRED), self.old_names('journal') | set(journal.ADMISSION_REQUIRED) | set(journal.ARCHIVE_REQUIRED) | set(native_archive.IDENTITY_NAMES))
         self.assertFalse(set(journal.RECOVERY_REQUIRED) & set(journal.ADMISSION_REQUIRED))
         self.assertEqual(len(journal.REQUIRED), len(set(journal.REQUIRED)))
         self.assertEqual(set(migration.REQUIRED), self.old_names('migration')
-                         | set(evidence.HELM_JOURNAL_ADMISSION_NAMES))
+                         | set(evidence.HELM_JOURNAL_ADMISSION_NAMES) | set(native_archive.NATIVE_NAMES))
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
 
     def test_new_names_use_the_existing_applicable_gates(self):

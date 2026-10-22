@@ -46,9 +46,17 @@ type helmUninstallState struct {
 	observation                                     *kube.HelmUninstallRecoveryObservation
 	reconcileConsent                                *kube.HelmUninstallReconciliationConsent
 	admission                                       *kube.HelmJournalAdmissionReview
+	archive                                         *kube.HelmJournalArchiveSession
+	archiveAck, archiveComposing, archiveReload     bool
+	archiveConfirmation                             string
+	archiveResult                                   *helmjournal.ArchiveResult
 }
 
 func (u *helmUninstallState) revoke() {
+	if u.archive != nil {
+		u.archive.Cancel()
+	}
+	u.archiveAck, u.archiveComposing, u.archiveConfirmation = false, false, ""
 	if u.cancel != nil {
 		u.cancel()
 	}
@@ -342,6 +350,7 @@ func (w *Workbench) loadHelmRecoverySelection(selectedID string) {
 	u.revoke()
 	u.stopRequested = false
 	u.history, u.recovery, u.recoveryErr, u.observation = nil, nil, nil, nil
+	u.archiveReload, u.archiveResult = false, nil
 	u.selectedID = ""
 	epoch, path := u.epoch, u.journalPath
 	ctx, cancel := context.WithCancel(w.ctx) // Offline: deliberately not connectionCtx.

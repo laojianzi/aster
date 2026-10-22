@@ -7,6 +7,7 @@ import unittest
 
 import helm_journal_archive_evidence as archive
 import helm_journal_evidence as journal
+from helm_native_archive_evidence import IDENTITY_NAMES
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 import retire_completed_oidc as retirement
@@ -45,7 +46,7 @@ class HelmJournalArchiveScopeTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256('\n'.join(sorted(names)).encode()).hexdigest(),
                          '1963ca9fc4d831aff02f85d7077ba00dc10ca5d6a71d77dceeb3e14e332056e6')
         self.assertEqual(set(journal.REQUIRED), set(journal.RECOVERY_REQUIRED)
-                         | set(journal.ADMISSION_REQUIRED) | set(names))
+                         | set(journal.ADMISSION_REQUIRED) | set(names) | set(IDENTITY_NAMES))
         self.assertEqual(contract.JOURNAL_ARCHIVE_REQUIRED, {'unit-native': names})
         self.assertTrue(set(names) <= set(contract.required('unit-native')))
         self.assertFalse(set(names) & set(contract.required('real-cluster-native')))

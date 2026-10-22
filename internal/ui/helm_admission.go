@@ -111,6 +111,8 @@ func helmAdmissionReasonText(r helmjournal.Admission) string {
 		return "The private journal could not be safely inspected; admission was not established."
 	case helmjournal.AdmissionCorrupt:
 		return "Damaged or unclassifiable local history blocks new execution in this store."
+	case helmjournal.AdmissionArchiveLimit:
+		return "The retained archive exceeds its independent capacity limit; no record will be discarded automatically."
 	case helmjournal.AdmissionRecordLimit:
 		return "The local journal record limit leaves no slot for a new operation."
 	case helmjournal.AdmissionOperationBytes:

@@ -56,19 +56,31 @@ func loadHelmJournalHistory(ctx context.Context, path string) (entries []helmJou
 	if err != nil {
 		return nil, err
 	}
-	entries = make([]helmJournalEntry, 0, len(ids))
-	for _, id := range ids {
-		if err = ctx.Err(); err != nil {
-			return nil, err
+	archivedIDs, err := journal.ArchivedIDs()
+	if err != nil {
+		return nil, err
+	}
+	entries = make([]helmJournalEntry, 0, len(ids)+len(archivedIDs))
+	for group, list := range [][]string{ids, archivedIDs} {
+		for _, id := range list {
+			if err = ctx.Err(); err != nil {
+				return nil, err
+			}
+			var recovery *kube.HelmUninstallRecovery
+			var readErr error
+			if group == 0 {
+				recovery, readErr = journal.Recover(id)
+			} else {
+				recovery, readErr = journal.RecoverArchived(id)
+			}
+			if readErr != nil && !errors.Is(readErr, helmjournal.ErrCorrupt) {
+				return nil, readErr
+			}
+			if recovery == nil {
+				return nil, helmjournal.ErrUnavailable
+			}
+			entries = append(entries, helmJournalEntry{id: id, recovery: recovery, err: readErr})
 		}
-		recovery, readErr := journal.Recover(id)
-		if readErr != nil && !errors.Is(readErr, helmjournal.ErrCorrupt) {
-			return nil, readErr
-		}
-		if recovery == nil {
-			return nil, helmjournal.ErrUnavailable
-		}
-		entries = append(entries, helmJournalEntry{id: id, recovery: recovery, err: readErr})
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import helm_uninstall_contract_evidence as contract
 import retire_completed_oidc as retirement
 import run_migration_tests as migration
 import test_evidence as evidence
+import helm_native_archive_evidence as native_archive
 from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -115,17 +116,17 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                 archive = set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ()))
                 self.assertTrue(archive <= set(required))
                 self.assertFalse(archive & (new | admission))
-                self.assertEqual(inventory(set(required) - new - admission - archive), frozen)
+                self.assertEqual(inventory(set(required) - new - admission - archive - native_archive.additions(suite)), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
             with self.subTest(suite=suite):
                 new = set(evidence.HELM_NATIVE_UNINSTALL_REQUIRED[suite])
                 admission = set(evidence.HELM_JOURNAL_ADMISSION_REQUIRED[suite])
-                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission), frozen)
+                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission - native_archive.additions(suite)), frozen)
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
         self.assertEqual(inventory(set(migration.REQUIRED) - set(evidence.HELM_NATIVE_UNINSTALL_NAMES)
-                                   - set(evidence.HELM_JOURNAL_ADMISSION_NAMES)),
+                                   - set(evidence.HELM_JOURNAL_ADMISSION_NAMES) - set(native_archive.NATIVE_NAMES)),
                          LEGACY_MIGRATION)
 
     def test_native_cases_are_added_to_every_applicable_suite(self):

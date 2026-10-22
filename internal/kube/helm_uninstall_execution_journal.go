@@ -55,13 +55,19 @@ type HelmUninstallRecovery struct {
 	outcome                                       HelmUninstallExecutionOutcome
 	started, finished, expires                    time.Time
 	complete, corrupt                             bool
+	identity                                      *helmjournal.HistoryIdentity
+	archived                                      bool
 }
 
 func (j *HelmUninstallJournal) Recover(id string) (*HelmUninstallRecovery, error) {
+	return j.recoverIdentified(id, false)
+}
+
+func (j *HelmUninstallJournal) recoverIdentified(id string, archived bool) (*HelmUninstallRecovery, error) {
 	if j == nil || j.store == nil {
 		return nil, helmjournal.ErrClosed
 	}
-	s, err := j.store.Load(id)
+	s, identity, err := j.store.LoadIdentified(id, archived)
 	if err != nil && !errors.Is(err, helmjournal.ErrCorrupt) {
 		return nil, err
 	}
@@ -69,7 +75,7 @@ func (j *HelmUninstallJournal) Recover(id string) (*HelmUninstallRecovery, error
 		namespace: s.Plan.Namespace, binding: s.Plan.Binding, digest: s.Digest,
 		revision: s.Plan.Revision, targets: append([]helmrelease.UninstallTarget(nil), s.Plan.Targets...),
 		started: s.Plan.Started, finished: s.Finished, expires: s.Plan.Expires,
-		complete: s.Closed && !s.Corrupt, corrupt: s.Corrupt}
+		complete: s.Closed && !s.Corrupt, corrupt: s.Corrupt, identity: identity, archived: archived}
 	for _, e := range s.Effects {
 		r.effects = append(r.effects, HelmUninstallExecutionEffect{Kind: e.Kind, Namespace: e.Namespace,
 			Name: e.Name, UID: e.UID, ResourceVersion: e.ResourceVersion,
