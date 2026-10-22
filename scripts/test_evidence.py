@@ -2,6 +2,8 @@
 """Validate executable Go test evidence; absence and skipped tests are not passes."""
 from __future__ import annotations
 
+from helm_native_archive_evidence import AUTOMATIC as HELM_NATIVE_ARCHIVE_REQUIRED
+
 import argparse
 import json
 from pathlib import Path
@@ -231,11 +233,12 @@ HELM_JOURNAL_ADMISSION_REQUIRED['real-cluster-native'] = (
 
 
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:
     started: set[tuple[str, str]] = set()
+    invalid_lifecycle: set[tuple[str, str]] = set()
     completed: dict[tuple[str, str], str] = {}
     failed_packages: set[str] = set()
     successful_packages: set[str] = set()
@@ -253,9 +256,13 @@ def summarize(path: Path, required: list[str], suite: str) -> dict:
             if test:
                 key = package, test
                 if action == "run":
+                    if key in started:
+                        invalid_lifecycle.add(key)
                     started.add(key)
                     completed.pop(key, None)
                 elif action in {"pass", "fail", "skip"}:
+                    if key not in started or key in completed:
+                        invalid_lifecycle.add(key)
                     completed[key] = action
                     if action == "fail":
                         failed_seen.add(key)
@@ -280,8 +287,9 @@ def summarize(path: Path, required: list[str], suite: str) -> dict:
         "failed_packages": sorted(failed_packages),
         "incomplete_packages": incomplete_packages,
         "missing_required_tests": missing,
+        "invalid_lifecycle_events": sorted(f"{pkg}:{name}" for pkg, name in invalid_lifecycle),
     }
-    result["valid"] = bool(started) and not any((missing, failures, skipped, unfinished, failed_packages, incomplete_packages))
+    result["valid"] = bool(started) and not any((missing, failures, skipped, unfinished, failed_packages, incomplete_packages, invalid_lifecycle))
     return result
 
 
