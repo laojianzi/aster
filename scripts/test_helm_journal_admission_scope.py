@@ -9,6 +9,7 @@ import unittest
 import helm_journal_evidence as journal
 import helm_native_archive_evidence as native_archive
 import helm_uninstall_contract_evidence as contract
+import helm_install_evidence as install
 import run_migration_tests as migration
 import test_evidence as evidence
 from go_toolchain_policy import previous_toolchain_bytes
@@ -102,7 +103,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 old = self.old_names('contract/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & added)
-                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite))
+                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite) | set(install.INSTALL_REQUIRED.get(suite, ())))
         for suite, added in evidence.HELM_JOURNAL_ADMISSION_REQUIRED.items():
             with self.subTest(automatic=suite):
                 current = evidence.required_for_suite(suite, [])
