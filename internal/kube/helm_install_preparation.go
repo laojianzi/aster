@@ -15,10 +15,10 @@ import (
 // HelmInstallPreparation contains only sampled identities and a private binding;
 // it is not operation.Prepared, a dry-run, write consent or a transaction lock.
 type HelmInstallPreparation struct {
-	owner                                  *backendIdentity
-	candidate                              *helmrelease.InstallCandidate
-	id, session, namespaceUID, namespaceRV string
-	started, finished, expires             time.Time
+	owner                                               *backendIdentity
+	candidate                                           *helmrelease.InstallCandidate
+	id, candidateID, session, namespaceUID, namespaceRV string
+	started, finished, expires                          time.Time
 }
 
 func (p *HelmInstallPreparation) ID() string {
@@ -41,7 +41,7 @@ func (p *HelmInstallPreparation) NamespaceIdentity() (string, string) {
 }
 func (p *HelmInstallPreparation) Matches(b *Backend, c *helmrelease.InstallCandidate, session string, now time.Time) bool {
 	return p != nil && b != nil && b.identity != nil && p.owner == b.identity && p.candidate == c &&
-		p.session == session && c.Valid(now) && !now.Before(p.finished) && now.Before(p.expires)
+		p.candidateID == c.ID() && p.session == session && c.Valid(now) && !now.Before(p.finished) && now.Before(p.expires)
 }
 func (p HelmInstallPreparation) Format(f fmt.State, _ rune) {
 	_, _ = io.WriteString(f, "Inert Helm install preparation (no write authority)")
@@ -70,6 +70,9 @@ func (b *Backend) PrepareHelmInstall(parent context.Context, c *helmrelease.Inst
 	if !c.Valid(started) {
 		return nil, helmrelease.ErrInstallStale
 	}
+	original := c
+	frozen := *c
+	c = &frozen
 	expires := started.Add(helmrelease.PreparationLifetime)
 	if c.ExpiresAt().Before(expires) {
 		expires = c.ExpiresAt()
@@ -160,10 +163,10 @@ func (b *Backend) PrepareHelmInstall(parent context.Context, c *helmrelease.Inst
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if !c.Valid(finished) || !finished.Before(expires) {
+	if !c.Valid(finished) || original.ID() != c.ID() || !finished.Before(expires) {
 		return nil, helmrelease.ErrInstallStale
 	}
-	return &HelmInstallPreparation{owner: b.identity, candidate: c, id: hex.EncodeToString(id[:]), session: session,
+	return &HelmInstallPreparation{owner: b.identity, candidate: original, candidateID: c.ID(), id: hex.EncodeToString(id[:]), session: session,
 		namespaceUID: nsAfter.UID, namespaceRV: nsAfter.ResourceVersion, started: started, finished: finished, expires: expires}, nil
 }
 func installHistoryClear(s helmrelease.Snapshot, c *helmrelease.InstallCandidate) error {
