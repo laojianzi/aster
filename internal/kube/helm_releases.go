@@ -14,6 +14,11 @@ import (
 // already resolved current identity. It does not use Helm, discovery, dynamic
 // full-object reads, payload decoding, retry, other drivers or any write verb.
 func (b *Backend) HelmReleaseMetadata(ctx context.Context, namespace string) (helmrelease.Snapshot, error) {
+	return b.helmReleaseMetadata(ctx, namespace, helmrelease.DecodePage)
+}
+
+// Both readers share one bounded transport, pagination and complete-snapshot contract.
+func (b *Backend) helmReleaseMetadata(ctx context.Context, namespace string, decode func([]byte, string) (helmrelease.Page, error)) (helmrelease.Snapshot, error) {
 	empty := helmrelease.Snapshot{}
 	if !helmrelease.ValidNamespace(namespace) {
 		return empty, helmrelease.ErrNamespace
@@ -33,7 +38,7 @@ func (b *Backend) HelmReleaseMetadata(ctx context.Context, namespace string) (he
 			return empty, err
 		}
 		totalBytes += len(data)
-		page, err := helmrelease.DecodePage(data, namespace)
+		page, err := decode(data, namespace)
 		if err != nil {
 			return empty, err
 		}
