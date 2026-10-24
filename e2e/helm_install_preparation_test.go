@@ -18,6 +18,7 @@ import (
 	"github.com/laojianzi/aster/internal/kube"
 	"github.com/laojianzi/aster/internal/testcluster"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 )
@@ -178,32 +179,27 @@ func TestRealHelmInstallPreparationReadOnly(t *testing.T) {
 			checkSecret(s)
 			checkSecret(reserved)
 			checkSecret(old)
-			// Absence is observed again by the fixture client, not inferred from
-			// the preparation result or from a swallowed transport error.
-			allCM, e := cms.List(ctx, metav1.ListOptions{})
-			if e != nil {
-				t.Fatal(e)
+			// Observe exact installer identities independently. Namespace-wide
+			// counts incorrectly include controller-created kube-root-ca.crt;
+			// those objects are neither installed nor owned by this test.
+			// The guard above still rejects EVERY non-GET Backend request.
+			expectAbsent := func(err error, resource, name string) {
+				t.Helper()
+				var status *apierrors.StatusError
+				if !errors.As(err, &status) || !apierrors.IsNotFound(err) || status.ErrStatus.Code != 404 ||
+					status.ErrStatus.Reason != metav1.StatusReasonNotFound || status.ErrStatus.Details == nil ||
+					status.ErrStatus.Details.Group != "" || status.ErrStatus.Details.Kind != resource ||
+					status.ErrStatus.Details.Name != name {
+					t.Fatalf("exact %s/%s absence not established", resource, name)
+				}
 			}
-			wantCount := 1
-			if occupied != nil {
-				wantCount++
+			if occupied == nil {
+				_, err := cms.Get(ctx, "install-target", metav1.GetOptions{})
+				expectAbsent(err, "configmaps", "install-target")
 			}
-			if len(allCM.Items) != wantCount {
-				t.Fatal("unexpected created ConfigMap")
-			}
-			allSecrets, e := secrets.List(ctx, metav1.ListOptions{})
-			if e != nil {
-				t.Fatal(e)
-			}
-			wantCount = 1
-			if reserved != nil {
-				wantCount++
-			}
-			if old != nil {
-				wantCount++
-			}
-			if len(allSecrets.Items) != wantCount {
-				t.Fatal("unexpected created Secret")
+			if reserved == nil {
+				_, err := secrets.Get(ctx, candidate.StorageName(), metav1.GetOptions{})
+				expectAbsent(err, "secrets", candidate.StorageName())
 			}
 		})
 	}
