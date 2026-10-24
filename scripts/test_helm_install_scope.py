@@ -26,7 +26,7 @@ FROZEN = {'.github/workflows/branch-cleanup.yml': 'dc31f44ae8aedf3f2cdc3f34d908e
 
 class HelmInstallScopeTests(unittest.TestCase):
     def test_exact_required_census_and_additive_gates(self):
-        expected = {"unit-native": 92, "real-cluster-native": 9}
+        expected = {"unit-native": 117, "real-cluster-native": 9}
         for suite,names in install.INSTALL_REQUIRED.items():
             self.assertEqual(len(names),expected[suite])
             self.assertEqual(len(names),len(set(names)))
@@ -82,14 +82,14 @@ class HelmInstallScopeTests(unittest.TestCase):
             self.assertNotIn(forbidden,capture)
 
     def test_preparation_and_codecs_have_no_write_dispatch(self):
-        for name in ("internal/helmrelease/install_capture.go","internal/helmrelease/install_storage.go",
+        for name in ("internal/helmrelease/install_capture.go","internal/helmrelease/install_storage.go","internal/helmrelease/install_metadata.go",
                      "internal/kube/helm_install_preparation.go"):
             text=(ROOT/name).read_text()
             for forbidden in ("http.MethodPost","http.MethodPatch","http.MethodPut","http.MethodDelete",
                               ".Create(", ".Patch(", ".Update(", ".Delete(", "store.Begin(", "exec.Command"):
                 self.assertNotIn(forbidden,text)
         text=(ROOT/"internal/kube/helm_install_preparation.go").read_text()
-        self.assertEqual(text.count("b.HelmReleaseMetadata(ctx, c.Namespace())"),2)
+        self.assertEqual(text.count("b.helmReleaseMetadata(ctx, c.Namespace(), helmrelease.DecodeInstallMetadataPage)"),2)
         self.assertEqual(text.count('b.installAbsent(ctx, c, "Secret", "secrets", c.StorageName()'),2)
         self.assertIn("reflect.DeepEqual(before.Revisions, after.Revisions)",text)
         self.assertIn("p.candidate == c",text)

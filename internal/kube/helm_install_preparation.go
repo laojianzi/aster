@@ -97,12 +97,27 @@ func (b *Backend) PrepareHelmInstall(parent context.Context, c *helmrelease.Inst
 		if err != nil || route != want {
 			return nil, helmrelease.ErrLiveRouting
 		}
+		// History requires list as well as get. GVK-only resolution also
+		// cannot accept a second kind claiming the same collection path.
+		matches := 0
+		for _, advertised := range discovery.APIResources {
+			if advertised.Name != want.resource {
+				continue
+			}
+			matches++
+			if advertised.Kind != kind || kind == "Secret" && !hasVerb(advertised.Verbs, "list") {
+				return nil, helmrelease.ErrLiveRouting
+			}
+		}
+		if matches != 1 {
+			return nil, helmrelease.ErrLiveRouting
+		}
 	}
 	nsBefore, err := b.installNamespace(ctx, c.Namespace(), &remaining)
 	if err != nil {
 		return nil, err
 	}
-	before, err := b.HelmReleaseMetadata(ctx, c.Namespace())
+	before, err := b.helmReleaseMetadata(ctx, c.Namespace(), helmrelease.DecodeInstallMetadataPage)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +132,7 @@ func (b *Backend) PrepareHelmInstall(parent context.Context, c *helmrelease.Inst
 			return nil, err
 		}
 	}
-	after, err := b.HelmReleaseMetadata(ctx, c.Namespace())
+	after, err := b.helmReleaseMetadata(ctx, c.Namespace(), helmrelease.DecodeInstallMetadataPage)
 	if err != nil {
 		return nil, err
 	}

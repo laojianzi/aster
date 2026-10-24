@@ -147,6 +147,12 @@ func TestRealHelmInstallPreparationReadOnly(t *testing.T) {
 			if mode == "cancelled" && !errors.Is(err, context.Canceled) {
 				t.Fatal("cancel", err)
 			}
+			switch mode {
+			case "existing-target", "unlabeled-reserved-secret", "old-release", "competing-release":
+				if !errors.Is(err, helmrelease.ErrInstallConflict) {
+					t.Fatal("conflict was not specifically established", err)
+				}
+			}
 			if mode == "competing-release" && (!raced.Load() || raceErr != nil) {
 				t.Fatal("race fixture", raceErr)
 			}

@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -38,11 +39,12 @@ func installHTTPDiscovery() metav1.APIResourceList {
 	}}
 }
 func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
-	for _, mode := range []string{"success", "pagination", "unacknowledged", "invalid-session", "cancelled", "expired", "nil-context",
+	for _, mode := range []string{"success", "pagination", "null-history", "null-history-race", "null-history-partial", "null-history-remaining", "missing-history-items", "unacknowledged", "invalid-session", "cancelled", "expired", "nil-context",
 		"missing-namespace", "namespace-replaced", "namespace-rv-changed", "namespace-deleting", "namespace-wrong-name",
 		"history-conflict", "history-conflict-after", "history-denied", "history-partial", "history-changed", "unlabeled-secret",
 		"reserved-secret-after", "present-target", "target-denied", "redirect", "throttled", "proxy404", "wrong-404-name",
-		"wrong-404-kind", "wrong-404-code", "wrong-discovery", "ambiguous-discovery", "late-cancel"} {
+		"wrong-404-kind", "wrong-404-code", "wrong-discovery", "ambiguous-discovery", "missing-history-list", "missing-secret-get",
+		"missing-target-get", "missing-namespace-get", "ambiguous-resource", "late-cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			var requests, lists, nss, secrets atomic.Int32
 			var bad atomic.Bool
@@ -57,6 +59,20 @@ func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
 				switch p {
 				case "/api/v1":
 					d := installHTTPDiscovery()
+					switch mode {
+					case "missing-history-list":
+						d.APIResources[1].Verbs = []string{"get"}
+					case "missing-secret-get":
+						d.APIResources[1].Verbs = []string{"list"}
+					case "missing-target-get":
+						d.APIResources[0].Verbs = nil
+					case "missing-namespace-get":
+						d.APIResources[2].Verbs = nil
+					case "ambiguous-resource":
+						alias := d.APIResources[1]
+						alias.Kind = "OtherSecret"
+						d.APIResources = append(d.APIResources, alias)
+					}
 					if mode == "wrong-discovery" {
 						d.APIResources[0].Namespaced = false
 					}
@@ -106,7 +122,7 @@ func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
 						return
 					}
 					rows := []metav1.PartialObjectMetadata{}
-					if mode == "history-conflict" || mode == "history-conflict-after" && n == 2 {
+					if mode == "history-conflict" || (mode == "history-conflict-after" || mode == "null-history-race") && n == 2 {
 						rows = append(rows, metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "sh.helm.release.v1.example.v4", Namespace: "team", UID: "old", ResourceVersion: "old-rv",
 							Labels: map[string]string{"owner": "helm", "name": "example", "version": "4", "status": "uninstalled"}}})
 					}
@@ -119,6 +135,25 @@ func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
 						token = "next"
 					} else if mode == "pagination" && r.URL.Query().Get("continue") != "next" {
 						bad.Store(true)
+					}
+					if strings.HasPrefix(mode, "null-history") && len(rows) == 0 {
+						// Match the API server's metadata transform: its empty Items
+						// slice is nil and serializes as null, not an allocated [].
+						empty := metav1.PartialObjectMetadataList{TypeMeta: metav1.TypeMeta{Kind: "PartialObjectMetadataList", APIVersion: "meta.k8s.io/v1"},
+							ListMeta: metav1.ListMeta{ResourceVersion: "collection"}}
+						if mode == "null-history-partial" {
+							empty.Continue = "not-complete"
+						}
+						if mode == "null-history-remaining" {
+							v := int64(1)
+							empty.RemainingItemCount = &v
+						}
+						_ = json.NewEncoder(w).Encode(empty)
+						return
+					}
+					if mode == "missing-history-items" {
+						_, _ = w.Write([]byte(`{"apiVersion":"meta.k8s.io/v1","kind":"PartialObjectMetadataList","metadata":{"resourceVersion":"collection"}}`))
+						return
 					}
 					_, _ = w.Write(releasePage(token, "collection", rows...))
 				case "/api/v1/namespaces/team/secrets/sh.helm.release.v1.example.v1", "/api/v1/namespaces/team/configmaps/example":
@@ -198,7 +233,7 @@ func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
 				ctx = nil
 			}
 			p, err := b.PrepareHelmInstall(ctx, c, session, mode != "unacknowledged")
-			good := mode == "success" || mode == "pagination"
+			good := mode == "success" || mode == "pagination" || mode == "null-history"
 			if good {
 				if err != nil || p == nil || !p.Matches(b, c, session, time.Now()) {
 					t.Fatal("preparation rejected", err)
@@ -227,6 +262,18 @@ func TestHelmInstallPreparationHTTPReadOnly(t *testing.T) {
 			}
 			if err != nil && strings.Contains(err.Error(), "PRIVATE") {
 				t.Fatal("private diagnostics")
+			}
+			switch mode {
+			case "missing-history-list", "missing-secret-get", "missing-target-get", "missing-namespace-get", "ambiguous-resource":
+				if !errors.Is(err, helmrelease.ErrLiveRouting) || requests.Load() != 1 || nss.Load() != 0 || lists.Load() != 0 || secrets.Load() != 0 {
+					t.Fatal("invalid discovery did not stop before object/history reads", err)
+				}
+			}
+			if mode == "null-history-race" && (!errors.Is(err, helmrelease.ErrInstallConflict) || lists.Load() != 2) {
+				t.Fatal("raced history must be rejected after both complete observations", err)
+			}
+			if mode == "null-history" && (lists.Load() != 2 || nss.Load() != 2 || secrets.Load() != 2) {
+				t.Fatal("empty history bypassed bracketed identity checks")
 			}
 			if bad.Load() {
 				t.Fatal("write, wrong identity/header, unexpected route or followed redirect")

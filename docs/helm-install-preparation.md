@@ -113,8 +113,18 @@ no preparation and cannot silently retarget an operation.
 The existing bounded current-identity, rate-limited transports perform:
 
 1. Exact core/v1 discovery for namespaced ConfigMaps/Secrets and cluster-scoped
-   Namespaces, followed by a present, nonterminating namespace UID/RV.
-2. A complete bounded, paginated metadata-only `owner=helm` history. **Every**
+   Namespaces. All three must advertise `get`; Secrets must also advertise
+   `list` for complete history. A second kind claiming the same collection path
+   is ambiguous and is rejected before any namespace, object or history read.
+   These advertised verbs describe API support, not identity authorization.
+   Only then is a present, nonterminating namespace UID/RV sampled.
+2. A complete bounded, paginated metadata-only `owner=helm` history. Install
+   preparation also accepts the API server's terminal `items:null` empty list:
+   the typed metadata envelope, nonempty snapshot resourceVersion, absent
+   continuation and absent/zero remaining count must all validate. Missing
+   items, contradictory counts, duplicates and payload fields remain rejected.
+   The original inventory decoder stays strict; pagination and row validation
+   are shared, not reimplemented. **Every**
    status/revision of the requested release blocks a new install, including an
    old uninstalled revision. Partial pages, duplicate identities, inconsistent
    page RVs, continuation errors or denied reads fail closed.
