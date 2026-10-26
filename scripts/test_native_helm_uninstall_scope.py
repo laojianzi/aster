@@ -9,6 +9,7 @@ import unittest
 
 import helm_uninstall_contract_evidence as contract
 import helm_install_evidence as install
+import helm_install_dry_run_evidence as install_dry
 import retire_completed_oidc as retirement
 import run_migration_tests as migration
 import test_evidence as evidence
@@ -118,7 +119,8 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                 self.assertTrue(archive <= set(required))
                 self.assertFalse(archive & (new | admission))
                 self.assertEqual(inventory(set(required) - new - admission - archive - native_archive.additions(suite)
-                                       - set(install.INSTALL_REQUIRED.get(suite, ()))), frozen)
+                                       - set(install.INSTALL_REQUIRED.get(suite, ()))
+                                       - set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ()))), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
