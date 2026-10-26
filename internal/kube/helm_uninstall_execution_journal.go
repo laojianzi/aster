@@ -71,6 +71,10 @@ func (j *HelmUninstallJournal) recoverIdentified(id string, archived bool) (*Hel
 	if err != nil && !errors.Is(err, helmjournal.ErrCorrupt) {
 		return nil, err
 	}
+	// Installation history has no legacy uninstall identity or reconciliation authority.
+	if s.Version == 2 || s.Install != nil {
+		return nil, helmjournal.ErrInvalid
+	}
 	r := &HelmUninstallRecovery{id: s.ID, preparationID: s.Plan.PreparationID,
 		namespace: s.Plan.Namespace, binding: s.Plan.Binding, digest: s.Digest,
 		revision: s.Plan.Revision, targets: append([]helmrelease.UninstallTarget(nil), s.Plan.Targets...),

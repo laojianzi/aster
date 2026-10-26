@@ -1,5 +1,5 @@
 // Package helmjournal records the bounded identities and ordered effects of one
-// restricted Helm uninstall. Records are inert history, never credentials,
+// restricted Helm operation. Records are inert history, never credentials,
 // prepared operations, authority, an automatic resume token, or an audit service.
 package helmjournal
 
@@ -57,6 +57,7 @@ type Effect struct {
 	ResourceVersion         string
 	ObservedResourceVersion string
 	Outcome                 string
+	ContentDigest           string
 }
 
 // Snapshot is a defensive copy. Closed means a terminal frame was stored; it
@@ -64,6 +65,9 @@ type Effect struct {
 // in a Closed attempt. Corrupt snapshots preserve only the checked prefix and
 // must not be used to authorize a network observation or mutation.
 type Snapshot struct {
+	Version   int
+	Action    string
+	Install   *InstallPlan
 	ID        string
 	Plan      Plan
 	Effects   []Effect
@@ -81,6 +85,10 @@ func clonePlan(p Plan) Plan {
 
 func cloneSnapshot(s Snapshot) Snapshot {
 	s.Plan = clonePlan(s.Plan)
+	if s.Install != nil {
+		p := cloneInstallPlan(*s.Install)
+		s.Install = &p
+	}
 	s.Effects = append([]Effect(nil), s.Effects...)
 	return s
 }
@@ -133,7 +141,7 @@ func validPlan(p Plan) bool {
 
 func initialSnapshot(id string, p Plan) Snapshot {
 	p = clonePlan(p)
-	s := Snapshot{ID: id, Plan: p, Integrity: IntegrityValid}
+	s := Snapshot{ID: id, Version: 1, Action: "uninstall", Plan: p, Integrity: IntegrityValid}
 	e := Effect{Kind: "begin", Namespace: p.Namespace, Name: p.Revision.StorageName, UID: p.Revision.UID,
 		ResourceVersion: p.Revision.ResourceVersion, Outcome: NotStarted}
 	s.Effects = append(s.Effects, e)

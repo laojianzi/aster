@@ -18,17 +18,20 @@ const maxFrames = 4 + 3*(32+2)
 // an exact predecessor, and a checksum. Checksums detect corruption; they are
 // not authentication against another process running as the same OS user.
 type frame struct {
-	Version                 int        `json:"version"`
-	Sequence                int        `json:"sequence"`
-	Previous                string     `json:"previous"`
-	Event                   string     `json:"event"`
-	ID                      string     `json:"id,omitempty"`
-	Plan                    *Plan      `json:"plan,omitempty"`
-	Index                   *int       `json:"index,omitempty"`
-	ResourceVersion         string     `json:"resourceVersion,omitempty"`
-	Outcome                 string     `json:"outcome,omitempty"`
-	ObservedResourceVersion string     `json:"observedResourceVersion,omitempty"`
-	Finished                *time.Time `json:"finished,omitempty"`
+	Version                 int          `json:"version"`
+	Sequence                int          `json:"sequence"`
+	Previous                string       `json:"previous"`
+	Event                   string       `json:"event"`
+	ID                      string       `json:"id,omitempty"`
+	Plan                    *Plan        `json:"plan,omitempty"`
+	Index                   *int         `json:"index,omitempty"`
+	ResourceVersion         string       `json:"resourceVersion,omitempty"`
+	Outcome                 string       `json:"outcome,omitempty"`
+	ObservedResourceVersion string       `json:"observedResourceVersion,omitempty"`
+	Finished                *time.Time   `json:"finished,omitempty"`
+	Install                 *InstallPlan `json:"install,omitempty"`
+	UID                     string       `json:"uid,omitempty"`
+	RequestDigest           string       `json:"requestDigest,omitempty"`
 }
 
 type envelope struct {
@@ -96,6 +99,12 @@ func decodeFrame(data []byte) (frame, string, error) {
 }
 
 func (s *journalState) apply(f frame, digest, expectedID string) error {
+	if f.Version == 2 {
+		return s.applyInstall(f, digest, expectedID)
+	}
+	if f.Install != nil || f.UID != "" || f.RequestDigest != "" || s.sequence != 0 && s.snapshot.Version != 1 {
+		return ErrCorrupt
+	}
 	if f.Version != 1 || f.Sequence != s.sequence+1 || f.Sequence > maxFrames || f.Previous != s.digest || s.snapshot.Closed {
 		return ErrCorrupt
 	}

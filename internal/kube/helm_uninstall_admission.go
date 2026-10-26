@@ -39,7 +39,8 @@ func (r *HelmJournalAdmissionReview) CheckedAt() time.Time {
 
 // Matches binds presentation to the exact current selection, including its
 // observed status and resourceVersion. The journal's underlying historical
-// guard deliberately continues to match only binding, namespace and storage UID.
+// v1 guard retains binding/namespace/storage UID. Pending installs additionally
+// block the same binding/namespace/release before any storage UID exists.
 func (r *HelmJournalAdmissionReview) Matches(b *Backend, dir, session, ns string, row helmrelease.Revision) bool {
 	return r != nil && b != nil && b.identity != nil && r.owner == b.identity &&
 		r.binding != "" && r.binding == b.helmJournalBinding && r.path == dir &&
@@ -70,7 +71,7 @@ func (b *Backend) ReviewHelmUninstallJournalAdmission(ctx context.Context, dir, 
 		return nil, ErrHelmJournalAdmission
 	}
 	report, err := helmjournal.ReviewAdmission(ctx, dir, helmjournal.AdmissionScope{
-		Binding: binding, Namespace: ns, StorageUID: row.UID,
+		Binding: binding, Namespace: ns, StorageUID: row.UID, Release: row.Release,
 	})
 	if stopped := ctx.Err(); stopped != nil {
 		return nil, stopped
