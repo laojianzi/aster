@@ -55,10 +55,27 @@ class InstallJournalScopeTests(unittest.TestCase):
             if not p.name.endswith('_test.go'): self.assertNotIn('BeginInstall(',p.read_text())
 
     def test_old_go_tests_workflows_and_pins_are_byte_preserved(self):
-        paths=subprocess.check_output(['git','ls-tree','-r','--name-only',BASE],cwd=ROOT,text=True).splitlines()
-        selected=[p for p in paths if p.endswith('_test.go') or p.startswith('.github/workflows/')
-                  or p in ('go.mod','go.sum') or p.startswith('third_party/native-terminal/')]
-        self.assertGreater(len(selected),250)
-        for p in selected:
-            original=subprocess.check_output(['git','show',BASE+':'+p],cwd=ROOT)
-            self.assertEqual((ROOT/p).read_bytes(),original,p)
+        # Freeze path/mode/content together; works in the existing shallow CI
+        # checkout without fetching history or trusting a live baseline list.
+        added = {'internal/helmjournal/install_test.go',
+                 'internal/helmjournal/install_integrity_test.go',
+                 'internal/helmjournal/install_process_test.go',
+                 'internal/kube/helm_install_journal_test.go'}
+        raw=subprocess.check_output(['git','ls-files','--stage','-z'],cwd=ROOT)
+        rows=[]
+        tracked=set()
+        for entry in raw.split(b'\0'):
+            if not entry: continue
+            header,path=entry.decode().split('\t',1)
+            mode,_,stage=header.split()
+            self.assertEqual(stage,'0')
+            tracked.add(path)
+            protected=(path.endswith('_test.go') or path.startswith('.github/workflows/')
+                       or path in ('go.mod','go.sum') or path.startswith('third_party/native-terminal/'))
+            if protected and path not in added:
+                digest=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
+                rows.append(path+'\0'+mode+'\0'+digest)
+        self.assertTrue(added <= tracked)
+        self.assertEqual(len(rows),260)
+        self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
+                         '7e8a4d4c2695cb3054139fa133c794564a47233a3a402f49af15b58d59e83e1c')
