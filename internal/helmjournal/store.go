@@ -197,22 +197,26 @@ func (s *Store) Begin(p Plan) (*Writer, error) {
 	if !validPlan(p) {
 		return nil, ErrInvalid
 	}
-	if _, err := s.admissionLocked(context.Background(), AdmissionScope{Binding: p.Binding, Namespace: p.Namespace, StorageUID: p.Revision.UID}); err != nil {
+	if _, err := s.admissionLocked(context.Background(), AdmissionScope{Binding: p.Binding, Namespace: p.Namespace, StorageUID: p.Revision.UID, Release: p.Revision.Release}); err != nil {
 		return nil, err
 	}
+	p = clonePlan(p)
+	p.Started, p.Expires = p.Started.UTC(), p.Expires.UTC()
+	return s.beginFrame(frame{Version: 1, Sequence: 1, Event: "start", Plan: &p})
+}
+
+// beginFrame is the sole allocation, durable write and lease path for both
+// payload versions. The caller holds mu and has checked the common admission.
+func (s *Store) beginFrame(first frame) (*Writer, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return nil, ErrUnavailable
 	}
 	id := hex.EncodeToString(random[:])
-	// A retained ID cannot become a new active operation, even in the unlikely
-	// event of a random-ID collision. Do not overwrite, retry or hide its archive.
 	if _, err := s.root.root.Lstat(id + archivedSuffix); !os.IsNotExist(err) {
 		return nil, ErrUnavailable
 	}
-	p = clonePlan(p)
-	p.Started, p.Expires = p.Started.UTC(), p.Expires.UTC()
-	first := frame{Version: 1, Sequence: 1, Event: "start", ID: id, Plan: &p}
+	first.ID = id
 	encoded, digest, err := encodeFrame(first)
 	if err != nil {
 		return nil, err
@@ -278,7 +282,7 @@ func (w *Writer) append(f frame) error {
 	if err := w.check(); err != nil {
 		return err
 	}
-	f.Version, f.Sequence, f.Previous = 1, w.state.sequence+1, w.state.digest
+	f.Version, f.Sequence, f.Previous = w.state.snapshot.Version, w.state.sequence+1, w.state.digest
 	encoded, digest, err := encodeFrame(f)
 	if err != nil {
 		return err
@@ -322,6 +326,9 @@ func (w *Writer) Intent(index int, resourceVersion string) error {
 	}
 	w.store.mu.Lock()
 	defer w.store.mu.Unlock()
+	if w.state.snapshot.Version != 1 {
+		return ErrInvalid
+	}
 	return w.append(frame{Event: "intent", Index: &index, ResourceVersion: resourceVersion})
 }
 
@@ -333,6 +340,9 @@ func (w *Writer) Record(index int, outcome, observedRV string) error {
 	defer w.store.mu.Unlock()
 	if err := w.check(); err != nil {
 		return err
+	}
+	if w.state.snapshot.Version != 1 {
+		return ErrInvalid
 	}
 	if index >= 0 && index < len(w.state.snapshot.Effects) && outcome == Completed {
 		e := w.state.snapshot.Effects[index]
@@ -353,7 +363,11 @@ func (w *Writer) Finish(finished time.Time) error {
 		return ErrClosed
 	}
 	finished = finished.UTC()
-	if err := w.append(frame{Event: "finish", Finished: &finished}); err != nil {
+	event := "finish"
+	if w.state.snapshot.Version == 2 {
+		event = "install-finish"
+	}
+	if err := w.append(frame{Event: event, Finished: &finished}); err != nil {
 		return err
 	}
 	return w.close()

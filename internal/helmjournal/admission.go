@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/laojianzi/aster/internal/helmrelease"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // AdmissionScope is the exact local guard key used by Begin. It is not proof
@@ -14,6 +15,9 @@ type AdmissionScope struct {
 	Binding    string
 	Namespace  string
 	StorageUID string
+	// Release is mandatory for pre-create admission (no StorageUID). Legacy
+	// UID-only callers conservatively block any unresolved install in this namespace.
+	Release string
 }
 
 // Only existing-only native opens may return this internal distinction. The
@@ -64,7 +68,16 @@ type Admission struct {
 }
 
 func validAdmissionScope(scope AdmissionScope) bool {
-	return validHex(scope.Binding, 64) && helmrelease.ValidNamespace(scope.Namespace) && validIdentity(scope.StorageUID, 128)
+	if !validHex(scope.Binding, 64) || !helmrelease.ValidNamespace(scope.Namespace) {
+		return false
+	}
+	if scope.StorageUID == "" {
+		return validInstallRelease(scope.Release)
+	}
+	// Legacy uninstall accepts DNS subdomains, including dotted names. The
+	// restricted install label rule must not narrow existing selections.
+	return validIdentity(scope.StorageUID, 128) && (scope.Release == "" ||
+		len(scope.Release) <= 53 && len(validation.IsDNS1123Subdomain(scope.Release)) == 0)
 }
 
 func admissionContext(ctx context.Context) (AdmissionReason, error) {
@@ -228,7 +241,7 @@ func (s *Store) admissionLocked(ctx context.Context, scope AdmissionScope) (Admi
 			out.Reason = reason
 			return out, contextErr
 		}
-		if old.Plan.Binding == scope.Binding && old.Plan.Namespace == scope.Namespace && old.Plan.Revision.UID == scope.StorageUID {
+		if sameAdmissionRelease(old, scope) {
 			if blocked, kind := explainUnresolved(old); blocked {
 				out.Reason, out.RecordID, out.UnresolvedKind = AdmissionUnresolved, id, kind
 				return out, ErrUnresolved

@@ -9,6 +9,7 @@ import sys
 from test_evidence import summarize
 from helm_journal_archive_evidence import ARCHIVE_REQUIRED
 from helm_native_archive_evidence import IDENTITY_NAMES
+from helm_install_journal_evidence import INSTALL_JOURNAL_NAMES
 
 PACKAGE = 'github.com/laojianzi/aster/internal/helmjournal'
 RECOVERY_REQUIRED = (
@@ -58,7 +59,7 @@ ADMISSION_REQUIRED = (
       for case in ('record-limit', 'entry-limit', 'operation-bytes',
                    'store-bytes', 'reservation-boundary')],
 )
-REQUIRED = (*RECOVERY_REQUIRED, *ADMISSION_REQUIRED, *ARCHIVE_REQUIRED, *IDENTITY_NAMES)
+REQUIRED = (*RECOVERY_REQUIRED, *ADMISSION_REQUIRED, *ARCHIVE_REQUIRED, *IDENTITY_NAMES, *INSTALL_JOURNAL_NAMES)
 
 
 def validate(path):

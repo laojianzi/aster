@@ -36,9 +36,6 @@ func (f *installDryFixture) handler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/prefix")
 	if r.Method == http.MethodPost {
 		n := int(f.posts.Add(1))
-		if f.onPost != nil {
-			f.onPost(n)
-		}
 		q := r.URL.Query()
 		if (path != "/api/v1/namespaces/team/secrets" && path != "/api/v1/namespaces/team/configmaps") ||
 			q.Get("dryRun") != "All" || q.Get("fieldValidation") != "Strict" || q.Get("fieldManager") != helmrelease.InstallFieldManager || len(q) != 3 || r.Header.Get("Content-Type") != "application/json" || r.Header.Get("Accept-Encoding") != "identity" {
@@ -55,6 +52,9 @@ func (f *installDryFixture) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		clear(raw)
+		if f.onPost != nil {
+			f.onPost(n)
+		}
 		m := v["metadata"].(map[string]any)
 		m["uid"] = "temporary-uid"
 		m["creationTimestamp"] = time.Now().UTC().Format(time.RFC3339Nano)
