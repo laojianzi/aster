@@ -422,13 +422,22 @@ func TestHelmInstallJournalArchiveAndQuotas(t *testing.T) {
 				mustJournal(t, w.Abort())
 			}
 			if mode == "record-limit" {
-				original, err := os.ReadFile(filepath.Join(dir, w.ID()+".wal"))
-				mustJournal(t, err)
+				// Use valid, individually identified legacy records and the private
+				// creator, so this tests shared quota rather than ACL/corruption.
 				for i := 0; i < MaxRecords-1; i++ {
-					mustJournal(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("%032x.wal", i)), original, 0600))
+					id := fmt.Sprintf("%032x", i)
+					admissionWriteFixture(t, s, id, archiveRecordBytes(t, id, testPlan()))
+					if snap, err := s.Load(id); err != nil || !snap.Closed || snap.Version != 1 {
+						t.Fatalf("invalid private quota fixture: %v", err)
+					}
+				}
+				ids, err := s.List()
+				mustJournal(t, err)
+				if len(ids) != MaxRecords {
+					t.Fatal("fixture did not fill the shared active count")
 				}
 				if _, err := s.BeginInstall(testInstallPlan()); !errors.Is(err, ErrBudget) {
-					t.Fatal("install bypassed active count")
+					t.Fatalf("install did not reject the shared active count: %v", err)
 				}
 				return
 			}

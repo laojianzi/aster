@@ -33,11 +33,13 @@ INSTALL_JOURNAL_NAMES = (
     'TestHelmInstallJournalProcessHelper',
     *cases('TestHelmInstallJournalProcessCrashRecovery', CRASH),
     'TestHelmInstallJournalDowngradeAndMixedVersion',
-    *cases('TestHelmInstallJournalFileIntegrity', ('prefix-rewrite','file-replacement','lock-replacement','corrupt-unrelated')),
+    *cases('TestHelmInstallJournalFileIntegrity', ('prefix-rewrite','file-replacement','lock-replacement','lock-content','corrupt-unrelated')),
     'TestHelmInstallJournalMaxTargetsAndCancellation',
     'TestHelmInstallJournalLegacyReleaseScope',
 )
 INSTALL_JOURNAL_REQUIRED = {'unit-native': (
+    'TestHelmInstallDryRunFixtureConsumesBodyBeforeHook',
+    *cases('TestHelmInstallDryRunCancellationOneShot', ('cancel', 'revoke')),
     *INSTALL_JOURNAL_NAMES,
     *cases('TestHelmInstallJournalRejectsUninstallRecovery', ('active','archived','corrupt-prefix')),
 )}

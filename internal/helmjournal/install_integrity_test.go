@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	strictjson "sigs.k8s.io/json"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -59,7 +61,7 @@ func TestHelmInstallJournalDowngradeAndMixedVersion(t *testing.T) {
 }
 
 func TestHelmInstallJournalFileIntegrity(t *testing.T) {
-	for _, mode := range []string{"prefix-rewrite", "file-replacement", "lock-replacement", "corrupt-unrelated"} {
+	for _, mode := range []string{"prefix-rewrite", "file-replacement", "lock-replacement", "lock-content", "corrupt-unrelated"} {
 		t.Run(mode, func(t *testing.T) {
 			s, dir := testStore(t)
 			w := testInstallBegin(t, s, testInstallPlan())
@@ -70,25 +72,63 @@ func TestHelmInstallJournalFileIntegrity(t *testing.T) {
 			case "prefix-rewrite":
 				raw[len(raw)-5] ^= 1
 				mustJournal(t, os.WriteFile(path, raw, 0600))
-			case "file-replacement":
-				mustJournal(t, os.Rename(path, path+".saved"))
-				mustJournal(t, os.WriteFile(path, raw, 0600))
-			case "lock-replacement":
-				mustJournal(t, os.Rename(filepath.Join(dir, lockName), filepath.Join(dir, "old.lock")))
-				mustJournal(t, os.WriteFile(filepath.Join(dir, lockName), nil, 0600))
+			case "file-replacement", "lock-replacement":
+				name, held := path, w.raw().file
+				if mode == "lock-replacement" {
+					name, held = filepath.Join(dir, lockName), s.lock
+				}
+				// Capture identity through the held handle before attempting rename.
+				identity, err := held.Stat()
+				mustJournal(t, err)
+				moved := name + ".saved"
+				if err := os.Rename(name, moved); err != nil {
+					// ERROR_SHARING_VIOLATION is an expected Windows protection,
+					// not permission to ignore arbitrary rename failures elsewhere.
+					if runtime.GOOS != "windows" || !errors.Is(err, syscall.Errno(32)) {
+						t.Fatalf("unexpected rename failure: %v", err)
+					}
+					assertInstallRenamePrevented(t, s, w, name, moved, identity, raw)
+					return
+				}
+				f, err := s.root.openFile(filepath.Base(name), true, true)
+				mustJournal(t, err)
+				if mode == "file-replacement" {
+					_, err = f.Write(raw)
+					mustJournal(t, err)
+				}
+				mustJournal(t, f.Close())
+			case "lock-content":
+				f, err := os.OpenFile(filepath.Join(dir, lockName), os.O_WRONLY, 0600)
+				mustJournal(t, err)
+				// Byte zero is locked on Windows; alteration outside it must still
+				// invalidate the permanent lock and forbid an install intent.
+				_, err = f.WriteAt([]byte{'!'}, 1)
+				mustJournal(t, err)
+				mustJournal(t, f.Close())
 			case "corrupt-unrelated":
 				mustJournal(t, w.Abort())
-				mustJournal(t, os.WriteFile(filepath.Join(dir, strings.Repeat("1", 32)+".wal"), []byte("damaged"), 0600))
+				id := strings.Repeat("1", 32)
+				admissionWriteFixture(t, s, id, []byte("damaged"))
+				if snap, err := s.Load(id); !errors.Is(err, ErrCorrupt) || !snap.Corrupt {
+					t.Fatalf("fixture did not reach record parsing: %v", err)
+				}
 				p := testInstallPlan()
 				p.Release = "other"
 				p.StorageName = "sh.helm.release.v1.other.v1"
 				if _, err := s.BeginInstall(p); !errors.Is(err, ErrCorrupt) {
-					t.Fatal("unrelated corruption bypassed")
+					t.Fatalf("unrelated corruption not detected at the parsing boundary: %v", err)
 				}
 				return
 			}
+			before, err := os.ReadFile(path)
+			mustJournal(t, err)
 			if err := installIntent(w, 0); !errors.Is(err, ErrUnavailable) {
 				t.Fatal("changed journal identity/content accepted")
+			}
+			after, err := os.ReadFile(path)
+			mustJournal(t, err)
+			if !bytes.Equal(before, after) {
+				t.Fatal("rejected intent altered the WAL")
 			}
 		})
 	}
@@ -171,5 +211,44 @@ func TestHelmInstallJournalLegacyReleaseScope(t *testing.T) {
 	q.StorageUID = ""
 	if _, err := s.ReviewAdmission(context.Background(), q); !errors.Is(err, ErrInvalid) {
 		t.Fatal("invalid pre-create release scope accepted")
+	}
+}
+
+// A denied replacement must preserve the path, held identity, complete original
+// bytes and exclusive store lock. Only then may the original writer continue.
+func assertInstallRenamePrevented(t *testing.T, s *Store, w *InstallWriter, name, moved string, identity os.FileInfo, original []byte) {
+	t.Helper()
+	after, err := os.Stat(name)
+	mustJournal(t, err)
+	if !os.SameFile(identity, after) {
+		t.Fatal("denied rename changed the original file identity")
+	}
+	if _, err := os.Stat(moved); !os.IsNotExist(err) {
+		t.Fatal("denied rename left a destination")
+	}
+	path := filepath.Join(s.root.path, w.ID()+".wal")
+	data, err := os.ReadFile(path)
+	mustJournal(t, err)
+	if !bytes.Equal(data, original) {
+		t.Fatal("denied rename changed the WAL")
+	}
+	mustJournal(t, s.root.checkFile(lockName, s.lock))
+	second, err := Open(s.root.path)
+	if second != nil {
+		mustJournal(t, second.Close())
+	}
+	if !errors.Is(err, ErrBusy) {
+		t.Fatalf("denied rename lost store exclusion: %v", err)
+	}
+	mustJournal(t, installIntent(w, 0))
+	snap, err := s.Load(w.ID())
+	mustJournal(t, err)
+	if snap.Version != 2 || snap.Effects[0].Outcome != Unknown {
+		t.Fatal("original writer did not preserve the unknown install intent")
+	}
+	data, err = os.ReadFile(path)
+	mustJournal(t, err)
+	if len(data) <= len(original) || !bytes.HasPrefix(data, original) {
+		t.Fatal("continued writer replaced or lost the original WAL prefix")
 	}
 }
