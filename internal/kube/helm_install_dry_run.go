@@ -15,14 +15,15 @@ import (
 // bounded server dry-run POSTs, never persistent installation or final PATCH.
 type HelmInstallDryRunConsent struct{ state *installDryRunState }
 type installDryRunState struct {
-	preparation HelmInstallPreparation
-	candidate   helmrelease.InstallCandidate
-	original    *helmrelease.InstallCandidate
-	plan        *helmrelease.InstallCreatePlan
-	mu          sync.Mutex
-	used        bool
-	revoked     atomic.Bool
-	cancel      context.CancelFunc
+	preparation     HelmInstallPreparation
+	candidate       helmrelease.InstallCandidate
+	original        *helmrelease.InstallCandidate
+	plan            *helmrelease.InstallCreatePlan
+	mu              sync.Mutex
+	used            bool
+	executionMinted bool
+	revoked         atomic.Bool
+	cancel          context.CancelFunc
 }
 
 func (c HelmInstallDryRunConsent) Format(f fmt.State, _ rune) {

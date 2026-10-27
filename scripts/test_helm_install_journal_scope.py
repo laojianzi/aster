@@ -1,4 +1,5 @@
 """Install WAL additions do not replace old acceptance or grant cluster access."""
+from helm_install_execution_evidence import ADDED_TEST_FILES
 import hashlib
 import json
 from pathlib import Path
@@ -76,6 +77,7 @@ class InstallJournalScopeTests(unittest.TestCase):
                  'internal/helmjournal/install_process_test.go',
                  'internal/kube/helm_install_journal_test.go',
                  'internal/kube/helm_install_dry_run_fixture_test.go'}
+        added |= ADDED_TEST_FILES
         raw=subprocess.check_output(['git','ls-files','--stage','-z'],cwd=ROOT)
         rows=[]
         tracked=set()

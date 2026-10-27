@@ -1,4 +1,5 @@
 """The native flow adds evidence and admits only its reviewed API consumers."""
+import helm_install_execution_evidence as install_execution
 import copy
 import hashlib
 import json
@@ -122,7 +123,8 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                 self.assertEqual(inventory(set(required) - new - admission - archive - native_archive.additions(suite)
                                        - set(install.INSTALL_REQUIRED.get(suite, ()))
                                        - set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ()))
-                           - set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ()))), frozen)
+                           - set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ()))
+                           - set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ()))), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
