@@ -45,6 +45,9 @@ type helmUninstallState struct {
 	recoveryErr                                     error
 	observation                                     *kube.HelmUninstallRecoveryObservation
 	reconcileConsent                                *kube.HelmUninstallReconciliationConsent
+	installRecovery                                 *kube.HelmInstallRecovery
+	installObservation                              *kube.HelmInstallRecoveryObservation
+	installReconcileConsent                         *kube.HelmInstallReconciliationConsent
 	admission                                       *kube.HelmJournalAdmissionReview
 	archive                                         *kube.HelmJournalArchiveSession
 	archiveAck, archiveComposing, archiveReload     bool
@@ -69,6 +72,10 @@ func (u *helmUninstallState) revoke() {
 	}
 	if u.reconcileConsent != nil {
 		u.reconcileConsent.Discard()
+	}
+	if u.installReconcileConsent != nil {
+		u.installReconcileConsent.Discard()
+		u.installReconcileConsent = nil
 	}
 	u.prepareAck, u.dryRunAck, u.executeAck, u.reconcileAck = false, false, false, false
 	u.confirmation, u.confirmationComposing = "", false
@@ -350,6 +357,7 @@ func (w *Workbench) loadHelmRecoverySelection(selectedID string) {
 	u.revoke()
 	u.stopRequested = false
 	u.history, u.recovery, u.recoveryErr, u.observation = nil, nil, nil, nil
+	u.installRecovery, u.installObservation = nil, nil
 	u.archiveReload, u.archiveResult = false, nil
 	u.selectedID = ""
 	epoch, path := u.epoch, u.journalPath
@@ -396,7 +404,15 @@ func (w *Workbench) selectHelmRecovery(id string) {
 		}
 		u.revoke()
 		u.selectedID, u.recovery, u.recoveryErr = entry.id, entry.recovery, entry.err
-		u.observation = nil
+		u.installRecovery = entry.installRecovery
+		u.observation, u.installObservation = nil, nil
+		if r := entry.installRecovery; r != nil {
+			u.status = "Local installation history selected. Current facts require a matching connection and a separate metadata GET confirmation."
+			if entry.err != nil || r.Corrupt() {
+				u.status = "Damaged installation record: only the checked prefix can be shown. Network observation is unavailable; records remain retained."
+			}
+			return
+		}
 		u.status = "Local history selected. Current cluster facts require a new metadata selection and explicit GET confirmation."
 		if entry.err != nil || entry.recovery == nil || entry.recovery.Corrupt() {
 			u.status = "Damaged record: only the checked prefix can be shown. Network observation is unavailable; records remain retained."
@@ -408,6 +424,10 @@ func (w *Workbench) selectHelmRecovery(id string) {
 func (w *Workbench) observeHelmRecovery() {
 	w.syncHelmUninstall()
 	u := &w.helmUninstall
+	if u.installRecovery != nil {
+		w.observeHelmInstallRecovery()
+		return
+	}
 	if !w.helmUninstallEligible() || u.mode != "history" || !u.reconcileAck || u.backend == nil ||
 		u.recovery == nil || u.recoveryErr != nil || u.recovery.Corrupt() || !helmrelease.ValidSelection(u.namespace, u.row) {
 		return

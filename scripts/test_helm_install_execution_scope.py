@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 import helm_install_execution_evidence as execution
+from helm_install_recovery_evidence import ADDED_TEST_FILES as RECOVERY_TEST_FILES
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 
@@ -54,7 +55,7 @@ class InstallExecutionScopeTests(unittest.TestCase):
             self.assertEqual(stage, '0')
             protected = (path.endswith('_test.go') or path.startswith('.github/workflows/')
                          or path in ('go.mod','go.sum') or path.startswith('third_party/native-terminal/'))
-            if protected and path not in execution.ADDED_TEST_FILES:
+            if protected and path not in execution.ADDED_TEST_FILES | RECOVERY_TEST_FILES:
                 count += path.endswith('_test.go')
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)

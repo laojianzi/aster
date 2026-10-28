@@ -75,6 +75,12 @@ func (j *HelmUninstallJournal) recoverIdentified(id string, archived bool) (*Hel
 	if s.Version == 2 || s.Install != nil {
 		return nil, helmjournal.ErrInvalid
 	}
+	return helmUninstallRecoveryFromSnapshot(s, identity, archived), err
+}
+
+// The mixed-version inventory dispatches one checked load. Keep the original
+// v1 projection shared with its existing version-specific accessors.
+func helmUninstallRecoveryFromSnapshot(s helmjournal.Snapshot, identity *helmjournal.HistoryIdentity, archived bool) *HelmUninstallRecovery {
 	r := &HelmUninstallRecovery{id: s.ID, preparationID: s.Plan.PreparationID,
 		namespace: s.Plan.Namespace, binding: s.Plan.Binding, digest: s.Digest,
 		revision: s.Plan.Revision, targets: append([]helmrelease.UninstallTarget(nil), s.Plan.Targets...),
@@ -91,7 +97,7 @@ func (j *HelmUninstallJournal) recoverIdentified(id string, archived bool) (*Hel
 		// checked per-effect prefix without inventing a clean final outcome.
 		r.outcome = HelmExecutionUnknown
 	}
-	return r, err
+	return r
 }
 
 func (r *HelmUninstallRecovery) ID() string {

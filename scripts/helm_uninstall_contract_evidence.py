@@ -10,6 +10,7 @@ from helm_install_evidence import INSTALL_REQUIRED
 from helm_install_dry_run_evidence import INSTALL_DRY_RUN_REQUIRED
 from helm_install_journal_evidence import INSTALL_JOURNAL_REQUIRED
 from helm_install_execution_evidence import INSTALL_EXECUTION_REQUIRED
+from helm_install_recovery_evidence import INSTALL_RECOVERY_REQUIRED
 
 REQUIRED = {
     'unit-native': (
@@ -727,7 +728,7 @@ JOURNAL_ARCHIVE_REQUIRED = {'unit-native': ARCHIVE_REQUIRED}
 
 
 def required(suite):
-    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ()), *JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *JOURNAL_ARCHIVE_REQUIRED.get(suite, ()), *INSTALL_REQUIRED.get(suite, ()), *INSTALL_DRY_RUN_REQUIRED.get(suite, ()), *INSTALL_JOURNAL_REQUIRED.get(suite, ()), *INSTALL_EXECUTION_REQUIRED.get(suite, ())])
+    return required_for_suite(suite, [*REQUIRED[suite], *STATUS_TRANSITION_REQUIRED.get(suite, ()), *UNINSTALL_PREPARATION_REQUIRED.get(suite, ()), *UNINSTALL_DRY_RUN_REQUIRED.get(suite, ()), *UNINSTALL_EXECUTION_REQUIRED.get(suite, ()), *UNINSTALL_RECOVERY_REQUIRED.get(suite, ()), *JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *JOURNAL_ARCHIVE_REQUIRED.get(suite, ()), *INSTALL_REQUIRED.get(suite, ()), *INSTALL_DRY_RUN_REQUIRED.get(suite, ()), *INSTALL_JOURNAL_REQUIRED.get(suite, ()), *INSTALL_EXECUTION_REQUIRED.get(suite, ()), *INSTALL_RECOVERY_REQUIRED.get(suite, ())])
 
 def main():
     parser = argparse.ArgumentParser()

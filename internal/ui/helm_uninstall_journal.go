@@ -23,9 +23,10 @@ func defaultHelmJournalPath() (string, error) {
 }
 
 type helmJournalEntry struct {
-	id       string
-	recovery *kube.HelmUninstallRecovery
-	err      error
+	id              string
+	recovery        *kube.HelmUninstallRecovery
+	installRecovery *kube.HelmInstallRecovery
+	err             error
 }
 
 // Disk work belongs to a worker, including opening and closing the OS lock.
@@ -66,20 +67,14 @@ func loadHelmJournalHistory(ctx context.Context, path string) (entries []helmJou
 			if err = ctx.Err(); err != nil {
 				return nil, err
 			}
-			var recovery *kube.HelmUninstallRecovery
-			var readErr error
-			if group == 0 {
-				recovery, readErr = journal.Recover(id)
-			} else {
-				recovery, readErr = journal.RecoverArchived(id)
-			}
+			recovery, readErr := journal.RecoverHistory(id, group != 0)
 			if readErr != nil && !errors.Is(readErr, helmjournal.ErrCorrupt) {
 				return nil, readErr
 			}
-			if recovery == nil {
+			if recovery == nil || recovery.Uninstall() == nil && recovery.Install() == nil {
 				return nil, helmjournal.ErrUnavailable
 			}
-			entries = append(entries, helmJournalEntry{id: id, recovery: recovery, err: readErr})
+			entries = append(entries, helmJournalEntry{id: id, recovery: recovery.Uninstall(), installRecovery: recovery.Install(), err: readErr})
 		}
 	}
 	if err = ctx.Err(); err != nil {

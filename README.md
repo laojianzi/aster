@@ -193,16 +193,27 @@ preparation ([#103/#104](https://github.com/laojianzi/aster/pull/104)), separate
 authorized server dry-run ([#105/#106](https://github.com/laojianzi/aster/pull/106)),
 and the shared version-2 write-ahead journal with inert recovery
 ([#107/#108](https://github.com/laojianzi/aster/pull/108)).
-[Issue #109 / PR #110](https://github.com/laojianzi/aster/pull/110) tracks the
-independently authorized persistent executor and its acceptance records.
+[Issue #109 / PR #110](https://github.com/laojianzi/aster/issues/109#issuecomment-6460505239)
+completed the independently authorized persistent executor and its acceptance records.
 It preserves frozen inputs, original deadlines, intent-before-dispatch,
 strict responses, separate observations and partial/Unknown results.
 The restricted profile is a new revision-1 release with 1–32 ConfigMaps.
 Inputs proven unable to fit the unchanged time, rate or payload budgets are
 refused before any execution request or WAL; the profile maximum does not
 guarantee completion with the default connection budget.
-Native install controls remain disabled. Upgrade, rollback and GitOps are
-separate remaining goals. See [the execution contract](docs/helm-install-execution.md).
+The shared offline history now presents both uninstall v1 and install v2 records,
+including archived history. Install history has a separate explicit confirmation
+for bounded current metadata GETs. It does not require a currently selected Helm
+revision or reuse the expired execution confirmation. Current identities and
+historical results stay separate: a present name without a recorded UID remains
+unattributed, and later GETs cannot resolve Unknown or authorize another write.
+Reload may initialize the private directory and lock; it never creates or repairs
+a WAL and never contacts Kubernetes automatically.
+
+Native install execution controls remain disabled. Upgrade, rollback and GitOps
+are separate remaining goals. See [the execution contract](docs/helm-install-execution.md),
+[read-only recovery](docs/helm-install-recovery.md), and the independent acceptance
+record for [Issue #111](https://github.com/laojianzi/aster/issues/111).
 
 ## Reviewed issuer sign-out
 

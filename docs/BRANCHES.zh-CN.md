@@ -2,30 +2,31 @@
 
 ## 最近接续入口与唯一退役范围 — 2026-10-28
 
-本次基线为已验收 `main b8c69749c60417df877b277ee83713e5684694a2`，
-tree `f8f1479331f1e543c4b4ca7842312fbc1ba710f0`。
-[#107/#108 完成收据](https://github.com/laojianzi/aster/issues/107#issuecomment-6433363807)
-记录 v2 安装 WAL 的独立 PR/main 资格、实际分支退役和完整历史恢复。
-#96/#97、#99/#100、#101/#102、#103/#104、#105/#106 均已完成，不重建历史范围。
+本次基线为已验收 `main c178e3fbadd5f8e0688d0a4350baebd416d3dc81`，
+tree `9e2f18523f57489a9850b720e306616222301122`。
+[#109/#110 完成收据](https://github.com/laojianzi/aster/issues/109#issuecomment-6460505239)
+记录后台受限安装的独立 PR/main 资格、实际分支退役和完整历史恢复。
+#96/#97、#99/#100、#101/#102、#103/#104、#105/#106、#107/#108 均已完成，不重建历史范围。
 
-入场全量盘点为 68 个 PR（66 merged、仅 #2 closed/unmerged、#110 draft/open），
-42 个实际 Issues（#11、#13、#109 open），main 和 `feat/helm-install-execution` 两个分支，
-44 个恢复 tags，0 releases。唯一 feature 入场 head 为
-`7e7d91bb16c83e090668901dfeedbea781374cb6`；已有
-[PR #110](https://github.com/laojianzi/aster/pull/110) 对应
-[Issue #109](https://github.com/laojianzi/aster/issues/109)，继续同一分支，不另开实现。
+入场全量盘点为 68 个 PR（67 merged、仅 #2 closed/unmerged、0 open），
+42 个实际 Issues（40 closed、仅 #11/#13 open），仅 main、45 个恢复 tags、0 releases。
+因此只创建 [Issue #111](https://github.com/laojianzi/aster/issues/111) 和
+`feat/helm-install-recovery`，准确从上述 main 起步，接续 v2 历史新授权只读核对及
+混合 v1/v2 原生浏览；没有重复实现或重复 PR。实际创建唯一 [PR #114](https://github.com/laojianzi/aster/pull/114)
+后登记 `APPROVED[114] = 'feat/helm-install-recovery'`；专属回归拒绝 Issue #111
+与前次 PR #110 代替新 PR。
 
-本次登记 `APPROVED[110] = 'feat/helm-install-execution'`，保留所有旧登记、四组实际
-main 门槛以及依赖范围第五门槛。专属回归拒绝把 Issue #109 或旧 PR #108 作为退役对象，
-并覆盖活动 head/base PR、移动或保护分支、错误仓库/merge、不可达历史和过期/失败 gate。
-仅在最终候选审查、精确合并、实际新 main 四组资格、准确 tip 与完整历史可达性均成立后，
-既有工作流才可先打包全部历史，再以精确 lease 原子建立 receipt tag 并删除准确分支。
-原始 bundle 还需在独立空仓库离线恢复并核验 strict fsck 和所有旧 tag 映射。
+保留所有旧 APPROVED 登记、四组实际 main 门槛以及依赖范围第五门槛。
+新范围同样检查活动 head/base PR、移动/保护分支、错误仓库/merge、不可达历史与
+过期/失败 gate。精确合并后，实际新 main 四组 workflow gate 成功且准确 tip、
+保护状态和完整历史可达性成立，既有工作流即可自动打包全部历史，以精确 lease
+原子建立 receipt tag 并删除准确分支；这可能早于离线原件和截图审查完成。
+真实 bundle 需在独立空仓库离线恢复，strict fsck 和入场 45 个 tag 映射全部通过。
 
-入场状态是历史快照，不预先声称 #110 已合并、#109 已关闭或本次退役成功。实际结果、
-自动退役与独立原件审查的真实先后顺序写入 #109 和
-[#13](https://github.com/laojianzi/aster/issues/13)；不复制旧完成收据作新资格。
-#11 有四项独立依赖待审，面板和总进度 Issue 均保持开放；恢复 tags 不是待开发分支。
+本文件不预先声称 #111 已关闭或本次退役成功；实际结果、自动退役与独立原件审查
+的真实顺序写入 #111 和 [#13](https://github.com/laojianzi/aster/issues/13)。
+不复制前次完成收据作新资格，不重建已删分支制造第二次退役证明。
+#11 四项依赖分别待审，面板和总进度 Issue 均保持开放；恢复 tags 不是待开发分支。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 
