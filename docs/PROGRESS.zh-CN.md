@@ -15,7 +15,8 @@ attempt 1、Migration attempt 2；Windows 首次捕获失败完整保留，原�
 [项目结项记录](https://github.com/laojianzi/aster/issues/13#issuecomment-6464361295)保存准确边界和时间线。
 
 2026-10-28 08:35:57 UTC 入场重新核对：一个远端 main、47 tags、0 open PR、8 open Issues。
-接续仅创建 [#123](https://github.com/laojianzi/aster/issues/123) / `feat/native-helm-install`，
+接续仅创建 [#123](https://github.com/laojianzi/aster/issues/123) / `feat/native-helm-install`；
+[草稿 PR #124](https://github.com/laojianzi/aster/pull/124) 于 09:25:57 UTC 实际创建，
 复用 capture、GET 准备、server dry-run、v2 WAL、持久执行及混合历史/新授权只读恢复后端。
 最小产品范围是 revision-1、同 namespace、1–32 个普通 ConfigMap；独立可信捕获、GET、
 dry-run 和精确 release 名加独立执行确认，各阶段均需主动同意，不自动写入。
@@ -27,8 +28,16 @@ dry-run 和精确 release 名加独立执行确认，各阶段均需主动同意
 
 本 scope 追加原生及真实集群接线证据，并冻结本基线 263 个旧 Go 测试文件、278 个受保护
 路径的真实字节/mode/path；仅把旧入口禁令迁移为精确获准调用位置，全部原 inventory 和历史哈希保留。
-九个 workflows、工具 pins、5 分钟整包和 20 分钟 job 预算不变。最终资格及退役恢复以
-#123 对应的实际 PR/main 收据为准，本段不是已完成或发布声明。
+九个 workflows、工具 pins、5 分钟整包和 20 分钟 job 预算不变。
+
+本地完整 Python gate 264 项通过，最终 E2E 源仅编译通过，未在本机运行真实集群。
+第一轮完整 UI race 在 300.042 秒中止，并暴露新增入口挤压旧 1.5 倍字号预览的回归；
+入口现仅在未选 revision 的列表占用额外行，进入检查/预览后恢复原父布局。
+修复后原 522 个具名用例全部通过，但整包仍在 300.056 秒超时；新增 42 名中
+32 run、27 pass，其余未完成，不能把该流记为通过。新增测试集中运行并分别串行化
+真实 capture 和 renderer，保留原候选期限、独立授权、全部旧测试及包级预算。
+上述失败原件和较早夹具失败均保留在 PR 记录中；最终资格及退役恢复以 #124 的准确
+最终 PR/实际 main 收据为准。本段不是已完成或发布声明。
 
 P2 #118 底栏、#119 顶部布局、#113 字号缩放、#115 OIDC issuer readiness；P3 #116 到期
 文案、#120 表单标签；#11 依赖及其余 MVP/发行验收仍独立开放。企业权威仍延后 P3。
