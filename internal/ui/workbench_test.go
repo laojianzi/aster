@@ -61,7 +61,8 @@ func saveNativeScreenshot(t *testing.T, tt *ui.Tester) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = png.Encode(f, tt.Image()); err != nil {
+	encoder := png.Encoder{CompressionLevel: png.BestSpeed}
+	if err = encoder.Encode(f, tt.Image()); err != nil {
 		f.Close()
 		t.Fatal(err)
 	}

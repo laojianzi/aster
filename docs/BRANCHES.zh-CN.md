@@ -1,6 +1,32 @@
 # 分支与 PR 接续台账
 
-## 最近接续入口与唯一退役范围 — 2026-10-28
+## 当前保留分支与维护接续 — 2026-10-28
+
+最后独立验收基线为 cb1；当前 main 是 54af，其终端准备修复已合并，但完整 CI 两次
+触发 UI 包五分钟超时，未获得完整主干资格。#112 仍开放；新独立 P1
+[#121](https://github.com/laojianzi/aster/issues/121) 处理测量支持的截图证据成本。
+
+06:23 UTC 的原 API 确认远端只有 main@54af 与未保护的
+fix/terminal-preparation-tmpdir@`0294ca564c958f18bab2a94c9ed860e0d1768fb8`，
+无 completed-pr-117。#111/PR #114 已真实退役并恢复验证，旧 46 个恢复 tags 保留。
+这是入场快照，不作为后续状态承诺；原始记录在 #121/#112，最新状态以 #13 为准。
+
+沿用 [#81→#83 的维护接续规则](branch-retirement-outcomes.md#continuation-from-the-helm-contract-work)：
+新维护 PR 复用这个保留分支，以准确旧 tip lease 快进到基于当前 main 的候选。
+PR 创建前不预填编号；只把实际新 PR 登记到同一分支，不改变旧117登记或原守卫。
+不新建重复远端分支，不把旧失败 main 改称通过，不制造 completed-pr-117。
+
+维护 PR 必须取得自身最终 PR 与实际新 main 的完整四组门槛和独立新原件。
+原脚本仍只处理 merge 等于准确当前 main 的已登记 PR；完整历史 bundle 在原子写入前
+生成，精确 branch tip 与不存在的 receipt 都保持 lease。新 receipt 仅属于新维护 PR。
+实际 applied 原件到达后，再在新空 bare 仓库离线恢复全部 refs、commits 和 objects，
+保留全部旧46标签，并验证117原tip及两次失败main的完整可达性。
+
+新恢复计划必须分别记录 last-qualified cb1/46tags 与实际 integration base 54af，
+检查新 merge 的有序 parents，而不重写此前未执行的117恢复计划。#112和#121均在
+该完整接续闭环后显式完成。更早文档段落与收据继续作为当时历史，不据此重复开发。
+
+## #112 / PR #117 入场分支记录 — 2026-10-28
 
 本次实际基线 `main cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`，
 tree `f1820dc68aba7f4f4c0aef700e449fd3afad76cd`，来自已合并的

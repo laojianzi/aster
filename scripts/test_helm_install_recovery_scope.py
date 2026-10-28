@@ -6,6 +6,7 @@ import re
 import subprocess
 import tempfile
 import unittest
+from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_encoder
 
 import helm_install_recovery_evidence as recovery
 import helm_uninstall_contract_evidence as contract
@@ -144,7 +145,10 @@ class InstallRecoveryScopeTests(unittest.TestCase):
                          or path.startswith('third_party/native-terminal/'))
             if protected and path not in recovery.ADDED_TEST_FILES:
                 test_count += path.endswith('_test.go')
-                digest = hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+                data = (ROOT / path).read_bytes()
+                if path == SCREENSHOT_TEST:
+                    data = restore_screenshot_encoder(data)
+                digest = hashlib.sha256(data).hexdigest()
                 rows.append(path + '\0' + mode + '\0' + digest)
         self.assertTrue(recovery.ADDED_TEST_FILES <= tracked)
         self.assertEqual(test_count, FROZEN_TEST_COUNT)

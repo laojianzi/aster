@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_encoder
 
 import helm_install_execution_evidence as execution
 from helm_install_recovery_evidence import ADDED_TEST_FILES as RECOVERY_TEST_FILES
@@ -57,7 +58,10 @@ class InstallExecutionScopeTests(unittest.TestCase):
                          or path in ('go.mod','go.sum') or path.startswith('third_party/native-terminal/'))
             if protected and path not in execution.ADDED_TEST_FILES | RECOVERY_TEST_FILES:
                 count += path.endswith('_test.go')
-                rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
+                data=(ROOT/path).read_bytes()
+                if path == SCREENSHOT_TEST:
+                    data=restore_screenshot_encoder(data)
+                rows.append(path+'\0'+mode+'\0'+hashlib.sha256(data).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
