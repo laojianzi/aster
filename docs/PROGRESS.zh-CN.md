@@ -1,6 +1,42 @@
 # Aster 实施状态
 
-## 最近接续基线与验收入口 — 2026-10-28
+## 当前接续：#121 修复主干验证阻断 — 2026-10-28
+
+最后完成独立验收的基线是 `cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`；
+[#111/#114 最终收据](https://github.com/laojianzi/aster/issues/111#issuecomment-6461462336)
+包含真实主干原件、实际退役和完整 bundle 恢复，#111 已 completed。
+
+当前集成基线为 `54af1534cbbb0b31306093c82380bedb282f100c`。#112/PR #117
+的终端准备修复已经合并，默认入口在内外 TMPDIR 的 prepare/build 均通过，33 个生成
+文件与 CI source 原件逐字节一致；但实际主干 CI 两次触发 UI 整包五分钟超时。
+因此 54af 不是已通过全部门槛的基线，#112 继续开放；不生成 completed-pr-117 收据。
+
+唯一当前实施的 P1 范围是 [#121](https://github.com/laojianzi/aster/issues/121)，针对已测量的无损
+截图编码成本做窄修复。候选仅把 saveNativeScreenshot 的默认 PNG 压缩改为 BestSpeed；
+生产代码、全部旧测试断言、图片范围、同步写入/关闭错误、race/shuffle、五分钟包期限
+和二十分钟 job 预算保持。六帧局部编码测量不能代替完整包或主干资格；完整 UI 基线/
+候选使用同一失败 seed 顺序测量，最终结果与原件以 #121 的收据为准。
+历史 scope 哈希保护只允许精确逆变换恢复原 helper 字节及原聚合哈希，不豁免整文件。
+
+本机同 seed 的完整 Go-only UI race A/B 已通过：两轮各 522 个具名 run/pass、209 个
+顶层测试和 143 张图；package Elapsed 为 285.401→260.207 秒（减少 8.83%），五分钟
+余量 14.599→39.793 秒。该单机单次结果不是跨 runner 保证，也没有在本机重现超时。
+全部143个不透明冻结帧的133,202,400像素及alpha重编码一致；跨执行112张同像素、
+31张差异原件保留，不称全部跨跑图相同。最终PR/新main仍须独立完整验收。
+
+维护接续 [PR #122](https://github.com/laojianzi/aster/pull/122) 于 06:39 UTC 实际创建，
+复用已保留的 fix/terminal-preparation-tmpdir 分支，沿用 #81→#83 先例，
+避免新建同类远端分支。仅在创建后登记实际编号 122；它须完成自身最终 PR 与实际
+新 main 四组门槛、新原件和真实退役恢复，旧 #117 两次失败原件保持历史事实。
+恢复核验必须区分 last-qualified cb1/46 tags 与实际集成父提交 54af，不能把后者改称
+已验收基线。完成该接续后才显式完成 #121/#112；不重复实现终端准备或安装恢复。
+
+其后按 [#13 原生首次安装 UI 计划](https://github.com/laojianzi/aster/issues/13#issuecomment-6462109098)
+复用已有 capture/prepare/preflight/WAL/执行/恢复。P2 #118 底栏、#119 顶部布局、
+#113 实际字号缩放和 #115 OIDC issuer readiness 均独立保留；P3 #116 到期文案、
+#120 表单标签/端口说明、#11 依赖以及其余 MVP/发行验收继续开放。企业权威仍延后 P3。
+
+## #112 / PR #117 入场记录 — 2026-10-28
 
 **本次基于实际 main `cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`，Go 1.27.3、MyGo v0.5.5。**
 [#111 / PR #114](https://github.com/laojianzi/aster/pull/114) 的安装恢复实现已合并；

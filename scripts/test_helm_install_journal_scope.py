@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_encoder
 
 import helm_install_journal_evidence as install
 import helm_journal_evidence as journal
@@ -95,6 +96,8 @@ class InstallJournalScopeTests(unittest.TestCase):
                 data=(ROOT/path).read_bytes()
                 if path == DRY_RUN_FIXTURE:
                     data=restore_fixture_hook(data)
+                if path == SCREENSHOT_TEST:
+                    data=restore_screenshot_encoder(data)
                 digest=hashlib.sha256(data).hexdigest()
                 rows.append(path+'\0'+mode+'\0'+digest)
         self.assertTrue(added <= tracked)
