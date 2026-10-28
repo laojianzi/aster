@@ -12,8 +12,9 @@ tree `f1820dc68aba7f4f4c0aef700e449fd3afad76cd`，来自已合并的
 47 个实际 Issues（40 closed、#11/#13/#111/#112/#113/#115/#116 open），main 与待退役
 `feat/helm-install-recovery` 两个远端分支、45 个恢复 tags、0 releases。
 只接续用户新报的 [#112](https://github.com/laojianzi/aster/issues/112)，使用唯一
-`fix/terminal-preparation-tmpdir`；与 #111 分支无重叠实现。准确 PR 编号在实际创建后登记，
-不猜号，不用 Issue #112 或前一 PR #114 代替新 PR。
+`fix/terminal-preparation-tmpdir` / [PR #117](https://github.com/laojianzi/aster/pull/117)；
+与 #111 分支无重叠实现。PR #117 于 05:17 UTC 实际创建后才登记，新增回归拒绝
+Issue #112、前一 PR #114、活动/移动/受保护分支和不完整主干门槛。
 
 保留全部旧 APPROVED、四组 exact-main 门槛、依赖范围第五门槛及所有九个 workflow。
 新修复仍要求最终精确 PR/实际 main 各自原件；准确 tip、仓库、merge、保护状态、

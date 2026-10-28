@@ -12,12 +12,14 @@
 和 #111/#114 恢复均直接复用，不新建同类分支。原生 install 执行控件仍未启用。
 
 **本次唯一修复范围为已有 [#112](https://github.com/laojianzi/aster/issues/112) /
+[PR #117](https://github.com/laojianzi/aster/pull/117) /
 `fix/terminal-preparation-tmpdir`。** 用户在同一工作期间报告了实际构建阻断；不重复创建
 Issue，不混入安装恢复。2026-10-28 05:13 UTC 入场快照为 47 个实际 Issues
 （40 closed，#11/#13/#111/#112/#113/#115/#116 open）、69 个 PR
 （68 merged、#2 closed/unmerged、0 open）、main 和待退役恢复分支两个远端分支、
 45 个恢复 tags、0 releases。独立修复分支由上述 actual main 起步；这是当时快照，
-不是后续状态承诺。准确 PR 编号只在实际创建后登记。
+不是后续状态承诺。PR #117 于 05:17 UTC 实际创建后才登记；只批准该 PR 的准确分支，
+新增退役回归拒绝 Issue #112、前一 PR #114、活动/移动/受保护分支和不完整主干门槛。
 
 真实 A/B 已复现：同一组 31 个固定上游文件和原补丁，在仓库外实际应用六个补丁；
 仓库内 TMPDIR 的 Git check/apply 却退出 0、六项全 Skipped。真实 dev.py prepare
