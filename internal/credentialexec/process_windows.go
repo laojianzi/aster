@@ -13,48 +13,82 @@ import (
 // Start suspended, assign to a kill-on-close Job Object, then resume the sole
 // initial thread. No plugin instruction can run before the job is assigned.
 func startProcess(ctx context.Context, cmd *exec.Cmd) (func(), func(), error) {
+	return startProcessWithDiagnostics(ctx, cmd, nil)
+}
+
+func startProcessWithDiagnostics(ctx context.Context, cmd *exec.Cmd, trace *helperTrace) (func(), func(), error) {
+	started := trace.begin()
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
+		trace.recordError(helperJobSetup, started, err)
 		return nil, nil, err
+	}
+	release := func() {
+		started := trace.begin()
+		err := windows.CloseHandle(job)
+		trace.recordError(helperRelease, started, err)
 	}
 	info := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{}
 	info.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | windows.JOB_OBJECT_LIMIT_ACTIVE_PROCESS
 	info.BasicLimitInformation.ActiveProcessLimit = 32
 	if _, err = windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info))); err != nil {
-		windows.CloseHandle(job)
+		trace.recordError(helperJobSetup, started, err)
+		release()
 		return nil, nil, err
 	}
+	trace.recordError(helperJobSetup, started, nil)
 	if err = ctx.Err(); err != nil {
-		windows.CloseHandle(job)
+		release()
 		return nil, nil, err
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_SUSPENDED, HideWindow: true}
-	if err = cmd.Start(); err != nil {
-		windows.CloseHandle(job)
+	started = trace.begin()
+	err = cmd.Start()
+	trace.recordError(helperStart, started, err)
+	if err != nil {
+		release()
 		return nil, nil, err
 	}
 	abort := func(e error) (func(), func(), error) {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-		windows.CloseHandle(job)
+		started := trace.begin()
+		killErr := cmd.Process.Kill()
+		waitErr := cmd.Wait()
+		// This join belongs to failed-start reclamation, not the normal wait
+		// stage. It must not replace the failure that required reclamation.
+		if killErr != nil {
+			trace.recordError(helperReclaim, started, killErr)
+		} else {
+			trace.recordError(helperReclaim, started, waitErr)
+		}
+		release()
 		return nil, nil, e
 	}
+	started = trace.begin()
 	process, err := windows.OpenProcess(windows.PROCESS_SET_QUOTA|windows.PROCESS_TERMINATE, false, uint32(cmd.Process.Pid))
 	if err != nil {
+		trace.recordError(helperAssign, started, err)
 		return abort(err)
 	}
 	err = windows.AssignProcessToJobObject(job, process)
 	windows.CloseHandle(process)
+	trace.recordError(helperAssign, started, err)
 	if err != nil {
 		return abort(err)
 	}
 	if err = ctx.Err(); err != nil {
 		return abort(err)
 	}
-	if err = resumeInitialThread(uint32(cmd.Process.Pid)); err != nil {
+	started = trace.begin()
+	err = resumeInitialThread(uint32(cmd.Process.Pid))
+	trace.recordError(helperResume, started, err)
+	if err != nil {
 		return abort(err)
 	}
-	return func() { _ = windows.TerminateJobObject(job, 1) }, func() { _ = windows.CloseHandle(job) }, nil
+	return func() {
+		started := trace.begin()
+		err := windows.TerminateJobObject(job, 1)
+		trace.recordError(helperReclaim, started, err)
+	}, release, nil
 }
 func resumeInitialThread(pid uint32) error {
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPTHREAD, 0)

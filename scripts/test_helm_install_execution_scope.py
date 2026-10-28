@@ -9,8 +9,10 @@ from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_encoder
 
 import helm_install_execution_evidence as execution
 from helm_install_recovery_evidence import ADDED_TEST_FILES as RECOVERY_TEST_FILES
+from helm_native_install_evidence import ADDED_TEST_FILES as NATIVE_INSTALL_TEST_FILES
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,7 +58,7 @@ class InstallExecutionScopeTests(unittest.TestCase):
             self.assertEqual(stage, '0')
             protected = (path.endswith('_test.go') or path.startswith('.github/workflows/')
                          or path in ('go.mod','go.sum') or path.startswith('third_party/native-terminal/'))
-            if protected and path not in execution.ADDED_TEST_FILES | RECOVERY_TEST_FILES:
+            if protected and path not in execution.ADDED_TEST_FILES | RECOVERY_TEST_FILES | NATIVE_INSTALL_TEST_FILES:
                 count += path.endswith('_test.go')
                 data=(ROOT/path).read_bytes()
                 if path == SCREENSHOT_TEST:
@@ -67,11 +69,9 @@ class InstallExecutionScopeTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
                          '261f30e834d8aa7b6262e892c43bccfae87103bc41530fce8951dfcf1d62d78b')
 
-    def test_native_controls_remain_disabled_and_store_reused(self):
-        for p in (ROOT/'internal/ui').glob('*.go'):
-            if not p.name.endswith('_test.go'):
-                self.assertNotIn('ExecuteHelmInstall(',p.read_text())
-                self.assertNotIn('AcknowledgeHelmInstallExecution(',p.read_text())
+    def test_exact_native_execution_consumers_and_store_reused(self):
+        for name in ('ExecuteHelmInstall', 'AcknowledgeHelmInstallExecution'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
         src = (ROOT/'internal/kube/helm_install_execution.go').read_text()
         for token in ('s.store.BeginInstall(p)', 'origin.executionMinted = true',
                       'origin.preparation.ExpiresAt()', 'writer.Finish('):

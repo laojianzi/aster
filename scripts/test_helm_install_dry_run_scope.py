@@ -7,6 +7,7 @@ import helm_install_dry_run_evidence as dry
 import helm_install_evidence as preparation
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,13 +39,12 @@ class InstallDryRunScopeTests(unittest.TestCase):
                         path.write_text(''.join(json.dumps(e)+'\n' for e in events))
                         self.assertEqual(evidence.summarize(path,list(names),suite)['valid'],mode=='pass')
 
-    def test_no_execution_or_native_activation(self):
+    def test_no_execution_and_exact_native_preflight_consumer(self):
         code=(ROOT/'internal/kube/helm_install_dry_run.go').read_text()
         for forbidden in ('BuildInstallDeployedPatch(', 'store.Begin(', 'exec.Command', '.Create(', '.Patch(', '.Delete('):
             self.assertNotIn(forbidden,code)
-        for p in (ROOT/'internal/ui').glob('*.go'):
-            if not p.name.endswith('_test.go'):
-                self.assertNotIn('PreflightHelmInstall(',p.read_text())
+        for name in ('AcknowledgeHelmInstallDryRun', 'PreflightHelmInstall'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
         transport=(ROOT/'internal/kube/helm_install_dry_run_transport.go').read_text()
         for exact in ('http.MethodPost', 'q.Set("dryRun", "All")', 'q.Set("fieldValidation", "Strict")',
                       'helmrelease.InstallFieldManager', 'req.GetBody = nil', 'b.config.RateLimiter.Wait(ctx)'):

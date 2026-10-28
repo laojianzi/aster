@@ -108,6 +108,26 @@ func approved() (distribution, string, bool) {
 }
 
 func Render(parent context.Context, request Request) (*Result, error) {
+	return render(parent, request, nil)
+}
+
+// RenderWithDiagnostics performs the same one render as Render and returns an
+// immutable, bounded timing/classification record for that exact invocation.
+// No input, renderer output or operating-system error text enters the record.
+func RenderWithDiagnostics(parent context.Context, request Request) (*Result, Diagnostics, error) {
+	trace := newRenderTrace()
+	result, err := render(parent, request, trace)
+	return result, trace.snapshot(), err
+}
+
+func render(parent context.Context, request Request, trace *renderTrace) (result *Result, renderErr error) {
+	trace.begin(StageRequest)
+	if trace != nil {
+		defer func() {
+			trace.finishPrimary(renderErr)
+			trace.observeParentIfNeeded(parent)
+		}()
+	}
 	if parent == nil {
 		return nil, ErrInput
 	}
@@ -125,10 +145,15 @@ func Render(parent context.Context, request Request) (*Result, error) {
 	defer func() { <-admission }()
 	ctx, cancel := context.WithTimeout(parent, Timeout)
 	defer cancel()
+	if trace != nil {
+		// Capture the real context states after cleanup but before our own cancel.
+		defer func() { trace.observeContexts(parent, ctx) }()
+	}
 	d, version, ok := approved()
 	if !ok {
 		return nil, ErrDistribution
 	}
+	trace.begin(StageInputSnapshot)
 	chart, err := readLocal(ctx, request.ChartArchive, MaxChartArchive)
 	if err != nil {
 		return nil, ErrInput
@@ -144,6 +169,7 @@ func Render(parent context.Context, request Request) (*Result, error) {
 			return nil, ErrInput
 		}
 	}
+	trace.begin(StageArchiveReadHash)
 	archive, err := readLocal(ctx, request.HelmArchive, MaxDistributionBytes)
 	if err != nil {
 		return nil, ErrDistribution
@@ -152,15 +178,27 @@ func Render(parent context.Context, request Request) (*Result, error) {
 	if hex.EncodeToString(digest[:]) != d.SHA256 {
 		return nil, ErrDistribution
 	}
+	trace.begin(StageTempDir)
 	root, err := os.MkdirTemp("", "aster-helm-")
 	if err != nil {
 		return nil, ErrRender
 	}
-	defer os.RemoveAll(root)
+	defer func() {
+		if trace == nil {
+			_ = os.RemoveAll(root)
+			return
+		}
+		trace.finishPrimary(renderErr)
+		started := time.Now()
+		cleanupErr := os.RemoveAll(root)
+		trace.recordCleanup(started, cleanupErr != nil)
+	}()
+	trace.begin(StageUnpackExecutable)
 	executable, err := unpackExecutable(ctx, archive, d.File, root)
 	if err != nil {
 		return nil, ErrDistribution
 	}
+	trace.begin(StagePrivateEnvironment)
 	chartDir := filepath.Join(root, "chart")
 	for name, data := range files {
 		if err := ctx.Err(); err != nil {
@@ -181,7 +219,14 @@ func Render(parent context.Context, request Request) (*Result, error) {
 	// Preserve ALL rendered objects, including hooks. The existing delivery parser
 	// rejects lifecycle annotations/Secrets/cluster objects; do not silently omit.
 	args := []string{"template", request.Release, chartDir, "--dry-run=client", "--namespace", request.Namespace, "--kube-version", request.KubeVersion, "--values", "-", "--include-crds", "--skip-schema-validation", "--disable-openapi-validation"}
-	output, err := credentialexec.RunRenderHelper(ctx, executable, args, env, root, values)
+	trace.begin(StageHelper)
+	var output []byte
+	if trace == nil {
+		output, err = credentialexec.RunRenderHelper(ctx, executable, args, env, root, values)
+	} else {
+		output, trace.value.helper, err = credentialexec.RunRenderHelperWithDiagnostics(ctx, executable, args, env, root, values)
+		trace.value.helperEntered = true
+	}
 	if err != nil {
 		if parent.Err() != nil {
 			return nil, parent.Err()
@@ -194,6 +239,7 @@ func Render(parent context.Context, request Request) (*Result, error) {
 		}
 		return nil, ErrRender
 	}
+	trace.begin(StageOutputValidation)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

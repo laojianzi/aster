@@ -140,6 +140,7 @@ type Workbench struct {
 	delivery        deliveryState
 	helmReleases    helmReleaseState
 	helmUninstall   helmUninstallState
+	helmInstall     helmInstallState
 	helmJournalPath string
 
 	vaultMutation, vaultUncertain                             bool

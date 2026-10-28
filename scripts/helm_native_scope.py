@@ -1,4 +1,4 @@
-"""Exact native consumers for restricted uninstall and local admission review.
+"""Exact native consumers for restricted install, uninstall and admission review.
 
 This is a source-boundary regression helper, not a substitute for exercising
 the native confirmations, lifecycle cancellation and actual backend requests.
@@ -13,10 +13,17 @@ CALL_SITES = {
     'PreflightHelmUninstall': {'internal/ui/helm_uninstall.go': 1},
     'AcknowledgeHelmUninstallReconciliation': {'internal/ui/helm_uninstall.go': 1},
     'ObserveHelmUninstallRecovery': {'internal/ui/helm_uninstall.go': 1},
-    'OpenHelmUninstallJournal': {'internal/ui/helm_uninstall_journal.go': 2},
+    'OpenHelmUninstallJournal': {'internal/ui/helm_uninstall_journal.go': 2,
+                               'internal/ui/helm_install_journal.go': 1},
     'AcknowledgeHelmUninstallExecution': {'internal/ui/helm_uninstall_journal.go': 1},
     'ExecuteHelmUninstall': {'internal/ui/helm_uninstall_journal.go': 1},
     'ReviewHelmUninstallJournalAdmission': {'internal/ui/helm_admission.go': 1},
+    'CaptureInstall': {'internal/ui/helm_install.go': 1},
+    'PrepareHelmInstall': {'internal/ui/helm_install.go': 1},
+    'AcknowledgeHelmInstallDryRun': {'internal/ui/helm_install.go': 1},
+    'PreflightHelmInstall': {'internal/ui/helm_install.go': 1},
+    'AcknowledgeHelmInstallExecution': {'internal/ui/helm_install_journal.go': 1},
+    'ExecuteHelmInstall': {'internal/ui/helm_install_journal.go': 1},
 }
 
 
