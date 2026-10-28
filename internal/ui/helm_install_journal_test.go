@@ -1,6 +1,7 @@
 package uiworkbench
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -39,10 +40,15 @@ func TestNativeHelmInstallJournalCancellation(t *testing.T) {
 
 func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 	t.Parallel()
-	nativeInstallSerialRenderer(t)
 	in := nativeInstallCapture(t, "team", 1)
 	for _, scenario := range []string{"busy", "unresolved-v1", "unresolved-v2", "capacity"} {
 		t.Run(scenario, func(t *testing.T) {
+			if scenario == "busy" {
+				// Only this child creates a native renderer. Take the gate
+				// before any fixture/context; its earliest Cleanup releases
+				// it after every Store, worker and server has been closed.
+				nativeInstallSerialRenderer(t)
+			}
 			f := newNativeInstallFixture(t)
 			h := newNativeInstallHarness(t, f, false)
 			nativeInstallUseCapture(h, in)
@@ -66,11 +72,8 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 				writeNativeHelmInstallHistory(t, s, plan, helmjournal.Unknown)
 				wantRecords = 1
 			case "capacity":
-				for i := 0; i < helmjournal.MaxRecords; i++ {
-					plan := nativeHelmInstallHistoryPlan("example")
-					plan.Binding = f.binding(t)
-					writeNativeHelmInstallHistory(t, s, plan, helmjournal.NotStarted)
-				}
+				nativeHelmJournalMust(t, s.Close())
+				nativeInstallPopulateCapacity(t, f.path, f.binding(t))
 				wantRecords = helmjournal.MaxRecords
 			}
 			nativeHelmJournalMust(t, s.Close())
@@ -150,4 +153,74 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 			}
 		})
 	}
+}
+
+func nativeInstallPopulateCapacity(t *testing.T, path, binding string) {
+	t.Helper()
+	// Each WAL still comes from the real durable writer. Keep its seed Store
+	// empty between records so fixture construction does not repeatedly load
+	// 0+1+...+127 already verified histories. Move only a finished, closed file
+	// on the same volume, preserving its exact ID, bytes and private mode.
+	seedPath := filepath.Join(filepath.Dir(path), "capacity-seed")
+	originals := make(map[string][]byte, helmjournal.MaxRecords)
+	for i := 0; i < helmjournal.MaxRecords; i++ {
+		seed, err := helmjournal.Open(seedPath)
+		nativeHelmJournalMust(t, err)
+		t.Cleanup(func() { nativeHelmJournalMust(t, seed.Close()) })
+		plan := nativeHelmInstallHistoryPlan("example")
+		plan.Binding = binding
+		id := writeNativeHelmInstallHistory(t, seed, plan, helmjournal.NotStarted)
+		nativeHelmJournalMust(t, seed.Close())
+		if _, duplicate := originals[id]; duplicate {
+			t.Fatal("capacity fixture reused an operation ID")
+		}
+		source, target := filepath.Join(seedPath, id+".wal"), filepath.Join(path, id+".wal")
+		originals[id], err = os.ReadFile(source)
+		nativeHelmJournalMust(t, err)
+		if _, err := os.Stat(target); !os.IsNotExist(err) {
+			t.Fatal("capacity fixture would replace an existing WAL", err)
+		}
+		nativeHelmJournalMust(t, os.Rename(source, target))
+	}
+	verified, err := helmjournal.OpenExisting(path)
+	nativeHelmJournalMust(t, err)
+	t.Cleanup(func() { nativeHelmJournalMust(t, verified.Close()) })
+	ids, err := verified.List()
+	nativeHelmJournalMust(t, err)
+	if len(ids) != helmjournal.MaxRecords {
+		t.Fatal("capacity fixture did not retain all real records", len(ids))
+	}
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		original, found := originals[id]
+		if !found || seen[id] {
+			t.Fatal("capacity fixture changed or duplicated an operation ID")
+		}
+		seen[id] = true
+		stored, err := os.ReadFile(filepath.Join(path, id+".wal"))
+		nativeHelmJournalMust(t, err)
+		if !bytes.Equal(stored, original) {
+			t.Fatal("capacity fixture rewrote a real writer's WAL")
+		}
+		snap, err := verified.Load(id)
+		nativeHelmJournalMust(t, err)
+		if snap.ID != id || snap.Version != 2 || snap.Action != "install" || !snap.Closed || snap.Corrupt ||
+			snap.Integrity != helmjournal.IntegrityValid || snap.Install == nil || snap.Install.Binding != binding ||
+			snap.Install.Namespace != "team" || snap.Install.Release != "example" || len(snap.Effects) != 3 {
+			t.Fatal("capacity fixture lost a complete valid installation history")
+		}
+		for _, effect := range snap.Effects {
+			if effect.Outcome != helmjournal.NotStarted || effect.UID != "" || effect.ObservedResourceVersion != "" {
+				t.Fatal("capacity fixture invented effects or unresolved history")
+			}
+		}
+	}
+	admission, err := verified.ReviewAdmission(context.Background(), helmjournal.AdmissionScope{
+		Binding: binding, Namespace: "team", Release: "example",
+	})
+	if !errors.Is(err, helmjournal.ErrBudget) || admission.Reason != helmjournal.AdmissionRecordLimit ||
+		!admission.InventoryComplete || admission.Records != helmjournal.MaxRecords {
+		t.Fatal("capacity fixture did not establish the exact record-count barrier", admission, err)
+	}
+	nativeHelmJournalMust(t, verified.Close())
 }

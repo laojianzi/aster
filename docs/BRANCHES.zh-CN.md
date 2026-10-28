@@ -14,8 +14,12 @@ PR #122 已完成独立 PR/main 原件验收、真实自动退役及完整离线
 `feat/native-helm-install`，从准确接受 main 开始；已有捕获、准备、dry-run、WAL、执行、
 混合历史与恢复全部复用，不重建其旧分支或重复 PR。
 [草稿 PR #124](https://github.com/laojianzi/aster/pull/124) 于 09:25:57 UTC 实际创建后，
-仅登记 124 → `feat/native-helm-install`，不把 Issue #123 当作 PR，不修改旧 scope。
-本机完整 UI 包仍有原五分钟预算超时，原件公开记录于 PR；当前不具备合并或结项资格。
+仅登记 124 → `feat/native-helm-install`，不把 Issue #123 当作 PR，不修改既有退役 scope。
+本地及正式 a13 的完整 UI 包均达到原五分钟上限，原件记录于 PR；当前不具备合并或结项资格。
+新增夹具优化保留真实 128 条 WAL、全部 42 名、完整字节断言和真实持锁区间。
+为继续解决实际预算阻断，唯一旧测试 helper 例外是 PNG BestSpeed→NoCompression；
+完整文件精确逆变换仍恢复原 263/278 字节聚合和三个历史聚合，不豁免文件/断言/路径/mode。
+全帧像素证明、完整 UI 包及最终 PR/main 资格仍须完成；不重开 #121 或建立重复分支。
 
 保留现有精确 merge、同仓库 head/base、保护状态、活动 PR、可达性与四门检查；
 实际退役仍在生成完整 before.bundle 后使用 branch tip 和空 receipt 的原子双 lease。

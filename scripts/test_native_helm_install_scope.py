@@ -9,6 +9,7 @@ import unittest
 
 import helm_native_install_evidence as install
 from helm_native_scope import CALL_SITES, production_calls
+from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_best_speed
 import helm_uninstall_contract_evidence as contract
 import run_migration_tests as migration
 import test_evidence as evidence
@@ -140,9 +141,12 @@ class NativeHelmInstallScopeTests(unittest.TestCase):
                          or path.startswith('third_party/native-terminal/'))
             if protected and path not in install.ADDED_TEST_FILES:
                 count += path.endswith('_test.go')
-                # This new baseline hashes actual BestSpeed helper bytes. Only
-                # older historical guards apply their precise accepted inverse.
                 data = (ROOT / path).read_bytes()
+                if path == SCREENSHOT_TEST:
+                    # Require only the exact reviewed NoCompression postimage,
+                    # then restore every accepted BestSpeed byte for this
+                    # unchanged 85e9 path/mode/content inventory.
+                    data = restore_screenshot_best_speed(data)
                 rows.append(path + '\0' + mode + '\0' + hashlib.sha256(data).hexdigest())
         self.assertTrue(install.ADDED_TEST_FILES <= tracked)
         self.assertEqual(count, FROZEN_TEST_COUNT)
