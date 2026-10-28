@@ -2,45 +2,48 @@
 
 ## 最近接续基线与验收入口 — 2026-10-28
 
-**接续时已验收 main：`c178e3fbadd5f8e0688d0a4350baebd416d3dc81`，Go 1.27.3、MyGo v0.5.5。**
-[#109/#110 完成记录](https://github.com/laojianzi/aster/issues/109#issuecomment-6460505239)
-及 [#13 接续检查点](https://github.com/laojianzi/aster/issues/13#issuecomment-6460512541)
-记录独立后台受限安装的最终 PR、实际 main、退役与完整历史恢复。
-#96/#97 准入说明、#99/#100 归档核心、#101/#102 原生归档、#103/#104 安装捕获/准备、
-#105/#106 独立 server dry-run、#107/#108 共享安装 WAL 和 #109/#110 后台执行均已完成，直接复用。
+**本次基于实际 main `cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`，Go 1.27.3、MyGo v0.5.5。**
+[#111 / PR #114](https://github.com/laojianzi/aster/pull/114) 的安装恢复实现已合并；
+[最终 PR 原件收据](https://github.com/laojianzi/aster/pull/114#issuecomment-6461159712)
+记录 14 ZIP、28 原始流、17,227 次具名 run/pass、六个完整二进制与独立截图审阅。
+入场时 #111 的实际主干原件和退役/恢复仍在验收；其闭环是本次修复合并的前置条件。
+最终结果见 [#111](https://github.com/laojianzi/aster/issues/111)，不能以 PR 原件替代 main 原件。
+#103/#104 捕获/准备、#105/#106 server dry-run、#107/#108 WAL、#109/#110 后台执行
+和 #111/#114 恢复均直接复用，不新建同类分支。原生 install 执行控件仍未启用。
 
-入场全量盘点为 42 个实际 Issues（40 closed、仅 #11/#13 open）、68 个 PR
-（67 merged、#2 superseded/closed、0 open）、仅 main、45 个恢复 tags、0 releases。
-**本次唯一新增范围是 [#111](https://github.com/laojianzi/aster/issues/111) /
-[PR #114](https://github.com/laojianzi/aster/pull/114) / `feat/helm-install-recovery`：
-v2 安装历史的新授权只读核对及原生展示。**
-创建该 Issue/branch 时有 43 个实际 Issues、两个远端分支；唯一实际 PR #114 已登记。
-这是入场/准入快照，实时结项以实际 Issue/PR 和 [#13 当前检查点](https://github.com/laojianzi/aster/issues/13) 为准。
+**本次唯一修复范围为已有 [#112](https://github.com/laojianzi/aster/issues/112) /
+[PR #117](https://github.com/laojianzi/aster/pull/117) /
+`fix/terminal-preparation-tmpdir`。** 用户在同一工作期间报告了实际构建阻断；不重复创建
+Issue，不混入安装恢复。2026-10-28 05:13 UTC 入场快照为 47 个实际 Issues
+（40 closed，#11/#13/#111/#112/#113/#115/#116 open）、69 个 PR
+（68 merged、#2 closed/unmerged、0 open）、main 和待退役恢复分支两个远端分支、
+45 个恢复 tags、0 releases。独立修复分支由上述 actual main 起步；这是当时快照，
+不是后续状态承诺。PR #117 于 05:17 UTC 实际创建后才登记；只批准该 PR 的准确分支，
+新增退役回归拒绝 Issue #112、前一 PR #114、活动/移动/受保护分支和不完整主干门槛。
 
-已复现共享历史 loader 将合法 v2 交给 v1 Recover，导致四条混合 active/archive 历史
-全部丢失的问题；现使用一次检查加载和明确版本分发，保留既有 v1 API 的类型拒绝。
-安装历史只包含防御性元数据快照，不携带旧执行许可；完整性错误同步反映在只读投影，
-包括被错误移入归档的未决记录。新 GET 同意独立绑定当前 Backend、连接、session、
-namespace 和精确历史实例，可撤销、过期、单次消费，不要求当前选中 Helm revision。
+真实 A/B 已复现：同一组 31 个固定上游文件和原补丁，在仓库外实际应用六个补丁；
+仓库内 TMPDIR 的 Git check/apply 却退出 0、六项全 Skipped。真实 dev.py prepare
+错误报告成功，随后 build 以两个内部包导入错误失败；没有据此声称未加固程序可运行。
+修复隔离 Git 环境、配置、attributes 和祖先仓库发现；发布前逐文件核对六个固定
+postimage、其余 25 个原哈希及完整库存。成功退出不能代替实际加固内容。
 
-观察只读取 namespace、完整有界 release 元数据历史、精确保留 Secret 名和原目标
-ConfigMap 的元数据；前后核对 storage/history 与 namespace UID。历史缺少已接受 UID
-时，同名对象只能显示 unattributed-present；最终 PATCH 的条件 RV 不能充当响应 RV。
-当前事实不改变历史 outcome、WAL、未决准入或归档资格。现有显式 Reload 可初始化
-私有目录与 lock，但不创建/修复 WAL、不自动联网；当前 GET 不重开 Store。
-原生界面复用既有 worker/epoch/session 取消路径，当前观察与历史分开显示。
-详见 [安装恢复契约](helm-install-recovery.md)。桌面 install 执行控件仍未启用。
+新增清单是正式版本化准备输入，receipt 记录其 SHA；最终 source/六平台 provenance
+必须与准确 Git blob 字节核对。原 UPSTREAM、补丁、依赖、九个工作流和旧测试原样保留。
+本地 Linux 已实际运行内外 TMPDIR prepare/build，33 个生成文件、receipt 和二进制一致；
+接续 main 后完整 Python 245 项通过，仍属于未提交候选本地证据。新增九个真实准备
+方法由既有 Linux CI discovery 执行；三系统普通/production 构建和窗口冒烟另行验收，
+不能称为三系统内外 TMPDIR 都完成 A/B。详见 [终端准备说明](terminal.md)。
+补丁/输入/库存失败在发布前拒绝；没有承诺原生库下载等所有阶段的跨目录原子回滚。
 
-本次冻结已有 256 个 Go 测试文件及全部旧 mandatory 名单；271 个源路径的内容/模式
-独立保护，旧预算、依赖和工作流不变。最终候选与实际新 main 的四组门槛、三版本
-真实 Kubernetes、普通/生产原生资格及各自原件都需核验；准确实际 PR 登记、真实
-退役 bundle、独立完整离线恢复和 #13 更新完成后，才显式关闭 #111。
-本文件不预先认定这些结果，也不把旧 #109/#110 原件当成本次验证。
+最终精确 PR、实际新 main 四组门槛与独立原件、实际 PR 的准确退役登记、真实 bundle
+和完整离线恢复仍需完成，再更新 #13、显式关闭 #112。旧开发包是其原提交快照，
+使用修复需要包含修复的新源码并重新构建；本次不发布新 devkit 或 Release。
 
-[#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 仍有 purego v0.11.2、
-MyGo v0.7.1、Node v26、JSON Patch v5 四项独立待审。候选以面板实时数据为准；不批量
-批准、不混入安装恢复范围，也不为清空列表关闭面板。MyGo 源码/原生库组合、purego
-非 CGO 信号路径、CI Node 和 JSON Patch 模块路径迁移分别审查。
+[#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 的四项候选仍独立待审。
+[#113](https://github.com/laojianzi/aster/issues/113) 为 P2 文字缩放，
+[#115](https://github.com/laojianzi/aster/issues/115) 为 P2 OIDC 真集群夹具 issuer 就绪诊断，
+[#116](https://github.com/laojianzi/aster/issues/116) 为 P3 浏览器会话到期提示分类。
+这些是具体未完成问题，不能因旧测试通过而关闭，也不混入当前 P1 构建修复。
 
 ## 已完成、必须复用的能力
 
@@ -68,7 +71,7 @@ MyGo v0.7.1、Node v26、JSON Patch v5 四项独立待审。候选以面板实�
 | 安装 v2 WAL、跨操作共享锁/准入/预算、惰性离线恢复 | #107/#108；日志和恢复不重建执行许可 |
 | 后台独立受限安装、严格响应/独立 GET、写前容量拒绝与 Partial/Unknown | #109/#110；新 revision-1、1–32 ConfigMaps，原期限/预算与 WAL 直接复用 |
 | MyGo v0.4.8/v0.5.1/v0.5.5 来源与运行时、输入/布局/时钟保护 | #58、#74、#75；历史升级不重做 |
-| Go 1.27.3 固定工具链与验收 | #98；与当前安装恢复范围分开 |
+| Go 1.27.3 固定工具链与验收 | #98；与当前终端准备修复分开 |
 
 证据以各自 Issue/PR 为准，不用合并数或绿色 CI 百分比代替 MVP 完成度。
 归档/维护 tags 保存恢复历史，不是待开发分支。已完成分支仅在精确 head、合并/主干
@@ -80,16 +83,10 @@ MyGo v0.7.1、Node v26、JSON Patch v5 四项独立待审。候选以面板实�
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**当前优先产品 P1。** 完成唯一 #111 安装恢复的验证与收尾；直接复用已验收
-#103/#104 捕获/codec/准备、#105/#106 服务器预检、#107/#108 v2 WAL、#109/#110
-后台执行和已有原生卸载。工作期间新增的 [#112](https://github.com/laojianzi/aster/issues/112)
-报告仓库内 TMPDIR 使终端加固补丁静默跳过并阻断构建，应在 #111 收尾后作为独立
-P1 修复，验证真实补丁产物与内外临时目录构建一致，不混入本恢复分支。
-随后新增的 [#113](https://github.com/laojianzi/aster/issues/113) 固定字号/文字缩放
-是独立 P2 可读性问题，保留实际渲染与文本大小验证，不以现有控件边界测试视作完成。
-之后再准入原生 install 工作流，明确新的持久写入确认、
-取消/Unknown 与固定 journal 行为；不能从恢复 GET 隐式授予执行。先读取本次实际
-Issue/PR 状态，不重建恢复分支或后台实现。#11 依赖候选单独审查。
+**当前优先产品 P1。** 完成现有 #112 构建修复，#111/#114 的独立主干验收与退役
+闭环先于本次合并。之后继续原生 install 工作流，复用已有捕获/准备/preflight/WAL/
+后台执行及独立恢复，不从 GET 核对或历史记录授予持久写入权限。
+#113/#115 为独立 P2、#116 为独立 P3；#11 依赖候选分别审查，不批量升级或为清单清零关闭。
 
 **P1 — Helm release / GitOps。** #68/#70/#72 的本地渲染、修订元数据和内容一致性摘要直接复用。
 已完成原生受限卸载、恢复、准入说明以及可保留原始证据的终结记录归档。

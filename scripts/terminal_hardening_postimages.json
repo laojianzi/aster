@@ -1,0 +1,13 @@
+{
+  "module": "github.com/egoist/mygo",
+  "version": "v0.5.5",
+  "patch_sha256": "3b5775c81eabc0671422ebb8fbb141d5827bb8bd6646cebe7bcdb6cc5531abb4",
+  "postimages": {
+    "internal/vt/open_windows.go": "399f06fa33fc27d7da35aaa8d4547f8c8feafed9dc9a5813327964e21690534e",
+    "library.go": "15ecd9dde3ad32757a9793499c0b2f3b3357f6036356cf17058a67757968ff97",
+    "paint.go": "dda8890528bf8bf85c12312948308fdd55081ad589aa11630bd6e6954a3d514b",
+    "paste.go": "6849ae5e4daa3b50499366c8d04161d67a8f7982b6ca6e072f4086f55380dd33",
+    "terminal.go": "10006fd0b48532f98316aa558284f7ae41cf81b7fbf1fa0a5b71fd6155847dd6",
+    "view.go": "b24955649f0602d96fa086d7183ad71a5ab077365572c8d4f9f0166b9c01465c"
+  }
+}
