@@ -18,6 +18,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 META = ROOT / 'third_party/native-terminal'
+HARDENING_POSTIMAGES = Path(__file__).with_name('terminal_hardening_postimages.json')
 DEST = ROOT / 'internal/nativeterm/upstream'
 PREFIX = 'github.com/egoist/mygo/plugins/terminal'
 REPLACEMENT = 'github.com/laojianzi/aster/internal/nativeterm/upstream'
@@ -59,6 +60,70 @@ def source_files(source, spec):
     return result
 
 
+def hardening_inputs(spec):
+    """Load reviewed patch outputs independently of the files we are preparing."""
+    with HARDENING_POSTIMAGES.open('rb') as handle:
+        policy_bytes = handle.read((32 << 10) + 1)
+    with (META / 'hardening.patch').open('rb') as handle:
+        patch_bytes = handle.read((1 << 20) + 1)
+    if len(policy_bytes) > 32 << 10 or len(patch_bytes) > 1 << 20:
+        raise ValueError('terminal hardening input exceeds size budget')
+    policy = json.loads(policy_bytes)
+    if (not isinstance(policy, dict) or
+            set(policy) != {'module', 'version', 'patch_sha256', 'postimages'} or
+            policy['module'] != spec['module'] or policy['version'] != spec['version'] or
+            policy['patch_sha256'] != sha(patch_bytes)):
+        raise ValueError('terminal hardening policy does not match the pinned patch')
+    paths = []
+    for line in patch_bytes.splitlines():
+        if line.startswith(b'diff --git '):
+            match = re.fullmatch(rb'diff --git a/(\S+) b/\1', line)
+            if not match:
+                raise ValueError('unsupported terminal hardening patch path')
+            paths.append(match[1].decode('utf-8'))
+    postimages = policy['postimages']
+    if (not paths or len(paths) != len(set(paths)) or not isinstance(postimages, dict) or
+            set(paths) != set(postimages) or not set(paths) <= set(spec['files'])):
+        raise ValueError('terminal hardening postimages do not cover the exact patch')
+    for name, digest in postimages.items():
+        if (not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest) or
+                digest == spec['files'][name]):
+            raise ValueError('invalid terminal hardening postimage')
+    return patch_bytes, policy_bytes, postimages
+
+
+def without_inherited_git_environment():
+    return {key: value for key, value in os.environ.items()
+            if not key.upper().startswith('GIT_')}
+
+
+def isolated_git_environment(workspace):
+    """Do not discover a containing checkout or inherit a caller's Git target."""
+    ceiling = str(workspace.resolve())
+    if os.pathsep in ceiling:
+        raise ValueError('temporary directory cannot safely isolate Git discovery')
+    config = workspace / 'empty-git-config'
+    config.write_bytes(b'')
+    env = without_inherited_git_environment()
+    env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=str(config),
+               GIT_ATTR_NOSYSTEM='1', GIT_CEILING_DIRECTORIES=ceiling)
+    return env
+
+
+def verify_hardened_sources(stage, spec, postimages):
+    """An exit-zero git apply can skip every path; require actual reviewed bytes."""
+    actual = set()
+    for path in stage.rglob('*'):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise ValueError('unexpected terminal hardening output entry')
+        if path.is_file():
+            actual.add(path.relative_to(stage).as_posix())
+    if actual != set(spec['files']):
+        raise ValueError('terminal hardening output file inventory mismatch')
+    expected = {**spec['files'], **postimages}
+    source_files(stage, {'files': expected})
+
+
 def format_generated_sources(stage):
     """Canonicalize after import rewriting, using this Go toolchain's formatter."""
     goroot = subprocess.check_output(['go', 'env', 'GOROOT'], text=True).strip()
@@ -78,10 +143,11 @@ def host_platform():
 def prepare(args):
     spec = json.loads((META / 'UPSTREAM.json').read_text())
     validate_module_pin((ROOT / 'go.mod').read_text(), spec)
+    patch_bytes, policy_bytes, postimages = hardening_inputs(spec)
     if args.source:
         source = args.source.resolve()
     else:
-        env = dict(os.environ)
+        env = without_inherited_git_environment()
         env['GOFLAGS'] = '-mod=mod'
         module = json.loads(subprocess.check_output(
             ['go', 'mod', 'download', '-json', spec['module'] + '@' + spec['version']], env=env, text=True))
@@ -89,18 +155,26 @@ def prepare(args):
             raise ValueError('pinned Go module download failed')
         source = Path(module['Dir']) / 'plugins/terminal'
     files = source_files(source, spec)
-    DEST.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='aster-terminal-') as temp:
-        stage = Path(temp)
+        workspace = Path(temp).resolve()
+        git_env = isolated_git_environment(workspace)
+        stage = workspace / 'source'
+        stage.mkdir()
         for name, data in files.items():
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
-        # The source hashes above and a strict patch check prevent patch fuzz or
-        # accidental application to a newer framework version.
-        patch = (META / 'hardening.patch').resolve()
-        subprocess.run(['git', 'apply', '--check', str(patch)], cwd=stage, check=True)
-        subprocess.run(['git', 'apply', str(patch)], cwd=stage, check=True)
+        # Snapshot the verified patch outside the generated tree. The ceiling
+        # keeps even a repository-local TMPDIR outside its ancestor Git context.
+        patch = workspace / 'hardening.patch'
+        patch.write_bytes(patch_bytes)
+        git = ['git', '-c', 'core.autocrlf=false',
+               '-c', 'core.attributesFile=' + git_env['GIT_CONFIG_GLOBAL'], 'apply']
+        subprocess.run([*git, '--check', str(patch)], cwd=stage, env=git_env,
+                       check=True, timeout=60)
+        subprocess.run([*git, str(patch)], cwd=stage, env=git_env,
+                       check=True, timeout=60)
+        verify_hardened_sources(stage, spec, postimages)
         for target in stage.rglob('*.go'):
             target.write_text(target.read_text(encoding='utf-8').replace(PREFIX, REPLACEMENT), encoding='utf-8', newline='\n')
         format_generated_sources(stage)
@@ -108,6 +182,7 @@ def prepare(args):
         (stage / MARKER).write_text('Generated by scripts/prepare_terminal.py; do not edit.\n', encoding='utf-8', newline='\n')
         generated = {str(p.relative_to(stage)).replace('\\', '/'): sha(p.read_bytes())
                      for p in sorted(stage.rglob('*')) if p.is_file()}
+        DEST.parent.mkdir(parents=True, exist_ok=True)
         if DEST.exists():
             if DEST.is_symlink() or not (DEST / MARKER).is_file():
                 raise ValueError('refusing to replace a non-generated directory')
@@ -134,7 +209,8 @@ def prepare(args):
     path.write_bytes(data)
     (output / 'provenance.json').write_text(json.dumps({
         'module': spec['module'], 'version': spec['version'], 'platform': target,
-        'patch_sha256': sha((META / 'hardening.patch').read_bytes()),
+        'patch_sha256': sha(patch_bytes),
+        'hardening_postimages_sha256': sha(policy_bytes),
         'generated_files': generated, 'library': lib,
     }, indent=2) + '\n')
     if args.github_env:

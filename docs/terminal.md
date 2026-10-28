@@ -39,12 +39,25 @@ Ctrl+C/Ctrl+V 保留远端控制字节路由；显式复制/粘贴仍按平台�
 使用 `python scripts/dev.py build`（类 Unix 系统可用 `make build`），测试用
 `python scripts/dev.py test`。首次构建需要下载 go.mod 固定的公共 Go 模块和原生库。
 离线时向这两个命令传入 `--source PATH/terminal --library-source PATH/lib`，仍校验同一组哈希。
+已有离线开发包是其 `evidence/environment.txt` 所记提交的源码和工具链快照，不代表当前
+主分支；此前的快照不包含 #112 的准备修复。使用该修复需要取得包含修复的新源码并重新
+准备和构建，可复用符合原固定哈希的离线上游输入。本次修复不另发布开发包或 Release。
 
-`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.5.1 的 31 个使用文件；
+`third_party/native-terminal/UPSTREAM.json` 固定 MyGo v0.5.5 的 31 个使用文件；
 `hardening.patch` 是可审阅的输入、剪贴板、生命周期与库加载补丁。
-`scripts/prepare_terminal.py` 验证文件哈希，严格应用补丁、改写内部导入路径，生成
-`internal/nativeterm/upstream/`。不要直接修改生成目录，也不要仅运行未准备依赖的 go build。
-CI 保存生成文件清单、补丁哈希和生成源码，便于与确切提交共同复核。
+`scripts/terminal_hardening_postimages.json` 是版本化的准备输入，固定同一补丁及六个被修改
+文件应用补丁后的 SHA-256。`scripts/prepare_terminal.py` 先验证 31 个上游文件，在私有临时
+目录内隔离继承的 Git 环境、用户配置与祖先仓库，然后应用补丁并核对完整文件清单：六个
+文件必须等于审核后的内容，其余 25 个仍须符合原上游哈希。Git 退出码为零不能代替这个校验。
+任何补丁跳过、无效应用或清单不符都会在替换已有生成源码、原生库与 provenance 前失败。
+校验通过后才改写内部导入并格式化，生成 `internal/nativeterm/upstream/`。
+不要直接修改生成目录，也不要仅运行未准备依赖的 go build。
+
+`TMPDIR` 可以位于仓库内部；临时路径会先解析符号链接。若路径含当前平台 Git ceiling
+列表的分隔符（POSIX 为 `:`、Windows 为 `;`），准备会在调用补丁用 Git 前明确失败，改用不含
+该分隔符的临时目录即可。原生库下载或校验失败仍可能发生在生成源码替换后；本次准备
+不承诺所有失败都跨目录原子回滚。CI 保存完整生成文件清单、原补丁和 postimage 清单哈希、
+生成源码及原生库来源；审计必须与确切提交中的清单文件核对，不能只接受 receipt 自报摘要。
 
 原生库从上游固定 manifest 校验 SHA-256，随开发二进制一起打包；运行时仅从应用资源或
 可执行文件目录读取，不搜索环境变量/用户缓存，不自动下载。Windows 依赖 DLL 搜索限制到

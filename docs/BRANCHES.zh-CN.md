@@ -2,31 +2,28 @@
 
 ## 最近接续入口与唯一退役范围 — 2026-10-28
 
-本次基线为已验收 `main c178e3fbadd5f8e0688d0a4350baebd416d3dc81`，
-tree `9e2f18523f57489a9850b720e306616222301122`。
-[#109/#110 完成收据](https://github.com/laojianzi/aster/issues/109#issuecomment-6460505239)
-记录后台受限安装的独立 PR/main 资格、实际分支退役和完整历史恢复。
-#96/#97、#99/#100、#101/#102、#103/#104、#105/#106、#107/#108 均已完成，不重建历史范围。
+本次实际基线 `main cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`，
+tree `f1820dc68aba7f4f4c0aef700e449fd3afad76cd`，来自已合并的
+[#111 / PR #114](https://github.com/laojianzi/aster/pull/114)。其最终 PR 原件已审，
+入场时 actual-main 原件、退役及完整恢复仍在验收；#112 合并前必须完成这项基线闭环。
+最终收据以 [#111](https://github.com/laojianzi/aster/issues/111) 为准，不把已合并视为已结项。
 
-入场全量盘点为 68 个 PR（67 merged、仅 #2 closed/unmerged、0 open），
-42 个实际 Issues（40 closed、仅 #11/#13 open），仅 main、45 个恢复 tags、0 releases。
-因此只创建 [Issue #111](https://github.com/laojianzi/aster/issues/111) 和
-`feat/helm-install-recovery`，准确从上述 main 起步，接续 v2 历史新授权只读核对及
-混合 v1/v2 原生浏览；没有重复实现或重复 PR。实际创建唯一 [PR #114](https://github.com/laojianzi/aster/pull/114)
-后登记 `APPROVED[114] = 'feat/helm-install-recovery'`；专属回归拒绝 Issue #111
-与前次 PR #110 代替新 PR。
+2026-10-28 05:13 UTC 盘点为 69 个 PR（68 merged、仅 #2 closed/unmerged、0 open），
+47 个实际 Issues（40 closed、#11/#13/#111/#112/#113/#115/#116 open），main 与待退役
+`feat/helm-install-recovery` 两个远端分支、45 个恢复 tags、0 releases。
+只接续用户新报的 [#112](https://github.com/laojianzi/aster/issues/112)，使用唯一
+`fix/terminal-preparation-tmpdir`；与 #111 分支无重叠实现。准确 PR 编号在实际创建后登记，
+不猜号，不用 Issue #112 或前一 PR #114 代替新 PR。
 
-保留所有旧 APPROVED 登记、四组实际 main 门槛以及依赖范围第五门槛。
-新范围同样检查活动 head/base PR、移动/保护分支、错误仓库/merge、不可达历史与
-过期/失败 gate。精确合并后，实际新 main 四组 workflow gate 成功且准确 tip、
-保护状态和完整历史可达性成立，既有工作流即可自动打包全部历史，以精确 lease
-原子建立 receipt tag 并删除准确分支；这可能早于离线原件和截图审查完成。
-真实 bundle 需在独立空仓库离线恢复，strict fsck 和入场 45 个 tag 映射全部通过。
+保留全部旧 APPROVED、四组 exact-main 门槛、依赖范围第五门槛及所有九个 workflow。
+新修复仍要求最终精确 PR/实际 main 各自原件；准确 tip、仓库、merge、保护状态、
+活动 head/base PR 与完整历史可达性均检查通过后，既有退役流程才可打包并以原子 lease
+创建 receipt tag、删除准确分支。实际包在空 bare 库离线恢复，核对全部原 refs/objects/
+commits、strict fsck 和所有既有 tag 映射；自动退役可能先于原件人工审查，必须记录真实顺序。
 
-本文件不预先声称 #111 已关闭或本次退役成功；实际结果、自动退役与独立原件审查
-的真实顺序写入 #111 和 [#13](https://github.com/laojianzi/aster/issues/13)。
-不复制前次完成收据作新资格，不重建已删分支制造第二次退役证明。
-#11 四项依赖分别待审，面板和总进度 Issue 均保持开放；恢复 tags 不是待开发分支。
+本文件是入场与准入记录，不预先认定 #112 已验收、已合并或已退役。
+最终收据和 #13 更新后才显式关闭；#11/#13 与具体 #113/#115/#116 问题继续分别跟进。
+维护恢复 tags 不是未完成开发分支，不为重新演示删除而重建旧分支。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 
