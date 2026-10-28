@@ -73,10 +73,17 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 				}
 				wantRecords = helmjournal.MaxRecords
 			}
-			if scenario != "busy" {
-				nativeHelmJournalMust(t, s.Close())
-			}
+			nativeHelmJournalMust(t, s.Close())
+			// Snapshot every file, including journal.lock, while no Store
+			// holds the OS lock. Windows prevents even reading that byte
+			// through another handle while its exclusive lock is held.
 			before := nativeInstallDiskSnapshot(t, f.path)
+			var lockHolder *helmjournal.Store
+			if scenario == "busy" {
+				lockHolder, err = helmjournal.Open(f.path)
+				nativeHelmJournalMust(t, err)
+				t.Cleanup(func() { nativeHelmJournalMust(t, lockHolder.Close()) })
+			}
 			beforeCalls, _, _ := f.counts()
 			result := nativeInstallExecute(h)
 			if result.Outcome() != helmjournal.NotStarted || result.JournalID() != "" || result.JournalComplete() ||
@@ -86,7 +93,6 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 			if calls, _, writes := f.counts(); calls != beforeCalls || writes != 0 {
 				t.Fatal("shared lock, unresolved history or capacity barrier was checked after cluster I/O")
 			}
-			nativeInstallAssertDiskUnchanged(t, f.path, before)
 			if scenario == "busy" {
 				if result != nil {
 					t.Fatal("failed journal open invented an execution record")
@@ -102,10 +108,12 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 				if !shown || journalOutcome.W <= 0 || journalOutcome.H <= 0 {
 					t.Fatal("native view hid the separate pre-dispatch journal outcome")
 				}
-				nativeHelmJournalMust(t, s.Close())
+				nativeHelmJournalMust(t, lockHolder.Close())
 			}
+			nativeInstallAssertDiskUnchanged(t, f.path, before)
 			reopened, err := helmjournal.OpenExisting(f.path)
 			nativeHelmJournalMust(t, err)
+			t.Cleanup(func() { nativeHelmJournalMust(t, reopened.Close()) })
 			ids, err := reopened.List()
 			nativeHelmJournalMust(t, err)
 			nativeHelmJournalMust(t, reopened.Close())
@@ -132,6 +140,7 @@ func TestNativeHelmInstallSharedJournalAdmission(t *testing.T) {
 				}
 				journal, err := helmjournal.OpenExisting(limited.path)
 				nativeHelmJournalMust(t, err)
+				t.Cleanup(func() { nativeHelmJournalMust(t, journal.Close()) })
 				ids, err := journal.List()
 				nativeHelmJournalMust(t, err)
 				nativeHelmJournalMust(t, journal.Close())
