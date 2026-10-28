@@ -1,5 +1,6 @@
 """The native flow adds evidence and admits only its reviewed API consumers."""
 import helm_install_execution_evidence as install_execution
+import helm_install_recovery_evidence as install_recovery
 import copy
 import hashlib
 import json
@@ -124,17 +125,20 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                                        - set(install.INSTALL_REQUIRED.get(suite, ()))
                                        - set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ()))
                            - set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ()))
-                           - set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ()))), frozen)
+                           - set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ()))
+                           - install_recovery.additions(suite)), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
             with self.subTest(suite=suite):
                 new = set(evidence.HELM_NATIVE_UNINSTALL_REQUIRED[suite])
                 admission = set(evidence.HELM_JOURNAL_ADMISSION_REQUIRED[suite])
-                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission - native_archive.additions(suite)), frozen)
+                self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission - native_archive.additions(suite)
+                                           - set(install_recovery.AUTOMATIC.get(suite, ()))), frozen)
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
         self.assertEqual(inventory(set(migration.REQUIRED) - set(evidence.HELM_NATIVE_UNINSTALL_NAMES)
-                                   - set(evidence.HELM_JOURNAL_ADMISSION_NAMES) - set(native_archive.NATIVE_NAMES)),
+                                   - set(evidence.HELM_JOURNAL_ADMISSION_NAMES) - set(native_archive.NATIVE_NAMES)
+                                   - set(install_recovery.NATIVE_NAMES)),
                          LEGACY_MIGRATION)
 
     def test_native_cases_are_added_to_every_applicable_suite(self):

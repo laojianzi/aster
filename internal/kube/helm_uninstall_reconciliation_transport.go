@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -43,9 +44,6 @@ func (r *helmReconciliationRead) get(resource, name, token string, limit int) ([
 	if limit <= 0 || r.remaining <= 0 {
 		return nil, 0, ErrHelmReconciliationBudget
 	}
-	if err := r.b.config.RateLimiter.Wait(r.ctx); err != nil {
-		return nil, 0, r.failure(ErrHelmReconciliationResponse)
-	}
 	path := []string{"/api", "v1", "namespaces", r.namespace, resource}
 	if name != "" {
 		path = append(path, name)
@@ -65,6 +63,21 @@ func (r *helmReconciliationRead) get(resource, name, token string, limit int) ([
 		}
 		u.RawQuery = query.Encode()
 	}
+	return r.getMetadata(u, accept, resource == "configmaps", limit)
+}
+
+// Only the checked route builders call this shared bounded GET transport. The
+// legacy get entry point retains its original route/verb restrictions.
+func (r *helmReconciliationRead) getMetadata(u *url.URL, accept string, allowMissing bool, limit int) ([]byte, int, error) {
+	if err := r.active(); err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 || r.remaining <= 0 {
+		return nil, 0, ErrHelmReconciliationBudget
+	}
+	if err := r.b.config.RateLimiter.Wait(r.ctx); err != nil {
+		return nil, 0, r.failure(ErrHelmReconciliationResponse)
+	}
 	req, err := http.NewRequestWithContext(r.ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, 0, ErrHelmReconciliationResponse
@@ -82,10 +95,10 @@ func (r *helmReconciliationRead) get(resource, name, token string, limit int) ([
 	if err := r.active(); err != nil {
 		return nil, 0, err
 	}
-	if !validHelmExecutionHeaders(resp) {
+	if !validHelmExecutionHeaders(resp) || resp.Uncompressed {
 		return nil, 0, ErrHelmReconciliationResponse
 	}
-	if resp.StatusCode != http.StatusOK && (resource != "configmaps" || resp.StatusCode != http.StatusNotFound) {
+	if resp.StatusCode != http.StatusOK && (!allowMissing || resp.StatusCode != http.StatusNotFound) {
 		// Do not consume or retain untrusted error messages, credential diagnostics
 		// or arbitrary proxy bodies. Failure is never projected as absence.
 		return nil, 0, ErrHelmReconciliationResponse
@@ -98,7 +111,8 @@ func (r *helmReconciliationRead) get(resource, name, token string, limit int) ([
 		return nil, 0, ErrHelmReconciliationBudget
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, int64(limit)+1))
-	if err != nil || len(data) > limit {
+	closeErr := resp.Body.Close()
+	if err != nil || closeErr != nil || len(data) > limit || resp.ContentLength >= 0 && int64(len(data)) != resp.ContentLength || len(resp.Trailer.Values("Warning")) != 0 {
 		oversized := len(data) > limit
 		clear(data)
 		if oversized {
@@ -118,6 +132,10 @@ func (r *helmReconciliationRead) get(resource, name, token string, limit int) ([
 // pagination/count/byte rules. Independent collection RVs may advance due to
 // unrelated releases; each snapshot itself must remain internally consistent.
 func (r *helmReconciliationRead) snapshot() (helmrelease.Snapshot, error) {
+	return r.snapshotWith(helmrelease.DecodePage)
+}
+
+func (r *helmReconciliationRead) snapshotWith(decode func([]byte, string) (helmrelease.Page, error)) (helmrelease.Snapshot, error) {
 	empty := helmrelease.Snapshot{}
 	result := helmrelease.Snapshot{Namespace: r.namespace}
 	next := ""
@@ -129,7 +147,7 @@ func (r *helmReconciliationRead) snapshot() (helmrelease.Snapshot, error) {
 			return empty, err
 		}
 		remaining -= len(data)
-		page, err := helmrelease.DecodePage(data, r.namespace)
+		page, err := decode(data, r.namespace)
 		clear(data)
 		if err != nil {
 			return empty, r.failure(ErrHelmReconciliationResponse)

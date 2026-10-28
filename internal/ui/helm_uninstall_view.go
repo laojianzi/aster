@@ -102,7 +102,7 @@ func helmExecutionEffectsView(c *ui.Context, effects []kube.HelmUninstallExecuti
 func (w *Workbench) helmRecoveryView(c *ui.Context) {
 	s := &w.helmUninstall
 	idle := s.busy == "" && w.pendingWrites == 0 && w.ctx.Err() == nil
-	ui.Text(c, "Loading local history is offline. It restores recorded facts only; current cluster reads require a new connection, current revision selection and separate confirmation.").Label("Helm recovery boundary").FontSize(12)
+	ui.Text(c, "Loading local history is offline. It restores recorded facts only; current cluster reads require a matching connection and a separate metadata GET confirmation.").Label("Helm recovery boundary").FontSize(12)
 	w.helmAdmissionView(c)
 	ui.Button(c, "Reload local history").Disabled(!idle || s.journalPath == "").OnClick(w.loadHelmRecovery)
 	ui.Column(c.Key("helm.recovery.history")).Label("Helm recovery records").Gap(4).Children(func() {
@@ -115,6 +115,13 @@ func (w *Workbench) helmRecoveryView(c *ui.Context) {
 				} else {
 					text = "Active · " + text
 				}
+			}
+			if r := entry.installRecovery; r != nil {
+				location := "Active"
+				if r.Archived() {
+					location = "Archived"
+				}
+				text = fmt.Sprintf("%s · Install · %s · %s/%s · %s", location, entry.id, r.Namespace(), r.Release(), r.Outcome())
 			}
 			ui.Button(c, text).Label("Select Helm recovery " + entry.id).Disabled(!idle).OnClick(func() { w.selectHelmRecovery(entry.id) })
 		}
@@ -138,6 +145,9 @@ func (w *Workbench) helmRecoveryView(c *ui.Context) {
 			guardedCheckbox(c, fmt.Sprintf("helm.recovery.ack.%d.%s", s.epoch, s.selectedID), &s.reconcileAck, helmRecoveryConsentLabel, allowed).Label("Helm recovery observation consent")
 			ui.Button(c, "Observe current metadata").Disabled(!allowed || !s.reconcileAck).OnClick(w.observeHelmRecovery)
 		}
+	}
+	if s.installRecovery != nil {
+		w.helmInstallRecoveryView(c)
 	}
 	if o := s.observation; o != nil {
 		ui.Text(c, "Current metadata observation · historical outcome remains "+string(o.HistoryOutcome())).Label("Helm recovery observation").Bold().FontSize(14)
