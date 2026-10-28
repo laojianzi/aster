@@ -1,30 +1,41 @@
 # Aster 实施状态
 
-## 本次接续基线与唯一实施范围 — 2026-10-20
+## 最近接续基线与验收入口 — 2026-10-28
 
-**接续时已验收 main：`aa84d7adb3a3c4d19d58d7a39443e49b2eb51490`，MyGo v0.5.5。**
-[#94/#95 完成记录](https://github.com/laojianzi/aster/issues/94#issuecomment-6289174151)
-及 [#13 接续检查点](https://github.com/laojianzi/aster/issues/13#issuecomment-6289180711)
-记录最终 PR 与实际 main 各自原始验收、功能分支退役及完整历史 bundle 的空仓库恢复。
-原生受限卸载的准备、dry-run、独立最终确认、结果与恢复展示已完成，直接复用。
-入场盘点只有 main、0 开放 PR、38 个保留标签；#11 与 #13 开放，#94 已关闭。
+**接续时已验收 main：`b8c69749c60417df877b277ee83713e5684694a2`，Go 1.27.3、MyGo v0.5.5。**
+[#107/#108 完成记录](https://github.com/laojianzi/aster/issues/107#issuecomment-6433363807)
+及 [#13 接续检查点](https://github.com/laojianzi/aster/issues/13#issuecomment-6433372970)
+记录安装 v2 WAL 的最终 PR、实际 main、退役与完整历史恢复。
+#96/#97 准入说明、#99/#100 归档核心、#101/#102 原生归档、#103/#104 安装捕获/准备、
+#105/#106 独立 server dry-run 和 #107/#108 共享安装 WAL 均已完成，直接复用。
 
-**本次唯一新增范围为 [#96](https://github.com/laojianzi/aster/issues/96)：只读 journal 准入说明。**
-唯一 [PR #97](https://github.com/laojianzi/aster/pull/97) / `feat/helm-journal-admission` 分支。
-在已有卸载审查和恢复面板中，明确点击后读取
-已经初始化的私有目录与永久锁，显示首个已知阻止、canonical 记录 ID、完整容量统计
-及完整 256 KiB 操作预留。缺目录或锁只说明未初始化/未检查，不创建、不修复。
-使用当前 Backend 冻结绑定、namespace 与 metadata UID，直接复用实际 Begin 的同一
-判定；任何合法 metadata 状态均可检查，不需要先准备另一项写操作。报告仅说明当时
-本地历史，不证明 profile 有效、不访问集群、不消费或延长确认、不授予执行权限。
-实际 Begin 仍在锁内复查。详见 [准入说明](helm-journal-admission.md)。
+**本次只接续已有 [#109](https://github.com/laojianzi/aster/issues/109) /
+[PR #110](https://github.com/laojianzi/aster/pull/110) / `feat/helm-install-execution`。**
+入场全量盘点为 42 个实际 Issues（#11、#13、#109 开放）、68 个 PR
+（66 merged、#2 superseded/closed、#110 draft/open）、main 与唯一 feature 两个分支、
+44 个恢复 tags、0 releases。这是接续快照，不是未来远端状态承诺；实时结项状态以
+上述 Issue/PR 与 [#13 当前检查点](https://github.com/laojianzi/aster/issues/13) 为准。
 
-本文件描述实施范围和已验收接续基线，不预先认定本次 PR、实际 main 或分支退役通过。
-最终候选和新主干的原始四组门槛、原生/真实集群证据及可恢复清理收据写入 #96 的
-单一完成记录，完成 #13 检查点后才显式关闭。#13 继续承载未完成 MVP/发布目标。
-[#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 当前有 purego v0.11.2 和
-JSON Patch v5.9.11 两项待审，保留审批队列；不批准全部、不重复已有升级分支，也不为
-清空队列关闭面板。purego 的非 CGO 信号处理路径及 JSON Patch 模块路径迁移分别审查。
+该增量增加后台受限安装：原始 Backend/session/candidate/preflight 绑定的独立、
+可撤销、过期、单次写许可；原字节与原期限；同一 Store/锁/准入及 v2 WAL；每次可能
+生效的写入前先同步精确意图。仅创建 revision-1 pending Secret、按序创建 1–32 个
+ConfigMaps，再用实际观察到的 UID/resourceVersion 条件更新 deployed。严格响应、
+独立 GET 与 journal 完成分别记录；冲突、失联、取消或日志故障保留 Partial/Unknown，
+不重试、adopt、SSA/force、回滚、重放或清除未决。详见 [执行契约](helm-install-execution.md)。
+写前纯本地容量检查拒绝可证明无法完成的限速、重复敏感响应和最终条件 patch 大小；
+默认 20 QPS/burst 40 的 32 目标在原 10 秒期限内不可能完成，现返回 NotStarted 且
+无执行请求/新 WAL。所有原预算保持不变；通过该检查也不是完成保证。
+桌面 install 控件仍未启用，不能把后台执行等同于完整原生 Helm 生命周期。
+
+最终候选和实际新 main 的四组门槛、每个 Kubernetes 版本的五个安装测试名、原始
+证据、可恢复退役和完整离线恢复都需独立核验；合并本身不代表完成。退役登记仅绑定
+实际 PR #110 和准确分支，不使用 Issue #109 或旧 PR #108。验收收据写入 #109，
+更新 #13 后才显式完成；本文件不预先认定这些结果。
+
+[#11 依赖面板](https://github.com/laojianzi/aster/issues/11) 在本次盘点有 purego v0.11.2、
+MyGo v0.7.1、Node v26、JSON Patch v5 四项独立待审。候选以面板实时数据为准；不批量
+批准、不混入安装执行范围，也不为清空列表关闭面板。MyGo 源码/原生库组合、purego
+非 CGO 信号路径、CI Node 和 JSON Patch 模块路径迁移分别审查。
 
 ## 已完成、必须复用的能力
 
@@ -45,7 +56,13 @@ JSON Patch v5.9.11 两项待审，保留审批队列；不批准全部、不重�
 | 独立单次卸载执行、真实条件效果、严格确认/实际缺失与保留部分/Unknown结果 | #90/#91；后端直接复用 |
 | 强制私有 journal、真实进程中断离线恢复、新授权 GET 核对与未决阻止 | #92/#93；历史结果与当前事实分开 |
 | 原生独立准备/dry-run/执行确认、结果/恢复展示及 worker 生命周期 | #94/#95；固定 home journal，未知历史与当前 GET 事实独立 |
+| existing-only 本地 journal 准入说明与完整操作容量预留 | #96/#97；只读报告不授予执行权限 |
+| 终结且无未决记录的同目录有界归档及原生独立审阅/确认/浏览 | #99/#100、#101/#102；保留原字节，不 purge/export/清除 Unknown |
+| 不可变受限安装捕获、纯 revision-1 codec、GET-only 目标准备 | #103/#104；不创建 release 或目标 |
+| 独立一次性、冻结字节与原期限绑定的安装 server dry-run | #105/#106；服务端预检不授予持久写入权限 |
+| 安装 v2 WAL、跨操作共享锁/准入/预算、惰性离线恢复 | #107/#108；日志和恢复不重建执行许可 |
 | MyGo v0.4.8/v0.5.1/v0.5.5 来源与运行时、输入/布局/时钟保护 | #58、#74、#75；历史升级不重做 |
+| Go 1.27.3 固定工具链与验收 | #98；与当前安装执行范围分开 |
 
 证据以各自 Issue/PR 为准，不用合并数或绿色 CI 百分比代替 MVP 完成度。
 归档/维护 tags 保存恢复历史，不是待开发分支。已完成分支仅在精确 head、合并/主干
@@ -57,16 +74,18 @@ JSON Patch v5.9.11 两项待审，保留审批队列；不批准全部、不重�
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**当前优先产品 P1。** 按 #13 的最新检查点推进唯一 #96 只读 journal 准入说明；直接复用
-#94/#95 原生交互、#90/#91 执行器、#92/#93 journal/GET 核对和既有编码、准备、dry-run。
-#11 的两个依赖候选单独审查，不混入本范围。
+**当前优先产品 P1。** 完成唯一 #109/#110 后台受限安装执行的验证与收尾；直接复用
+#103/#104 捕获/codec/准备、#105/#106 服务器预检、#107/#108 v2 WAL 和已有原生卸载。
+建议下一项先补 v2 安装历史的新授权只读核对，再准入原生 install 工作流；没有历史
+UID 的同名对象只能报告存在且无法归属，不能认作成功、adopt 或解除 Unknown。
+准入前先读取 #109/#110 实际状态，不重建后台实现。#11 依赖候选单独审查。
 
 **P1 — Helm release / GitOps。** #68/#70/#72 的本地渲染、修订元数据和内容一致性摘要直接复用。
-已完成 #94/#95 原生执行确认、恢复展示与生命周期。本次 #96 解释当前本地 journal
-阻止和容量；未决记录继续保留并阻止新执行。历史保留/处置首先需要独立政策：是否允许
-解除、适用记录/效果、证据要求、精确绑定、明确确认与失败行为，不能用只读报告隐式放行。
-其他后续范围为 install/upgrade/rollback 和
+已完成原生受限卸载、恢复、准入说明以及可保留原始证据的终结记录归档。
+未决记录继续保留并阻止新执行；归档不能释放 Unknown/Partial，不能用新 GET 或只读
+报告隐式放行。#109/#110 之后仍有原生 install 接入、upgrade/rollback 和
 GitOps repository/sync/reconcile 的可信执行、并发、失败/Unknown 与确认边界。
+purge/export、未决记录处置和断电/文件系统持久性资格分别需要独立政策与验证。
 不得把元数据标签、渲染或普通逐对象 SSA 重命名成完整 Helm 生命周期；不得直接运行
 带集群凭据的 CLI 绕过现有 Prepared、strict dry-run、精确名称确认和 no-force 保护。
 

@@ -17,6 +17,13 @@ import (
 // backendIdentity binds inert preparations without retaining transport credentials.
 type backendIdentity struct{ marker byte }
 
+// Capacity metadata is known only for the token bucket constructed by New.
+// Caller-supplied RateLimiters expose no reliable burst/capacity contract.
+type backendRateLimit struct {
+	qps   float32
+	burst int
+}
+
 type Backend struct {
 	identity           *backendIdentity
 	helmJournalBinding string
@@ -26,6 +33,7 @@ type Backend struct {
 	dynamic            dynamic.Interface
 	discovery          discovery.DiscoveryInterface
 	writes             rest.Interface
+	ownedRateLimit     *backendRateLimit
 }
 
 func New(config *rest.Config) (*Backend, error) {
@@ -45,6 +53,7 @@ func New(config *rest.Config) (*Backend, error) {
 		cfg.UserAgent = "aster"
 	}
 	// One request budget and connection pool for all clients in this identity.
+	var ownedRateLimit *backendRateLimit
 	if cfg.RateLimiter == nil {
 		qps := cfg.QPS
 		if qps <= 0 {
@@ -55,6 +64,7 @@ func New(config *rest.Config) (*Backend, error) {
 			burst = 40
 		}
 		cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(qps, burst)
+		ownedRateLimit = &backendRateLimit{qps: qps, burst: burst}
 	}
 	httpClient, err := rest.HTTPClientFor(cfg)
 	if err != nil {
@@ -79,7 +89,7 @@ func New(config *rest.Config) (*Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("write client: %w", err)
 	}
-	return &Backend{identity: &backendIdentity{marker: 1}, helmJournalBinding: journalBinding, metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes}, nil
+	return &Backend{identity: &backendIdentity{marker: 1}, helmJournalBinding: journalBinding, metricsHTTP: httpClient, config: cfg, typed: typed, dynamic: dyn, discovery: disc, writes: writes, ownedRateLimit: ownedRateLimit}, nil
 }
 func (b *Backend) ServerVersion() (string, error) {
 	v, err := b.discovery.ServerVersion()

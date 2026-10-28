@@ -1,4 +1,5 @@
 """Admission explanations add evidence without replacing accepted execution cases."""
+import helm_install_execution_evidence as install_execution
 import hashlib
 import json
 from pathlib import Path
@@ -105,7 +106,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 old = self.old_names('contract/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & added)
-                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite) | set(install.INSTALL_REQUIRED.get(suite, ())) | set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ())) | set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ())))
+                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite) | set(install.INSTALL_REQUIRED.get(suite, ())) | set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ())) | set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ())) | set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ())))
         for suite, added in evidence.HELM_JOURNAL_ADMISSION_REQUIRED.items():
             with self.subTest(automatic=suite):
                 current = evidence.required_for_suite(suite, [])
