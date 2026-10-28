@@ -1,4 +1,4 @@
-"""Install prerequisites add mandatory evidence without enabling any writes."""
+"""Install prerequisites stay read-only; native consumers are explicitly scoped."""
 import hashlib
 import json
 from pathlib import Path
@@ -7,6 +7,7 @@ import unittest
 import helm_install_evidence as install
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
+from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 # Independent d19a692 baseline. Updating a workflow/pin requires a new scope.
@@ -93,10 +94,8 @@ class HelmInstallScopeTests(unittest.TestCase):
         self.assertEqual(text.count('b.installAbsent(ctx, c, "Secret", "secrets", c.StorageName()'),2)
         self.assertIn("reflect.DeepEqual(before.Revisions, after.Revisions)",text)
         self.assertIn("p.candidate == c",text)
-        for path in (ROOT/"internal/ui").glob("*.go"):
-            if not path.name.endswith("_test.go"):
-                self.assertNotIn("CaptureInstall(",path.read_text())
-                self.assertNotIn("PrepareHelmInstall(",path.read_text())
+        for name in ('CaptureInstall', 'PrepareHelmInstall'):
+            self.assertEqual(production_calls(ROOT, name), CALL_SITES[name])
 
     def test_real_server_fixture_guards_every_request_and_canary(self):
         text=(ROOT/"e2e/helm_install_preparation_test.go").read_text()

@@ -2,9 +2,11 @@ package uiworkbench
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/laojianzi/aster/internal/helmrelease"
 )
 
 func (w *Workbench) View(c *ui.Context) {
@@ -13,8 +15,10 @@ func (w *Workbench) View(c *ui.Context) {
 	w.syncDelivery()
 	w.syncHelmReleases()
 	w.syncHelmUninstall()
+	w.syncHelmInstall()
 	w.expireHelmUninstall(time.Now())
 	w.expireHelmUninstallFlow(time.Now())
+	w.expireHelmInstallFlow(time.Now())
 	w.frames++
 	t := c.Theme()
 	ui.Column(c).Direction(ui.LeftToRight).Fill().Background(t.Background).Children(func() {
@@ -31,6 +35,7 @@ func (w *Workbench) View(c *ui.Context) {
 				w.clearOIDC()
 				w.deliveryNamespaceChanged()
 				w.clearHelmUninstall()
+				w.clearHelmInstall()
 			}
 			ui.PrimaryButton(c, "Connect").Disabled(w.currentContext == "" || w.connectionPending || w.vaultPending || w.oidcPending).OnClick(func() {
 				w.connect()
@@ -88,12 +93,26 @@ func (w *Workbench) View(c *ui.Context) {
 			})
 		}
 		ui.Row(c).Grow(1).Basis(0).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+			if w.helmInstall.open {
+				w.helmInstallView(c)
+				return
+			}
 			if w.helmUninstall.open {
 				w.helmUninstallView(c)
 				return
 			}
 			if w.helmReleases.open {
-				w.helmReleasesView(c)
+				// Preserve the full viewport while inspecting an existing revision.
+				if w.helmReleases.selected.StorageName != "" {
+					w.helmReleasesView(c)
+					return
+				}
+				ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+					ui.Row(c).Padding(8, 12).Shrink(0).Children(func() {
+						ui.Button(c.Key("helm.install.open"), "Install Helm release").Disabled(w.backend == nil || w.pendingWrites != 0 || w.helmReleases.busy || w.helmReleases.inspecting || !helmrelease.ValidNamespace(strings.TrimSpace(w.namespace))).OnClick(w.openHelmInstall)
+					})
+					w.helmReleasesView(c)
+				})
 				return
 			}
 			if w.delivery.open {

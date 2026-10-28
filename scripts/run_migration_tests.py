@@ -8,12 +8,14 @@ import sys
 
 from helm_native_archive_evidence import NATIVE_NAMES
 from helm_install_recovery_evidence import NATIVE_NAMES as INSTALL_RECOVERY_NAMES
+from helm_native_install_evidence import NATIVE_NAMES as NATIVE_INSTALL_NAMES
 from test_evidence import HELM_JOURNAL_ADMISSION_NAMES, HELM_NATIVE_UNINSTALL_NAMES
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = [
     *NATIVE_NAMES,
     *INSTALL_RECOVERY_NAMES,
+    *NATIVE_INSTALL_NAMES,
     *HELM_NATIVE_UNINSTALL_NAMES,
     *HELM_JOURNAL_ADMISSION_NAMES,
 

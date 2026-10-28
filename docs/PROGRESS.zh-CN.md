@@ -1,6 +1,39 @@
 # Aster 实施状态
 
-## 当前接续：#121 修复主干验证阻断 — 2026-10-28
+## 当前实施：#123 原生首次安装界面 — 2026-10-28
+
+当前已独立验收的主干为 `85e9b697b0cc4329f8398197bffcf260af6b5a90`，tree
+`cfd7d7db7dd6f126052c2065e1f198f501bcca32`。[#112](https://github.com/laojianzi/aster/issues/112#issuecomment-6464349745)
+及 [#121](https://github.com/laojianzi/aster/issues/121#issuecomment-6464338760) 已结项；
+PR #122 最终 PR 与实际 main 各自完整四门及全部新原件通过。实际 main 使用 CI/Source/OIDC
+attempt 1、Migration attempt 2；Windows 首次捕获失败完整保留，原样复验通过不证明延迟根因已修复。
+
+真实退役 run `40656172725` 先保存 before.bundle，再按既有流程原子退役；其后完成全部
+原件审核、六图审核集合、parity 和独立恢复。恢复完整核对 49 refs（含 HEAD）、325 commits、
+3,112 objects。该实际顺序与 #121 原计划不同，原第六项保留不勾选；技术范围及可恢复性已结项。
+旧 46 tags 原映射保持，唯一新增 `maintenance/completed-pr-122` 指向该 main；不存在 #117 收据。
+[项目结项记录](https://github.com/laojianzi/aster/issues/13#issuecomment-6464361295)保存准确边界和时间线。
+
+2026-10-28 08:35:57 UTC 入场重新核对：一个远端 main、47 tags、0 open PR、8 open Issues。
+接续仅创建 [#123](https://github.com/laojianzi/aster/issues/123) / `feat/native-helm-install`，
+复用 capture、GET 准备、server dry-run、v2 WAL、持久执行及混合历史/新授权只读恢复后端。
+最小产品范围是 revision-1、同 namespace、1–32 个普通 ConfigMap；独立可信捕获、GET、
+dry-run 和精确 release 名加独立执行确认，各阶段均需主动同意，不自动写入。
+
+冻结候选后不再访问原工具/chart/values 文件；输入选择、连接身份改变，以及取消、关闭或到期均撤销当前流程。
+成功 dry-run 的 origin 绑定整个流程，而非短期 worker；执行与 journal 由 worker 收尾，
+窗口销毁不依赖 UI completion 完成日志关闭。双击/重入即刻阻断，真实效果与本地日志完整性分别展示。
+预算不足、锁冲突及未决 v1/v2 历史由既有后端在持久请求前拒绝；不伪造卸载修订身份。
+
+本 scope 追加原生及真实集群接线证据，并冻结本基线 263 个旧 Go 测试文件、278 个受保护
+路径的真实字节/mode/path；仅把旧入口禁令迁移为精确获准调用位置，全部原 inventory 和历史哈希保留。
+九个 workflows、工具 pins、5 分钟整包和 20 分钟 job 预算不变。最终资格及退役恢复以
+#123 对应的实际 PR/main 收据为准，本段不是已完成或发布声明。
+
+P2 #118 底栏、#119 顶部布局、#113 字号缩放、#115 OIDC issuer readiness；P3 #116 到期
+文案、#120 表单标签；#11 依赖及其余 MVP/发行验收仍独立开放。企业权威仍延后 P3。
+
+## 历史接续：#121 修复主干验证阻断 — 2026-10-28
 
 最后完成独立验收的基线是 `cb1afdcf6ba7ad9bfe17faf0e760b248f06b2b6a`；
 [#111/#114 最终收据](https://github.com/laojianzi/aster/issues/111#issuecomment-6461462336)
@@ -119,10 +152,10 @@ postimage、其余 25 个原哈希及完整库存。成功退出不能代替实�
 **企业权威服务按 2026-10-12 决定延后至 P3，排除首个 MVP，不作为首版验收条件。**
 现有凭据处理、当前身份授权、不可变审阅和本地会话清理契约继续有效。
 
-**当前优先产品 P1。** 完成现有 #112 构建修复，#111/#114 的独立主干验收与退役
-闭环先于本次合并。之后继续原生 install 工作流，复用已有捕获/准备/preflight/WAL/
-后台执行及独立恢复，不从 GET 核对或历史记录授予持久写入权限。
-#113/#115 为独立 P2、#116 为独立 P3；#11 依赖候选分别审查，不批量升级或为清单清零关闭。
+**当前优先产品 P1。** #112/#121 与 #111/#114 均已结项；继续 #123 原生 install
+工作流，复用已有捕获/准备/preflight/WAL/后台执行及独立恢复，不从 GET 核对或历史
+记录授予持久写入权限。#113/#115/#118/#119 为独立 P2，#116/#120 为独立 P3；
+#11 依赖候选分别审查，不批量升级或为清单清零关闭。
 
 **P1 — Helm release / GitOps。** #68/#70/#72 的本地渲染、修订元数据和内容一致性摘要直接复用。
 已完成原生受限卸载、恢复、准入说明以及可保留原始证据的终结记录归档。

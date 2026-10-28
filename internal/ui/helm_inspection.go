@@ -13,6 +13,7 @@ import (
 
 func (w *Workbench) clearHelmInspection() {
 	w.clearHelmUninstall()
+	w.clearHelmInstall()
 	r := &w.helmReleases
 	r.contentEpoch++
 	if r.contentCancel != nil {

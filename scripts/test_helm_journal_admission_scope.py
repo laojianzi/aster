@@ -1,6 +1,7 @@
 """Admission explanations add evidence without replacing accepted execution cases."""
 import helm_install_execution_evidence as install_execution
 import helm_install_recovery_evidence as install_recovery
+import helm_native_install_evidence as native_install
 import hashlib
 import json
 from pathlib import Path
@@ -107,14 +108,14 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 old = self.old_names('contract/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & added)
-                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite) | set(install.INSTALL_REQUIRED.get(suite, ())) | set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ())) | set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ())) | set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ())) | install_recovery.additions(suite))
+                self.assertEqual(set(current), old | added | set(contract.JOURNAL_ARCHIVE_REQUIRED.get(suite, ())) | native_archive.additions(suite) | set(install.INSTALL_REQUIRED.get(suite, ())) | set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ())) | set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ())) | set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ())) | install_recovery.additions(suite) | native_install.additions(suite))
         for suite, added in evidence.HELM_JOURNAL_ADMISSION_REQUIRED.items():
             with self.subTest(automatic=suite):
                 current = evidence.required_for_suite(suite, [])
                 old = self.old_names('automatic/' + suite)
                 self.assertEqual(len(current), len(set(current)))
                 self.assertFalse(old & set(added))
-                self.assertEqual(set(current), old | set(added) | set(native_archive.AUTOMATIC.get(suite, ())) | set(install_recovery.AUTOMATIC.get(suite, ())))
+                self.assertEqual(set(current), old | set(added) | set(native_archive.AUTOMATIC.get(suite, ())) | set(install_recovery.AUTOMATIC.get(suite, ())) | set(native_install.AUTOMATIC.get(suite, ())))
 
     def test_previous_native_uninstall_migration_and_journal_scopes_remain_intact(self):
         local = self.old_names('native-uninstall/local')
@@ -128,7 +129,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
         self.assertEqual(len(journal.REQUIRED), len(set(journal.REQUIRED)))
         self.assertEqual(set(migration.REQUIRED), self.old_names('migration')
                          | set(evidence.HELM_JOURNAL_ADMISSION_NAMES) | set(native_archive.NATIVE_NAMES)
-                         | set(install_recovery.NATIVE_NAMES))
+                         | set(install_recovery.NATIVE_NAMES) | set(native_install.NATIVE_NAMES))
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
 
     def test_new_names_use_the_existing_applicable_gates(self):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from helm_native_archive_evidence import AUTOMATIC as HELM_NATIVE_ARCHIVE_REQUIRED
 from helm_install_recovery_evidence import AUTOMATIC as HELM_INSTALL_RECOVERY_REQUIRED
+from helm_native_install_evidence import AUTOMATIC as HELM_NATIVE_INSTALL_REQUIRED
 
 import argparse
 import json
@@ -234,7 +235,7 @@ HELM_JOURNAL_ADMISSION_REQUIRED['real-cluster-native'] = (
 
 
 def required_for_suite(suite: str, explicit: list[str]) -> list[str]:
-    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ())]))
+    return list(dict.fromkeys([*explicit, *INTEGER_MAP_REQUIRED.get(suite, ()), *INTEGER_SET_REQUIRED.get(suite, ()), *MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *HELM_RENDER_REQUIRED.get(suite, ()), *HELM_METADATA_REQUIRED.get(suite, ()), *HELM_INSPECTION_REQUIRED.get(suite, ()), *HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *HELM_NATIVE_INSTALL_REQUIRED.get(suite, ())]))
 
 
 def summarize(path: Path, required: list[str], suite: str) -> dict:

@@ -1,6 +1,28 @@
 # 分支与 PR 接续台账
 
-## 当前保留分支与维护接续 — 2026-10-28
+## 当前唯一实施分支：原生首次安装 UI — 2026-10-28
+
+当前接受基线为 main `85e9b697b0cc4329f8398197bffcf260af6b5a90` / tree
+`cfd7d7db7dd6f126052c2065e1f198f501bcca32`，详见
+[#112/#121 最终结项记录](https://github.com/laojianzi/aster/issues/13#issuecomment-6464361295)。
+PR #122 已完成独立 PR/main 原件验收、真实自动退役及完整离线恢复；旧维护分支不再开放。
+远端 47 tags 中，原 46 映射原样保留，新增 completed-pr-122→85e9，无 completed-pr-117。
+真实流程先 bundle 再原子删除，独立恢复发生在后；#121 原计划顺序偏差明确保留。
+
+2026-10-28 08:35:57 UTC 的全新入场快照只有 main 一个分支、无开放 PR、8 个开放 Issues。
+据此建立唯一 [Issue #123](https://github.com/laojianzi/aster/issues/123) /
+`feat/native-helm-install`，从准确接受 main 开始；已有捕获、准备、dry-run、WAL、执行、
+混合历史与恢复全部复用，不重建其旧分支或重复 PR。只在实际创建 PR 后登记其真实编号。
+
+保留现有精确 merge、同仓库 head/base、保护状态、活动 PR、可达性与四门检查；
+实际退役仍在生成完整 before.bundle 后使用 branch tip 和空 receipt 的原子双 lease。
+实际包到达后在新空 bare 仓库完整离线核对所有 refs、commits、objects、strict fsck 与
+原 47 tag 映射，记录实际发生顺序；不将 waiting-for-verification 或 already-absent
+当成新的删除/恢复证明。#123 在真正闭环后显式结项，#13 与其他 P2/P3 继续独立跟踪。
+
+以下 #121/#112 段落保留当时的入场事实，不代表当前仍有同类未完成分支。
+
+## 历史保留分支与维护接续 — 2026-10-28
 
 最后独立验收基线为 cb1；当前 main 是 54af，其终端准备修复已合并，但完整 CI 两次
 触发 UI 包五分钟超时，未获得完整主干资格。#112 仍开放；新独立 P1
