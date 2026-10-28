@@ -1,6 +1,31 @@
 # Aster 实施状态
 
-## 当前实施：#123 原生首次安装界面 — 2026-10-28
+## 当前实施：#123 原生首次安装界面与 #125 捕获诊断 — 2026-10-28
+
+候选 `3527be1ba17a47b4af3ff86627d4fc46a511752e` 的正式 CI/Source/OIDC 已通过；
+原始 race 和 coverage 各 4,082 个具名用例通过，UI 分别为 564/564、214.086 秒及
+44.474 秒。另一本地完整 UI race 在原五分钟预算内 257.563 秒通过。它们不是该
+候选的完整资格：Migration `40669824285` attempt 1 的 Windows 旧 Discard capture
+在 10.83 秒返回固定 ErrRender；同 head、原参数完整 attempt 2 的旧 Lifecycle/hook
+capture 在 15.84 秒返回 context deadline exceeded。两轮新 42 名均通过，但 Windows
+checked 失败后 production/build/smoke 未运行；所有失败原件保留，停止同 head 重跑。
+
+[#125](https://github.com/laojianzi/aster/issues/125) 已提升为 P1 验收阻塞，由同一个
+PR #124 / `feat/native-helm-install` 承接，不再建重叠分支。普通 Windows 与 migration
+checked 使用相同默认构建，两次新增并行尾组均晚于旧 capture 失败。没有证据证明
+checked 独有开销、杀毒扫描、文件系统或 Job Object 是根因。
+
+本分支追加[有界捕获诊断](helm-render-diagnostics.md)：旧 Render/Helper API 的固定
+错误、优先级、15/10 秒、私有输入和真实进程 containment 保留；显式诊断 API 返回
+每次调用独立的固定阶段、类别、单调耗时和清理状态。旧 UI 的失败 status 附加安全
+摘要，使原有 captureHelmUI 的失败原流可以直接定位阶段，不修改旧 Go 测试。
+不输出私有内容、原始错误、路径、参数、环境或 stdout/stderr，也不额外 render/重试。
+
+新增诊断仅三个精确 Go 测试文件；其 17 个 renderer、13 个 helper、5 个 UI 名称独立
+追加到适用的原门禁。原生安装 42+4 census 不变，原 263/278 路径、mode 和所有旧
+聚合哈希保留；历史 scope 夹具显式追加独立诊断集合，或扣除该集合后继续核对原数量/摘要。
+旧 PNG helper 的唯一标识符例外保持精确逆变换。当前诊断增量仍需自己的完整本地
+验证、最终 PR/实际 main 四门及新原件；新增诊断并不表示两个历史失败根因已修复。
 
 当前已独立验收的主干为 `85e9b697b0cc4329f8398197bffcf260af6b5a90`，tree
 `cfd7d7db7dd6f126052c2065e1f198f501bcca32`。[#112](https://github.com/laojianzi/aster/issues/112#issuecomment-6464349745)

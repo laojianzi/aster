@@ -9,6 +9,7 @@ import unittest
 import retire_completed_oidc as retirement
 import run_migration_tests as migration
 import test_evidence as evidence
+import helm_render_diagnostics_evidence as diagnostics
 
 
 class IntegerMapScopeTests(unittest.TestCase):
@@ -32,7 +33,7 @@ class IntegerMapScopeTests(unittest.TestCase):
         for suite, names in evidence.INTEGER_MAP_REQUIRED.items():
             got = evidence.required_for_suite(suite, ['TestOldContract', names[0]])
             self.assertEqual(got[0], 'TestOldContract')
-            self.assertEqual(set(got), {'TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ()), *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ())})
+            self.assertEqual(set(got), {'TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ()), *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ()), *diagnostics.additions(suite)})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])
@@ -44,7 +45,7 @@ class IntegerMapScopeTests(unittest.TestCase):
                 with self.subTest(suite=suite, excluded=excluded), tempfile.TemporaryDirectory() as temp:
                     path = Path(temp) / 'tests.jsonl'
                     events = []
-                    for name in ['TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ()), *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ())]:
+                    for name in ['TestOldContract', *names, *evidence.INTEGER_SET_REQUIRED.get(suite, ()), *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.BOOLEAN_COLLECTIONS_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ()), *diagnostics.additions(suite)]:
                         if name != excluded:
                             for action in ('run', 'pass'):
                                 events.append({'Action': action, 'Package': 'fixture', 'Test': name})

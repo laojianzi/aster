@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 import helm_native_install_evidence as install
+import helm_render_diagnostics_evidence as diagnostics
 from helm_native_scope import CALL_SITES, production_calls
 from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_best_speed
 import helm_uninstall_contract_evidence as contract
@@ -52,13 +53,13 @@ class NativeHelmInstallScopeTests(unittest.TestCase):
         for suite, (count, checksum) in FROZEN_REQUIREMENTS.items():
             with self.subTest(suite=suite):
                 if suite == 'migration-ui-runner':
-                    names, added = migration.REQUIRED, set(install.NATIVE_NAMES)
+                    names, added = migration.REQUIRED, set(install.NATIVE_NAMES) | set(diagnostics.UI_NAMES)
                 elif suite == 'migration-terminal-runner':
                     names, added = migration.TERMINAL_REQUIRED, set()
                 else:
                     names = (contract.required(suite) if suite in contract.REQUIRED
                              else evidence.required_for_suite(suite, []))
-                    added = install.additions(suite)
+                    added = install.additions(suite) | diagnostics.additions(suite)
                 self.assertEqual(len(names), len(set(names)))
                 self.assertTrue(added <= set(names))
                 prior = set(names) - added
@@ -75,7 +76,8 @@ class NativeHelmInstallScopeTests(unittest.TestCase):
             'internal/ui/helm_install_journal_test.go',
             'internal/ui/helm_install_e2e_test.go',
         }
-        self.assertEqual(install.ADDED_TEST_FILES, expected)
+        self.assertEqual(install.INSTALL_TEST_FILES, expected)
+        self.assertEqual(install.ADDED_TEST_FILES, expected | diagnostics.ADDED_TEST_FILES)
         native, real = set(), set()
         for path in expected:
             text = (ROOT / path).read_text()

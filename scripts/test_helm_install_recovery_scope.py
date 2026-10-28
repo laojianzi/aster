@@ -10,6 +10,7 @@ from native_screenshot_scope import SCREENSHOT_TEST, restore_screenshot_encoder
 
 import helm_install_recovery_evidence as recovery
 import helm_native_install_evidence as native_install
+import helm_render_diagnostics_evidence as render_diagnostics
 import helm_uninstall_contract_evidence as contract
 import run_migration_tests as migration
 import test_evidence as evidence
@@ -52,13 +53,13 @@ class InstallRecoveryScopeTests(unittest.TestCase):
         for suite, (count, digest) in FROZEN_REQUIREMENTS.items():
             with self.subTest(suite=suite):
                 if suite == 'migration-ui-runner':
-                    names, added = migration.REQUIRED, set(recovery.NATIVE_NAMES) | set(native_install.NATIVE_NAMES)
+                    names, added = migration.REQUIRED, set(recovery.NATIVE_NAMES) | set(native_install.NATIVE_NAMES) | set(render_diagnostics.UI_NAMES)
                 elif suite == 'migration-terminal-runner':
                     names, added = migration.TERMINAL_REQUIRED, set()
                 else:
                     names = (contract.required(suite) if suite in contract.REQUIRED
                              else evidence.required_for_suite(suite, []))
-                    added = recovery.additions(suite) | native_install.additions(suite)
+                    added = recovery.additions(suite) | native_install.additions(suite) | render_diagnostics.additions(suite)
                 self.assertEqual(len(names), len(set(names)))
                 self.assertTrue(added <= set(names))
                 prior = set(names) - added

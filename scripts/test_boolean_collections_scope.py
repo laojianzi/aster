@@ -10,6 +10,7 @@ import unittest
 import retire_completed_oidc as retirement
 import run_migration_tests as migration
 import test_evidence as evidence
+import helm_render_diagnostics_evidence as diagnostics
 
 
 class BooleanCollectionsScopeTests(unittest.TestCase):
@@ -74,7 +75,7 @@ class BooleanCollectionsScopeTests(unittest.TestCase):
             self.assertEqual(set(got), {'TestOldContract', *names,
                              *evidence.INTEGER_MAP_REQUIRED.get(suite, ()),
                              *evidence.INTEGER_SET_REQUIRED.get(suite, ()),
-                             *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ())})
+                             *evidence.MANIFEST_CLIPBOARD_REQUIRED.get(suite, ()), *evidence.HELM_RENDER_REQUIRED.get(suite, ()), *evidence.HELM_METADATA_REQUIRED.get(suite, ()), *evidence.HELM_INSPECTION_REQUIRED.get(suite, ()), *evidence.HELM_UNINSTALL_PREVIEW_REQUIRED.get(suite, ()), *evidence.HELM_LIVE_OBSERVATION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_UNINSTALL_REQUIRED.get(suite, ()), *evidence.HELM_JOURNAL_ADMISSION_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_ARCHIVE_REQUIRED.get(suite, ()), *evidence.HELM_INSTALL_RECOVERY_REQUIRED.get(suite, ()), *evidence.HELM_NATIVE_INSTALL_REQUIRED.get(suite, ()), *diagnostics.additions(suite)})
             self.assertEqual(len(got), len(set(got)))
         self.assertEqual(evidence.required_for_suite('another-suite', ['TestOldContract']),
                          ['TestOldContract'])

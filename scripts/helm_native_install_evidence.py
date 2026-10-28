@@ -5,6 +5,8 @@ Historical requirements remain byte-for-byte and every new named case must
 finish once in each applicable ordinary, production or real-cluster stream.
 """
 
+from helm_render_diagnostics_evidence import ADDED_TEST_FILES as DIAGNOSTIC_TEST_FILES
+
 
 def cases(root, modes):
     return (root, *(root + '/' + mode for mode in modes))
@@ -49,15 +51,19 @@ AUTOMATIC = {suite: NATIVE_NAMES for suite in (
 )}
 NATIVE_INSTALL_REQUIRED = {'real-cluster-native': REAL_NAMES}
 
-# Only these new paths are excluded by the historical inventories. The new
-# scope freezes all 263 accepted test files / 278 paths at actual main85e9.
-ADDED_TEST_FILES = {
+# The install scope has exactly these five new paths. The three separately
+# registered diagnostic test paths address #125's blocking old capture
+# failures; historical inventories still retain all 263 accepted test files
+# and 278 protected paths at actual main85e9.
+INSTALL_TEST_FILES = {
     'internal/ui/helm_install_ui_fixture_test.go',
     'internal/ui/helm_install_ui_test.go',
     'internal/ui/helm_install_lifecycle_test.go',
     'internal/ui/helm_install_journal_test.go',
     'internal/ui/helm_install_e2e_test.go',
 }
+
+ADDED_TEST_FILES = INSTALL_TEST_FILES | DIAGNOSTIC_TEST_FILES
 
 
 def additions(suite):

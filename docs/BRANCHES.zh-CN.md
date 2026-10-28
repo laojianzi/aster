@@ -1,6 +1,6 @@
 # 分支与 PR 接续台账
 
-## 当前唯一实施分支：原生首次安装 UI — 2026-10-28
+## 当前唯一实施分支：原生首次安装 UI 与捕获诊断 — 2026-10-28
 
 当前接受基线为 main `85e9b697b0cc4329f8398197bffcf260af6b5a90` / tree
 `cfd7d7db7dd6f126052c2065e1f198f501bcca32`，详见
@@ -15,11 +15,17 @@ PR #122 已完成独立 PR/main 原件验收、真实自动退役及完整离线
 混合历史与恢复全部复用，不重建其旧分支或重复 PR。
 [草稿 PR #124](https://github.com/laojianzi/aster/pull/124) 于 09:25:57 UTC 实际创建后，
 仅登记 124 → `feat/native-helm-install`，不把 Issue #123 当作 PR，不修改既有退役 scope。
-本地及正式 a13 的完整 UI 包均达到原五分钟上限，原件记录于 PR；当前不具备合并或结项资格。
+本地及正式 a13 的完整 UI 包达到原五分钟上限，原失败原件记录于 PR。
 新增夹具优化保留真实 128 条 WAL、全部 42 名、完整字节断言和真实持锁区间。
 为继续解决实际预算阻断，唯一旧测试 helper 例外是 PNG BestSpeed→NoCompression；
 完整文件精确逆变换仍恢复原 263/278 字节聚合和三个历史聚合，不豁免文件/断言/路径/mode。
-全帧像素证明、完整 UI 包及最终 PR/main 资格仍须完成；不重开 #121 或建立重复分支。
+后续 3527 的全 143 帧像素证明及本地/正式完整 UI 包已完成，正式 UI race 为
+564/564、214.086 秒；但 Migration 同 head 的 a1 旧 Discard capture 与完整 a2 旧
+hook capture 都失败。两次 Windows 原件完整保留，不再同 head 重跑，不能合并/结项。
+P1 [#125](https://github.com/laojianzi/aster/issues/125) 在本 PR/分支接续固定阶段诊断，
+不新建重叠分支或重开 #121。诊断另加三个精确 Go 测试文件和单独 mandatory census，
+原安装五文件、42+4 名称及全部旧 263/278 聚合保留，旧工作流/版本/期限不改。
+当前诊断增量必须重新取得自身完整 PR/main 资格，不能复用 3527 的部分绿色原件。
 
 保留现有精确 merge、同仓库 head/base、保护状态、活动 PR、可达性与四门检查；
 实际退役仍在生成完整 before.bundle 后使用 branch tip 和空 receipt 的原子双 lease。

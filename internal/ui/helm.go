@@ -55,7 +55,7 @@ func (w *Workbench) renderHelm() {
 	d.cancel, d.busy, d.status = cancel, "Rendering Helm", "Rendering local chart with isolated credentials and bounded input/output/time…"
 	w.run(func(context.Context) {
 		defer cancel()
-		result, err := helmrender.Render(ctx, request)
+		result, diagnostics, err := helmrender.RenderWithDiagnostics(ctx, request)
 		w.emit(func() {
 			w.syncDelivery()
 			if binding != w.deliveryBinding() || !w.delivery.open || !w.delivery.helm.open || request != w.helmRequest() {
@@ -64,7 +64,7 @@ func (w *Workbench) renderHelm() {
 			d := &w.delivery
 			d.busy, d.cancel = "", nil
 			if err != nil {
-				d.status = err.Error()
+				d.status = err.Error() + " · " + diagnostics.Summary()
 				return
 			}
 			d.helm.result, d.helm.binding = result, binding

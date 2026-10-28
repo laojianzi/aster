@@ -17,6 +17,7 @@ import helm_install_journal_evidence as install_journal
 import retire_completed_oidc as retirement
 import run_migration_tests as migration
 import test_evidence as evidence
+import helm_render_diagnostics_evidence as diagnostics
 import helm_native_archive_evidence as native_archive
 from helm_native_scope import CALL_SITES, production_calls
 
@@ -127,7 +128,8 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                                        - set(install_dry.INSTALL_DRY_RUN_REQUIRED.get(suite, ()))
                            - set(install_journal.INSTALL_JOURNAL_REQUIRED.get(suite, ()))
                            - set(install_execution.INSTALL_EXECUTION_REQUIRED.get(suite, ()))
-                           - install_recovery.additions(suite) - native_install.additions(suite)), frozen)
+                           - install_recovery.additions(suite) - native_install.additions(suite)
+                           - diagnostics.additions(suite)), frozen)
 
     def test_exact_legacy_native_and_migration_inventory_is_preserved(self):
         for suite, frozen in LEGACY_AUTOMATIC.items():
@@ -136,11 +138,13 @@ class NativeHelmUninstallScopeTests(unittest.TestCase):
                 admission = set(evidence.HELM_JOURNAL_ADMISSION_REQUIRED[suite])
                 self.assertEqual(inventory(set(evidence.required_for_suite(suite, [])) - new - admission - native_archive.additions(suite)
                                            - set(install_recovery.AUTOMATIC.get(suite, ()))
-                                           - set(native_install.AUTOMATIC.get(suite, ()))), frozen)
+                                           - set(native_install.AUTOMATIC.get(suite, ()))
+                                           - diagnostics.additions(suite)), frozen)
         self.assertEqual(len(migration.REQUIRED), len(set(migration.REQUIRED)))
         self.assertEqual(inventory(set(migration.REQUIRED) - set(evidence.HELM_NATIVE_UNINSTALL_NAMES)
                                    - set(evidence.HELM_JOURNAL_ADMISSION_NAMES) - set(native_archive.NATIVE_NAMES)
-                                   - set(install_recovery.NATIVE_NAMES) - set(native_install.NATIVE_NAMES)),
+                                   - set(install_recovery.NATIVE_NAMES) - set(native_install.NATIVE_NAMES)
+                                   - set(diagnostics.UI_NAMES)),
                          LEGACY_MIGRATION)
 
     def test_native_cases_are_added_to_every_applicable_suite(self):
