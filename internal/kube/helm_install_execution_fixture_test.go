@@ -307,10 +307,16 @@ func btoi(b bool) int {
 }
 func installExecutionSetup(t *testing.T, n int) (*Backend, *helmrelease.InstallCandidate, *HelmInstallDryRun, *HelmInstallDryRunConsent, *installExecutionFixture) {
 	t.Helper()
+	return installExecutionSetupConfigured(t, n, rest.Config{RateLimiter: flowcontrol.NewFakeAlwaysRateLimiter()}, nil)
+}
+
+func installExecutionSetupConfigured(t *testing.T, n int, cfg rest.Config, values map[string]any) (*Backend, *helmrelease.InstallCandidate, *HelmInstallDryRun, *HelmInstallDryRunConsent, *installExecutionFixture) {
+	t.Helper()
 	f := &installExecutionFixture{objects: map[string][]byte{}, faultAt: 1}
 	srv := httptest.NewServer(http.HandlerFunc(f.handler))
 	t.Cleanup(srv.Close)
-	b, err := New(&rest.Config{Host: srv.URL + "/prefix", BearerToken: "current", RateLimiter: flowcontrol.NewFakeAlwaysRateLimiter()})
+	cfg.Host, cfg.BearerToken = srv.URL+"/prefix", "current"
+	b, err := New(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +329,11 @@ func installExecutionSetup(t *testing.T, n int) (*Backend, *helmrelease.InstallC
 		}
 		manifest += fmt.Sprintf("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: target-%d\ndata:\n  private: PRIVATE_INSTALL_VALUE\n", i)
 	}
-	raw, _ := json.Marshal(map[string]any{"name": "example", "namespace": "team", "version": 1, "apply_method": "ssa", "info": map[string]any{"status": "pending-install", "description": "Dry run complete", "first_deployed": stamp, "last_deployed": stamp}, "chart": map[string]any{"metadata": map[string]any{"name": "sample", "version": "0.1.0", "apiVersion": "v2"}}, "manifest": manifest})
+	capture := map[string]any{"name": "example", "namespace": "team", "version": 1, "apply_method": "ssa", "info": map[string]any{"status": "pending-install", "description": "Dry run complete", "first_deployed": stamp, "last_deployed": stamp}, "chart": map[string]any{"metadata": map[string]any{"name": "sample", "version": "0.1.0", "apiVersion": "v2"}}, "manifest": manifest}
+	if values != nil {
+		capture["config"] = values
+	}
+	raw, _ := json.Marshal(capture)
 	c, err := helmrelease.DecodeInstallCapture(context.Background(), raw, "team", "example", now)
 	clear(raw)
 	if err != nil {

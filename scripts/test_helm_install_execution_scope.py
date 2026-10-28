@@ -19,7 +19,7 @@ class InstallExecutionScopeTests(unittest.TestCase):
             required = contract.required(suite)
             self.assertEqual(len(required), len(set(required)))
             self.assertTrue(set(names) <= set(required))
-        self.assertEqual(len(execution.INSTALL_EXECUTION_REQUIRED['unit-native']), 97)
+        self.assertEqual(len(execution.INSTALL_EXECUTION_REQUIRED['unit-native']), 120)
         self.assertEqual(len(execution.INSTALL_EXECUTION_REQUIRED['real-cluster-native']), 5)
 
     def test_every_new_requirement_must_run_and_finish_once(self):

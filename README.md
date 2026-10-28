@@ -176,6 +176,34 @@ See [the native workflow](docs/native-helm-uninstall.md),
 [current project progress](docs/PROGRESS.zh-CN.md) for the admitted scope and its
 separate final-candidate/main acceptance records.
 
+### Retained journal archival
+
+The native recovery pane also supports a separate exact-record review and
+confirmation for archiving a terminal record with no unresolved effects.
+Archival retains the original bytes in the same private directory and frees
+active quota; it does not delete history or make Unknown/Partial records eligible.
+Active and archived records have independent bounded inventories. See
+[native archival](docs/native-helm-journal-archive.md) and
+[the shared archival contract](docs/helm-journal-archive.md).
+
+### Restricted Helm installation development
+
+The completed backend foundations are immutable local capture and GET-only
+preparation ([#103/#104](https://github.com/laojianzi/aster/pull/104)), separately
+authorized server dry-run ([#105/#106](https://github.com/laojianzi/aster/pull/106)),
+and the shared version-2 write-ahead journal with inert recovery
+([#107/#108](https://github.com/laojianzi/aster/pull/108)).
+[Issue #109 / PR #110](https://github.com/laojianzi/aster/pull/110) tracks the
+independently authorized persistent executor and its acceptance records.
+It preserves frozen inputs, original deadlines, intent-before-dispatch,
+strict responses, separate observations and partial/Unknown results.
+The restricted profile is a new revision-1 release with 1–32 ConfigMaps.
+Inputs proven unable to fit the unchanged time, rate or payload budgets are
+refused before any execution request or WAL; the profile maximum does not
+guarantee completion with the default connection budget.
+Native install controls remain disabled. Upgrade, rollback and GitOps are
+separate remaining goals. See [the execution contract](docs/helm-install-execution.md).
+
 ## Reviewed issuer sign-out
 
 For an active browser-OIDC connection, **Browser sign-in** shows an optional issuer

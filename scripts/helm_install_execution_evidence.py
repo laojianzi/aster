@@ -21,6 +21,11 @@ INSTALL_EXECUTION_REQUIRED = {
         'TestHelmInstallExecutionCorruptAppend',
         'TestHelmInstallExecutionProcessHelper',
         *cases('TestHelmInstallExecutionProcessCrash', (1,2,3)),
+        *cases('TestHelmInstallExecutionBudgetAdmission', ('default-32','default-small','configured-fast-32',
+               'short-parent-deadline','short-original-expiry','opaque-limiter','sensitive-read-bytes','final-patch-bytes')),
+        *cases('TestHelmInstallExecutionRateCapacity', ('default-32','full-burst-boundary','one-over-capacity',
+               'rounded-refill','tiny-refill','large-burst','unknown','nonfinite')),
+        *cases('TestHelmInstallExecutionSizeBounds', ('small','oversized-patch','invalid','cancelled')),
     ),
     'real-cluster-native': cases('TestRealHelmInstallExecution', ('success','storage-race','target-race','committed-response-loss')),
 }
@@ -30,4 +35,5 @@ ADDED_TEST_FILES = {
     'internal/kube/helm_install_execution_journal_test.go',
     'internal/kube/helm_install_execution_process_test.go',
     'e2e/helm_install_execution_test.go',
+    'internal/helmrelease/install_execution_size_test.go',
 }

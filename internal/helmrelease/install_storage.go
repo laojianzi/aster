@@ -99,27 +99,7 @@ func BuildInstallDeployedPatch(ctx context.Context, c *InstallCandidate, data []
 			storage.Metadata.DeletionGracePeriodSeconds != nil || restrictedAnnotations(storage.Metadata.Annotations) {
 			return ErrInstallCodec
 		}
-		var root map[string]json.RawMessage
-		if json.Unmarshal(payload, &root) != nil {
-			return ErrInstallCodec
-		}
-		info, err := replaceStatusMember(ctx, root["info"], "status", []byte(`"deployed"`))
-		if err != nil {
-			return err
-		}
-		defer func() { clear(info) }()
-		next, err := replaceStatusMember(ctx, info, "description", []byte(`"Install complete"`))
-		clear(info)
-		if err != nil {
-			return err
-		}
-		info = next
-		updated, err := replaceStatusMember(ctx, payload, "info", info)
-		if err != nil {
-			return err
-		}
-		defer clear(updated)
-		encoded, err := encodeStatusPayload(ctx, updated)
+		encoded, err := encodeInstallDeployedPayload(ctx, payload)
 		if err != nil {
 			return err
 		}
@@ -149,4 +129,75 @@ func BuildInstallDeployedPatch(ctx context.Context, c *InstallCandidate, data []
 		return nil, err
 	}
 	return result, nil
+}
+
+// InstallExecutionSizeBounds returns only lower bounds for the pending Secret's
+// release value and the final patch's two release values, in JSON wire bytes.
+// These inert local facts can reject an impossible execution before any write.
+// They are not a fit guarantee: server metadata, other reads, JSON framing and
+// timing cost more. No UID/RV is invented, and no payload or authority escapes.
+func InstallExecutionSizeBounds(ctx context.Context, c *InstallCandidate, p *InstallCreatePlan) (pendingReleaseBytes, deployedPatchDataBytes int, err error) {
+	if ctx == nil || c == nil || c.id == "" || p == nil || p.candidateID != c.id || p.namespace != c.namespace ||
+		p.Len() == 0 || p.requests[0].resource != "secrets" || p.requests[0].name != c.StorageName() {
+		return 0, 0, ErrInstallCodec
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	body := p.SensitiveBody(0)
+	defer clear(body)
+	var pending struct {
+		Data map[string][]byte `json:"data"`
+	}
+	defer func() {
+		for _, data := range pending.Data {
+			clear(data)
+		}
+	}()
+	if json.Unmarshal(body, &pending) != nil || len(pending.Data) != 1 || len(pending.Data["release"]) == 0 {
+		return 0, 0, ErrInstallCodec
+	}
+	payload, err := installPendingPayload(ctx, c)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer clear(payload)
+	encoded, err := encodeInstallDeployedPayload(ctx, payload)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer clear(encoded)
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	// The exact byte values require at least their canonical Base64 lengths.
+	// Alternative JSON escaping can add bytes, never remove required Base64.
+	pendingReleaseBytes = base64.StdEncoding.EncodedLen(len(pending.Data["release"]))
+	return pendingReleaseBytes, pendingReleaseBytes + base64.StdEncoding.EncodedLen(len(encoded)), nil
+}
+
+// Both the actual conditional codec and pre-write size proof use this exact
+// payload transformation and bounded encoder. Neither reads mutable sources.
+func encodeInstallDeployedPayload(ctx context.Context, payload []byte) ([]byte, error) {
+	var root map[string]json.RawMessage
+	if json.Unmarshal(payload, &root) != nil {
+		return nil, ErrInstallCodec
+	}
+	info, err := replaceStatusMember(ctx, root["info"], "status", []byte(`"deployed"`))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { clear(info) }()
+	next, err := replaceStatusMember(ctx, info, "description", []byte(`"Install complete"`))
+	clear(info)
+	if err != nil {
+		return nil, err
+	}
+	info = next
+	updated, err := replaceStatusMember(ctx, payload, "info", info)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(updated)
+	return encodeStatusPayload(ctx, updated)
 }

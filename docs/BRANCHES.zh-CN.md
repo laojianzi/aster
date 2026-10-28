@@ -1,22 +1,31 @@
 # 分支与 PR 接续台账
 
-## 当前接续入口 — 2026-10-20
+## 最近接续入口与唯一退役范围 — 2026-10-28
 
-本次基线为已验收 `main aa84d7adb3a3c4d19d58d7a39443e49b2eb51490`。
-入场盘点为 main 唯一远端分支、60 个 PR（59 merged、仅 #2 closed/unmerged、0 open），
-开放 Issues 为 #11 与 #13。#94/#95 已完成，原始 bundle 的 40 个引用（含 HEAD）、
-284 个全部历史提交在空仓库离线恢复并通过 strict fsck，远端/本地分支已退役。
-详见 [#94 单一完成收据](https://github.com/laojianzi/aster/issues/94#issuecomment-6289174151)；
-不重复合并、重建或删除已完成范围。
+本次基线为已验收 `main b8c69749c60417df877b277ee83713e5684694a2`，
+tree `f8f1479331f1e543c4b4ca7842312fbc1ba710f0`。
+[#107/#108 完成收据](https://github.com/laojianzi/aster/issues/107#issuecomment-6433363807)
+记录 v2 安装 WAL 的独立 PR/main 资格、实际分支退役和完整历史恢复。
+#96/#97、#99/#100、#101/#102、#103/#104、#105/#106 均已完成，不重建历史范围。
 
-唯一新增范围为 [#96](https://github.com/laojianzi/aster/issues/96) /
-[PR #97](https://github.com/laojianzi/aster/pull/97) / `feat/helm-journal-admission`：复用同一个 Begin 准入判定，提供 existing-only 的本地
-只读阻止原因、匹配记录和容量预留说明，接入已有原生卸载与恢复面板。
-PR #97 已实际创建，退役登记只绑定该 PR 与这个准确分支。
-报告不是执行授权，不能改变 Unknown 或解除未决记录保护。本文件没有预先宣称
-候选/main 已通过或 #96 已关闭。实际唯一 PR、验证/合并及可恢复退役结果以该 Issue
-和 [#13](https://github.com/laojianzi/aster/issues/13) 的完成记录为准。
-归档/维护标签保存完整历史，保留全部 38 个现有 tag；#11 两项依赖候选继续独立待审。
+入场全量盘点为 68 个 PR（66 merged、仅 #2 closed/unmerged、#110 draft/open），
+42 个实际 Issues（#11、#13、#109 open），main 和 `feat/helm-install-execution` 两个分支，
+44 个恢复 tags，0 releases。唯一 feature 入场 head 为
+`7e7d91bb16c83e090668901dfeedbea781374cb6`；已有
+[PR #110](https://github.com/laojianzi/aster/pull/110) 对应
+[Issue #109](https://github.com/laojianzi/aster/issues/109)，继续同一分支，不另开实现。
+
+本次登记 `APPROVED[110] = 'feat/helm-install-execution'`，保留所有旧登记、四组实际
+main 门槛以及依赖范围第五门槛。专属回归拒绝把 Issue #109 或旧 PR #108 作为退役对象，
+并覆盖活动 head/base PR、移动或保护分支、错误仓库/merge、不可达历史和过期/失败 gate。
+仅在最终候选审查、精确合并、实际新 main 四组资格、准确 tip 与完整历史可达性均成立后，
+既有工作流才可先打包全部历史，再以精确 lease 原子建立 receipt tag 并删除准确分支。
+原始 bundle 还需在独立空仓库离线恢复并核验 strict fsck 和所有旧 tag 映射。
+
+入场状态是历史快照，不预先声称 #110 已合并、#109 已关闭或本次退役成功。实际结果、
+自动退役与独立原件审查的真实先后顺序写入 #109 和
+[#13](https://github.com/laojianzi/aster/issues/13)；不复制旧完成收据作新资格。
+#11 有四项独立依赖待审，面板和总进度 Issue 均保持开放；恢复 tags 不是待开发分支。
 
 以下是当时的原始检查点，未勾选项和“本轮”均不代表当前活动工作。
 
@@ -163,7 +172,7 @@ Issues（仅 #13 open）、仅 main 分支、19 个恢复 tags、0 releases。�
 `maintenance/completed-pr-55` 指向该 main。自动退役早于独立审查，恢复核验与本地清理在
 审查后完成，#54 于 2026-10-12T14:26:47Z 明确 completed。旧 tags 和范围保护保持有效。
 
-## 本轮唯一范围：Issue #56 / PR #57
+## 历史检查点：Issue #56 / PR #57
 
 2026-10-13 新增 #56 前，完整盘点为 37 个 PR（36 merged、#2 superseded/closed、0 open）、
 18 个实际 Issues（仅 #13 open）、仅 main、20 个 archive/maintenance tags、0 releases。

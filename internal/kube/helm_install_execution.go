@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,7 @@ import (
 )
 
 var (
+	ErrHelmInstallExecutionBudget   = errors.New("The reviewed Helm install cannot complete within the existing execution budgets; no operation was started.")
 	ErrHelmInstallExecutionConsent  = errors.New("Helm install requires fresh independent single-use write confirmation.")
 	ErrHelmInstallExecutionResponse = errors.New("Helm install received an unsupported or inconsistent response.")
 	ErrHelmInstallExecutionChanged  = errors.New("The reviewed Helm install namespace, release history or object changed.")
@@ -233,6 +235,9 @@ func (b *Backend) ExecuteHelmInstall(parent context.Context, grant *HelmInstallE
 	}
 	out.effects = append(out.effects, helmjournal.Effect{Kind: "deploy", Namespace: p.Namespace, Name: p.StorageName, Outcome: helmjournal.NotStarted})
 	defer func() { out.finished = time.Now(); out.outcome = installExecutionOutcome(out.effects) }()
+	if err = b.installExecutionBudget(ctx, &origin.candidate, origin.plan); err != nil {
+		return out, err
+	}
 	writer, e := s.store.BeginInstall(p)
 	if e != nil {
 		return out, errors.Join(ErrHelmExecutionJournal, e)
@@ -244,7 +249,7 @@ func (b *Backend) ExecuteHelmInstall(parent context.Context, grant *HelmInstallE
 			err = errors.Join(err, ErrHelmExecutionJournal, e)
 		}
 	}()
-	runner := installExecutionRun{b: b, ctx: ctx, active: active, dispatch: dispatch, state: origin, session: session, journal: writer, out: out, remaining: 4*helmrelease.MaxInstallCreateBytes + maxLiveReadBytes}
+	runner := installExecutionRun{b: b, ctx: ctx, active: active, dispatch: dispatch, state: origin, session: session, journal: writer, out: out, remaining: installExecutionReadBytes}
 	err = runner.run()
 	if e = writer.Finish(time.Now()); e != nil {
 		err = errors.Join(err, ErrHelmExecutionJournal, e)
@@ -253,6 +258,67 @@ func (b *Backend) ExecuteHelmInstall(parent context.Context, grant *HelmInstallE
 	}
 	return out, err
 }
+
+// Keep the existing shared response allowance unchanged. Admission only rejects
+// provably impossible work; it neither reserves capacity nor extends authority.
+const installExecutionReadBytes = 4*helmrelease.MaxInstallCreateBytes + maxLiveReadBytes
+
+func (b *Backend) installExecutionBudget(ctx context.Context, c *helmrelease.InstallCandidate, plan *helmrelease.InstallCreatePlan) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	n := plan.Len() - 1
+	if n < 1 || n > helmrelease.MaxPreviewObjects {
+		return ErrHelmInstallExecutionResponse
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return ErrHelmInstallExecutionResponse
+	}
+	// Fresh preparation N+7, discovery 1, Secret stage 11, ConfigMap stages
+	// 13*N and final transition 21+2*N. Pagination can only increase this.
+	rateBudget := func() error {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return context.DeadlineExceeded
+		}
+		if installRateCapacityInsufficient(b.ownedRateLimit, 16*n+40, remaining) {
+			return ErrHelmInstallExecutionBudget
+		}
+		return ctx.Err()
+	}
+	if err := rateBudget(); err != nil {
+		return err
+	}
+	pending, patch, err := helmrelease.InstallExecutionSizeBounds(ctx, c, plan)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return ErrHelmInstallExecutionResponse
+	}
+	// Pending Secret response + initial observation, two guards per ConfigMap
+	// and two pre-patch guards each require the same encoded release value.
+	// Count only mandatory data bytes, not request JSON/metadata, so server
+	// serialization cannot make this response-size lower bound too large.
+	if pending > installExecutionReadBytes/(2*n+4) || patch > helmrelease.MaxSecretBytes {
+		return ErrHelmInstallExecutionBudget
+	}
+	// Local bounded encoding also consumes time. Recheck the actual remaining
+	// deadline before opening the WAL, rather than reusing pre-encoding time.
+	return rateBudget()
+}
+
+func installRateCapacityInsufficient(limit *backendRateLimit, requests int, remaining time.Duration) bool {
+	if limit == nil || limit.burst <= 0 || limit.qps <= 0 || math.IsNaN(float64(limit.qps)) {
+		return false
+	}
+	// A full initial bucket is the most optimistic possible starting point.
+	// Round refill upward; no QPS() assumption is made about opaque limiters.
+	capacity := float64(limit.burst) + math.Ceil(float64(limit.qps)*remaining.Seconds())
+	return float64(requests) > capacity
+}
+
 func installExecutionOutcome(effects []helmjournal.Effect) string {
 	all, completed, pending, rejected := len(effects) > 0, false, false, false
 	for _, e := range effects {

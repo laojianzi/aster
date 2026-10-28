@@ -2,15 +2,21 @@ package kube
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/laojianzi/aster/internal/helmjournal"
+	"github.com/laojianzi/aster/internal/helmrelease"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/flowcontrol"
 )
 
 func TestHelmInstallExecutionSuccess(t *testing.T) {
@@ -30,6 +36,9 @@ func TestHelmInstallExecutionSuccess(t *testing.T) {
 			}
 			if report.Outcome() != helmjournal.Completed || !report.JournalComplete() || len(report.Effects()) != n+2 || f.writes.Load() != int32(n+2) || f.bad.Load() {
 				t.Fatal("incomplete/unsafe execution", report.Outcome(), f.writes.Load(), f.bad.Load())
+			}
+			if f.calls.Load() != int32(16*n+40) {
+				t.Fatal("single-page request census changed", f.calls.Load())
 			}
 			s, err := f.journal.store.Load(report.JournalID())
 			if err != nil || !s.Closed || s.Action != "install" || len(s.Effects) != n+2 {
@@ -275,6 +284,135 @@ func TestHelmInstallExecutionDeployedMetadata(t *testing.T) {
 			snap, err := f.journal.store.Load(out.JournalID())
 			if err != nil || !snap.Closed || snap.Effects[2].Outcome != helmjournal.Unknown {
 				t.Fatal("malformed acknowledgement not durably uncertain", err)
+			}
+		})
+	}
+}
+
+// QPS alone cannot establish an opaque limiter's burst or completion capacity.
+type opaqueInstallRateLimiter struct{ flowcontrol.RateLimiter }
+
+func (opaqueInstallRateLimiter) QPS() float32 { return 0.00001 }
+
+func TestHelmInstallExecutionBudgetAdmission(t *testing.T) {
+	for _, mode := range []string{"default-32", "default-small", "configured-fast-32", "short-parent-deadline", "short-original-expiry", "opaque-limiter", "sensitive-read-bytes", "final-patch-bytes"} {
+		t.Run(mode, func(t *testing.T) {
+			n, cfg := 1, rest.Config{}
+			var values map[string]any
+			success := mode == "default-small" || mode == "configured-fast-32" || mode == "opaque-limiter"
+			switch mode {
+			case "default-32":
+				n = 32
+			case "configured-fast-32":
+				n, cfg.QPS, cfg.Burst = 32, 1000, 1000
+			case "opaque-limiter":
+				n = 32
+				cfg.QPS, cfg.Burst = 0.00001, 1
+				cfg.RateLimiter = opaqueInstallRateLimiter{flowcontrol.NewFakeAlwaysRateLimiter()}
+			case "sensitive-read-bytes", "final-patch-bytes":
+				cfg.RateLimiter = flowcontrol.NewFakeAlwaysRateLimiter()
+				entropyBytes := 650 << 10
+				if mode == "sensitive-read-bytes" {
+					n, entropyBytes = 32, 360<<10
+				}
+				// Deterministic synthetic values resist compression while staying
+				// within the existing capture/storage/preflight profile.
+				data := make([]byte, entropyBytes)
+				_, _ = rand.New(rand.NewSource(109)).Read(data)
+				values = map[string]any{"synthetic": base64.StdEncoding.EncodeToString(data)}
+				clear(data)
+			}
+			b, c, pre, _, f := installExecutionSetupConfigured(t, n, cfg, values)
+			if cfg.RateLimiter == nil {
+				wantQPS, wantBurst := float32(20), 40
+				if mode == "configured-fast-32" {
+					wantQPS, wantBurst = 1000, 1000
+				}
+				if b.ownedRateLimit == nil || b.ownedRateLimit.qps != wantQPS || b.ownedRateLimit.burst != wantBurst {
+					t.Fatal("missing constructor-owned request capacity")
+				}
+			} else if b.ownedRateLimit != nil {
+				t.Fatal("opaque limiter was assigned an invented capacity")
+			}
+			if mode == "sensitive-read-bytes" || mode == "final-patch-bytes" {
+				pending, patch, e := helmrelease.InstallExecutionSizeBounds(context.Background(), c, pre.state.plan)
+				if e != nil {
+					t.Fatal(e)
+				}
+				readExceeded := pending*(2*n+4) > installExecutionReadBytes
+				patchExceeded := patch > helmrelease.MaxSecretBytes
+				if readExceeded != (mode == "sensitive-read-bytes") || patchExceeded != (mode == "final-patch-bytes") {
+					t.Fatal("fixture does not independently exercise its byte budget", pending, patch)
+				}
+			}
+			grant, err := b.AcknowledgeHelmInstallExecution(context.Background(), pre, c, "execute-session", true, f.journal)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			if mode == "short-parent-deadline" {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, 200*time.Millisecond)
+				defer cancel()
+			}
+			if mode == "short-original-expiry" {
+				grant.state.origin.preparation.expires = time.Now().Add(200 * time.Millisecond)
+			}
+			out, err := b.ExecuteHelmInstall(ctx, grant, c, "execute-session")
+			if success {
+				if err != nil || out == nil || out.Outcome() != helmjournal.Completed || !out.JournalComplete() || f.writes.Load() != int32(n+2) || f.bad.Load() {
+					t.Fatal("admissible execution failed", err, out, f.writes.Load(), f.bad.Load())
+				}
+				if f.calls.Load() != int32(16*n+40) {
+					t.Fatal("single-page request census changed", f.calls.Load())
+				}
+			} else {
+				if !errors.Is(err, ErrHelmInstallExecutionBudget) || out == nil || out.Outcome() != helmjournal.NotStarted || out.JournalID() != "" || out.JournalComplete() || len(out.Effects()) != n+2 || out.FinishedAt().IsZero() {
+					t.Fatal("impossible execution was not refused before admission", err, out)
+				}
+				if f.calls.Load() != 0 || f.writes.Load() != 0 || f.bad.Load() {
+					t.Fatal("budget refusal made a request", f.calls.Load(), f.writes.Load())
+				}
+				ids, e := f.journal.IDs()
+				if e != nil || len(ids) != 0 {
+					t.Fatal("budget refusal created a WAL record", e, ids)
+				}
+				for _, effect := range out.Effects() {
+					if effect.Outcome != helmjournal.NotStarted || effect.UID != "" || effect.ObservedResourceVersion != "" {
+						t.Fatal("budget refusal reported a server effect", effect)
+					}
+				}
+			}
+			if _, err = b.ExecuteHelmInstall(context.Background(), grant, c, "execute-session"); !errors.Is(err, ErrHelmInstallExecutionConsent) {
+				t.Fatal("budget attempt left a reusable grant", err)
+			}
+			if _, err = b.AcknowledgeHelmInstallExecution(context.Background(), pre, c, "execute-session", true, f.journal); !errors.Is(err, ErrHelmInstallExecutionConsent) {
+				t.Fatal("budget attempt allowed a second mint", err)
+			}
+		})
+	}
+}
+
+func TestHelmInstallExecutionRateCapacity(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		limit     *backendRateLimit
+		requests  int
+		remaining time.Duration
+		refuse    bool
+	}{
+		{"default-32", &backendRateLimit{20, 40}, 552, 10 * time.Second, true},
+		{"full-burst-boundary", &backendRateLimit{20, 40}, 240, 10 * time.Second, false},
+		{"one-over-capacity", &backendRateLimit{20, 40}, 241, 10 * time.Second, true},
+		{"rounded-refill", &backendRateLimit{1, 40}, 41, time.Nanosecond, false},
+		{"tiny-refill", &backendRateLimit{0.00001, 40}, 42, time.Second, true},
+		{"large-burst", &backendRateLimit{20, int(^uint(0) >> 1)}, 552, time.Nanosecond, false},
+		{"unknown", nil, 552, time.Nanosecond, false},
+		{"nonfinite", &backendRateLimit{float32(math.Inf(1)), 40}, 552, time.Second, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := installRateCapacityInsufficient(tc.limit, tc.requests, tc.remaining); got != tc.refuse {
+				t.Fatal("incorrect optimistic capacity refusal", got)
 			}
 		})
 	}
