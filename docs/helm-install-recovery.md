@@ -1,6 +1,7 @@
 # Read-only install recovery and mixed journal history
 
-Scope: [#111](https://github.com/laojianzi/aster/issues/111), sole branch
+Scope: [#111](https://github.com/laojianzi/aster/issues/111), sole
+[PR #114](https://github.com/laojianzi/aster/pull/114) and branch
 `feat/helm-install-recovery`, based on qualified main
 `c178e3fbadd5f8e0688d0a4350baebd416d3dc81`.
 The [#109/#110 completion record](https://github.com/laojianzi/aster/issues/109#issuecomment-6460505239)
@@ -155,7 +156,8 @@ continued rejection of a second installation by the shared admission guard.
 Compilation alone does not establish these cluster results. Final exact-head PR
 and actual merged-main workflows each require their own original artifacts, raw
 test streams, native ordinary/production binaries and source provenance. The
-actual PR number must be registered for recoverable branch retirement; a new
+actual PR #114 is registered for its exact branch, with Issue #111 and prior
+PR #110 rejected by dedicated regression guards. A new
 full-history bundle must be restored into an independent empty repository. Those
 acceptance facts and their true order belong in #111 and the current #13 checkpoint.
 This source contract does not predeclare the later qualification or issue closure.

@@ -12,8 +12,9 @@ tree `9e2f18523f57489a9850b720e306616222301122`。
 42 个实际 Issues（40 closed、仅 #11/#13 open），仅 main、45 个恢复 tags、0 releases。
 因此只创建 [Issue #111](https://github.com/laojianzi/aster/issues/111) 和
 `feat/helm-install-recovery`，准确从上述 main 起步，接续 v2 历史新授权只读核对及
-混合 v1/v2 原生浏览；没有并行实现或重复 PR。实际创建 PR 后才登记准确编号，
-不以 Issue #111 或前次 PR #110 代替新 PR。
+混合 v1/v2 原生浏览；没有重复实现或重复 PR。实际创建唯一 [PR #114](https://github.com/laojianzi/aster/pull/114)
+后登记 `APPROVED[114] = 'feat/helm-install-recovery'`；专属回归拒绝 Issue #111
+与前次 PR #110 代替新 PR。
 
 保留所有旧 APPROVED 登记、四组实际 main 门槛以及依赖范围第五门槛。
 新范围同样检查活动 head/base PR、移动/保护分支、错误仓库/merge、不可达历史与

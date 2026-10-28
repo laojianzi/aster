@@ -12,8 +12,9 @@
 入场全量盘点为 42 个实际 Issues（40 closed、仅 #11/#13 open）、68 个 PR
 （67 merged、#2 superseded/closed、0 open）、仅 main、45 个恢复 tags、0 releases。
 **本次唯一新增范围是 [#111](https://github.com/laojianzi/aster/issues/111) /
-`feat/helm-install-recovery`：v2 安装历史的新授权只读核对及原生展示。**
-创建该 Issue/branch 后有 43 个实际 Issues、两个分支；PR 只使用后续实际创建的编号。
+[PR #114](https://github.com/laojianzi/aster/pull/114) / `feat/helm-install-recovery`：
+v2 安装历史的新授权只读核对及原生展示。**
+创建该 Issue/branch 时有 43 个实际 Issues、两个远端分支；唯一实际 PR #114 已登记。
 这是入场/准入快照，实时结项以实际 Issue/PR 和 [#13 当前检查点](https://github.com/laojianzi/aster/issues/13) 为准。
 
 已复现共享历史 loader 将合法 v2 交给 v1 Recover，导致四条混合 active/archive 历史
@@ -84,6 +85,8 @@ MyGo v0.7.1、Node v26、JSON Patch v5 四项独立待审。候选以面板实�
 后台执行和已有原生卸载。工作期间新增的 [#112](https://github.com/laojianzi/aster/issues/112)
 报告仓库内 TMPDIR 使终端加固补丁静默跳过并阻断构建，应在 #111 收尾后作为独立
 P1 修复，验证真实补丁产物与内外临时目录构建一致，不混入本恢复分支。
+随后新增的 [#113](https://github.com/laojianzi/aster/issues/113) 固定字号/文字缩放
+是独立 P2 可读性问题，保留实际渲染与文本大小验证，不以现有控件边界测试视作完成。
 之后再准入原生 install 工作流，明确新的持久写入确认、
 取消/Unknown 与固定 journal 行为；不能从恢复 GET 隐式授予执行。先读取本次实际
 Issue/PR 状态，不重建恢复分支或后台实现。#11 依赖候选单独审查。
