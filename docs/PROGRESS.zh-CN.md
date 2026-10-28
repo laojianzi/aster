@@ -11,7 +11,7 @@
 文件与 CI source 原件逐字节一致；但实际主干 CI 两次触发 UI 整包五分钟超时。
 因此 54af 不是已通过全部门槛的基线，#112 继续开放；不生成 completed-pr-117 收据。
 
-唯一当前 P1 是 [#121](https://github.com/laojianzi/aster/issues/121)，针对已测量的无损
+唯一当前实施的 P1 范围是 [#121](https://github.com/laojianzi/aster/issues/121)，针对已测量的无损
 截图编码成本做窄修复。候选仅把 saveNativeScreenshot 的默认 PNG 压缩改为 BestSpeed；
 生产代码、全部旧测试断言、图片范围、同步写入/关闭错误、race/shuffle、五分钟包期限
 和二十分钟 job 预算保持。六帧局部编码测量不能代替完整包或主干资格；完整 UI 基线/
@@ -24,8 +24,9 @@
 全部143个不透明冻结帧的133,202,400像素及alpha重编码一致；跨执行112张同像素、
 31张差异原件保留，不称全部跨跑图相同。最终PR/新main仍须独立完整验收。
 
-维护接续复用已保留的 fix/terminal-preparation-tmpdir 分支，沿用 #81→#83 先例，
-避免新建同类远端分支。维护 PR 创建后才登记实际编号；新 PR 自己完成最终 PR 与实际
+维护接续 [PR #122](https://github.com/laojianzi/aster/pull/122) 于 06:39 UTC 实际创建，
+复用已保留的 fix/terminal-preparation-tmpdir 分支，沿用 #81→#83 先例，
+避免新建同类远端分支。仅在创建后登记实际编号 122；它须完成自身最终 PR 与实际
 新 main 四组门槛、新原件和真实退役恢复，旧 #117 两次失败原件保持历史事实。
 恢复核验必须区分 last-qualified cb1/46 tags 与实际集成父提交 54af，不能把后者改称
 已验收基线。完成该接续后才显式完成 #121/#112；不重复实现终端准备或安装恢复。

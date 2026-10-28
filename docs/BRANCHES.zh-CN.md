@@ -12,8 +12,10 @@ fix/terminal-preparation-tmpdir@`0294ca564c958f18bab2a94c9ed860e0d1768fb8`，
 这是入场快照，不作为后续状态承诺；原始记录在 #121/#112，最新状态以 #13 为准。
 
 沿用 [#81→#83 的维护接续规则](branch-retirement-outcomes.md#continuation-from-the-helm-contract-work)：
-新维护 PR 复用这个保留分支，以准确旧 tip lease 快进到基于当前 main 的候选。
-PR 创建前不预填编号；只把实际新 PR 登记到同一分支，不改变旧117登记或原守卫。
+维护 [PR #122](https://github.com/laojianzi/aster/pull/122) 于 06:39 UTC 实际创建，
+复用这个保留分支，以准确旧 tip lease 快进到基于当前 main 的候选。
+创建后才把实际编号122登记到同一分支，不改变旧117登记或原守卫；新增四个回归方法
+验证接续选择、拒绝错配/活动/保护状态、准确主干门槛及先bundle后原子写入。
 不新建重复远端分支，不把旧失败 main 改称通过，不制造 completed-pr-117。
 
 维护 PR 必须取得自身最终 PR 与实际新 main 的完整四组门槛和独立新原件。
