@@ -74,6 +74,9 @@ func TestNativeMigrationTextFieldsDoNotShareHistory(t *testing.T) {
 	}
 	tt.Key(ui.Cmd, ui.KeyA)
 	tt.Type("edited-manifest")
+	if err := tt.Click("Diagnostics"); err != nil {
+		t.Fatal(err)
+	}
 	if err := tt.Click("Command"); err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +89,9 @@ func TestNativeMigrationTextFieldsDoNotShareHistory(t *testing.T) {
 	tt.Key(ui.Cmd|ui.Shift, ui.KeyZ)
 	if w.commandArgv != `["id"]` {
 		t.Fatalf("manifest history entered command: %q", w.commandArgv)
+	}
+	if err := tt.Click("Diagnostics"); err != nil {
+		t.Fatal(err)
 	}
 	if err := tt.Click("Terminal"); err != nil {
 		t.Fatal(err)
@@ -114,7 +120,7 @@ func TestNativeMigrationReadOnlyRejectsTypingAndUndo(t *testing.T) {
 	}
 	tt.Key(ui.Cmd, ui.KeyA)
 	tt.Type("edited-manifest")
-	if err := tt.Click("YAML"); err != nil {
+	if err := tt.Click("Read-only"); err != nil {
 		t.Fatal(err)
 	}
 	if err := tt.Click("Resource document"); err != nil {

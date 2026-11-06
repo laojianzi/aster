@@ -32,6 +32,7 @@ func TestNativeFindCorrectionUndoAgainstRealCluster(t *testing.T) {
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Pod.UID)) })
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
+	h.click("YAML")
 	h.click("Edit")
 	buffer, snapshot := h.w.editor, h.w.editor.Snapshot()
 	input := "# 中文 🚢 é — local search only\r\n" + strings.ReplaceAll(h.w.editorText(), "\n", "\r\n")

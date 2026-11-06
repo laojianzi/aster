@@ -124,23 +124,22 @@ func (w *Workbench) helmInspectionView(c *ui.Context) {
 		return
 	}
 	ui.Column(c).Gap(5).Children(func() {
-		ui.Text(c, fmt.Sprintf("Selected: %s · revision %d", r.selected.Release, r.selected.Number)).Label("Helm inspection selection").SingleLine()
-		ui.Text(c, "Content may contain secrets. Requires get secrets; raw values/manifests/notes stay hidden.").FontSize(11)
-		guardedCheckbox(c, fmt.Sprintf("helm.inspection.consent.%d", r.contentEpoch), &r.acknowledged, "Allow reading this revision's sensitive Secret content", !r.busy && !r.inspecting)
+		ui.Text(c, fmt.Sprintf("Selected: %s; revision %d", r.selected.Release, r.selected.Number)).Label("Helm inspection selection").SingleLine()
+		guardedCheckbox(c, fmt.Sprintf("helm.inspection.consent.%d", r.contentEpoch), &r.acknowledged, "Allow reading this revision's sensitive Secret content", !r.busy && !r.inspecting).Tooltip("Requires get secrets; raw values, manifests and notes stay hidden.")
 		ui.Row(c).Gap(8).Wrap().Children(func() {
-			ui.Button(c, "Inspect selected revision").Disabled(!r.acknowledged || r.busy || r.inspecting).OnClick(w.inspectHelmRevision)
+			ui.Button(c, "Inspect revision").Label("Inspect selected revision").Disabled(!r.acknowledged || r.busy || r.inspecting).OnClick(w.inspectHelmRevision)
 			ui.Button(c, "Preview uninstall scope").Disabled(!r.acknowledged || r.busy || r.inspecting).OnClick(w.previewHelmUninstall)
-			ui.Button(c, "Stop content inspection").Disabled(!r.inspecting).OnClick(w.clearHelmInspection)
-			ui.Button(c, "Discard inspection").OnClick(w.clearHelmInspection)
+			ui.Button(c, "Stop").Label("Stop content inspection").Disabled(!r.inspecting).OnClick(w.clearHelmInspection)
+			ui.Button(c, "Discard").Label("Discard inspection").OnClick(w.clearHelmInspection)
 		})
-		ui.Text(c, r.contentStatus).Label("Helm inspection status").FontSize(11)
+		ui.Text(c, r.contentStatus).Label("Helm inspection status").FontSize(12 * max(1, c.Preferences().TextScale))
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Button(c, "Review restricted uninstall").Disabled(r.busy || r.inspecting || w.pendingWrites != 0 || r.selected.Status != "deployed").OnClick(w.openHelmUninstall)
 			ui.Button(c, "Review recovery history").Disabled(r.busy || r.inspecting || w.pendingWrites != 0).OnClick(w.openHelmRecovery)
 		})
 		if s := r.inspection; s != nil {
-			ui.Text(c, "Chart: "+s.ChartName+" · "+s.ChartVersion).Label("Helm inspection chart").SingleLine().FontSize(12)
-			ui.Text(c, fmt.Sprintf("Withheld: %d manifest bytes · %d hooks · %d supplied values", s.ManifestBytes, s.HookCount, s.SuppliedValues)).Label("Helm inspection summary").FontSize(11)
+			ui.Text(c, "Chart: "+s.ChartName+"; "+s.ChartVersion).Label("Helm inspection chart").SingleLine().FontSize(12 * max(1, c.Preferences().TextScale))
+			ui.Text(c, fmt.Sprintf("Withheld: %d manifest bytes; %d hooks; %d supplied values", s.ManifestBytes, s.HookCount, s.SuppliedValues)).Label("Helm inspection summary").FontSize(12 * max(1, c.Preferences().TextScale))
 		}
 	})
 }

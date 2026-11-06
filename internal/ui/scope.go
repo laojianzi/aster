@@ -11,13 +11,14 @@ import (
 )
 
 func (w *Workbench) chooseKind(kind kube.ResourceKind) {
+	w.resourceView = 0
 	w.currentKind = kind
 	w.kindChoice = kind.Label()
 	w.startScope()
 }
 func (w *Workbench) queryChanged() {
 	if w.store != nil {
-		w.store.setQuery(w.filter, w.sortBy)
+		w.store.setQuery(w.filter, w.sortBy, w.resourceView == 1)
 	}
 }
 func (w *Workbench) startScope() {
@@ -29,7 +30,22 @@ func (w *Workbench) startScope() {
 	if w.scopeCancel != nil {
 		w.scopeCancel()
 	}
-	w.clearDetail()
+	keepDiagnostic := w.diagnostic != nil && w.diagnostic.scope == strings.TrimSpace(w.namespace) && w.diagnostic.target.SessionID == w.sessionID
+	keepTabs := len(w.objectTabs) > 0 && w.objectTabScope == strings.TrimSpace(w.namespace) && w.objectTabs[0].target.SessionID == w.sessionID
+	if keepTabs {
+		w.saveObjectDraft()
+		if !keepDiagnostic {
+			w.clearDiagnostics()
+		}
+		w.clearObject()
+	} else if keepDiagnostic {
+		w.objectTabs, w.objectDrafts = nil, nil
+		w.objectTabScope = ""
+		w.clearObject()
+	} else {
+		w.clearDetail()
+	}
+
 	w.rows, w.total, w.selected, w.errText = nil, 0, -1, ""
 	if w.backend == nil {
 		w.status = "Not connected"
@@ -48,9 +64,9 @@ func (w *Workbench) startScope() {
 	} else if ns == "" {
 		w.activeNamespace = "all namespaces"
 	}
-	opts := metav1.ListOptions{LabelSelector: w.labelSelector}
+	opts := metav1.ListOptions{LabelSelector: w.appliedLabelSelector}
 	store := newRowStore()
-	store.setQuery(w.filter, w.sortBy)
+	store.setQuery(w.filter, w.sortBy, w.resourceView == 1)
 	w.store, w.status = store, "Synchronizing"
 	w.run(func(context.Context) {
 		err := backend.WatchWithStatus(ctx, kind.GVR, ns, opts, func(e kube.ResourceEvent) error { store.event(e); return nil }, func(status string) { store.setStatus(status, "") })
@@ -80,8 +96,8 @@ func (w *Workbench) startScope() {
 					if epoch != w.scopeEpoch || ctx.Err() != nil {
 						return
 					}
-					if snapshot.Query != w.filter || snapshot.Sort != w.sortBy {
-						store.setQuery(w.filter, w.sortBy)
+					if snapshot.Query != w.filter || snapshot.Sort != w.sortBy || snapshot.Attention != (w.resourceView == 1) {
+						store.setQuery(w.filter, w.sortBy, w.resourceView == 1)
 						return
 					}
 					selectedKey := ""

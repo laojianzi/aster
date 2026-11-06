@@ -88,7 +88,7 @@ func (r *Result) Summary() string {
 	if r == nil {
 		return ""
 	}
-	return fmt.Sprintf("Helm %s · %s · namespace %s · Kubernetes capability assumption %s · %d captured bytes · chart SHA256 %s. Rendering performed no Helm release or cluster write.", r.version, r.release, r.namespace, r.kubeVersion, len(r.manifest), r.chartDigest)
+	return fmt.Sprintf("Helm %s; %s; namespace %s; Kubernetes capability assumption %s; %d captured bytes; chart SHA256 %s. Rendering performed no Helm release or cluster write.", r.version, r.release, r.namespace, r.kubeVersion, len(r.manifest), r.chartDigest)
 }
 
 func ApprovedArchive() string {

@@ -407,11 +407,16 @@ func TestNativeHelmRecoveryCorruptionAndBusyStore(t *testing.T) {
 }
 
 func TestNativeHelmUninstallMinimumWindow(t *testing.T) {
-	for _, scale := range []float32{1, 1.25, 1.5} {
+	for _, scale := range []float32{1, 1.25, 1.5, 2} {
 		for _, rtl := range []bool{false, true} {
 			t.Run(fmt.Sprintf("scale-%g-rtl-%t", scale, rtl), func(t *testing.T) {
 				f := newNativeHelmUninstallFixture(t, helmrelease.MaxPreviewObjects)
 				h := f.harness(t)
+				t.Cleanup(func() {
+					if t.Failed() {
+						saveNativeScreenshot(t, h.tt)
+					}
+				})
 				h.tt.SetPreferences(ui.Preferences{TextScale: scale, HighContrast: true, ReduceMotion: true})
 				if rtl {
 					h.tt.SetLocale("ar")

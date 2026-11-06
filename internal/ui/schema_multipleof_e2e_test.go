@@ -25,29 +25,19 @@ func TestNativeSchemaMultipleOfAgainstRealCluster(t *testing.T) {
 	h.w.namespace = f.Namespace
 	h.tt.Frame()
 	h.click("Connect")
-	label, choiceIndex := "", -1
+	label := ""
 	h.pump(func() bool {
-		for i, kind := range h.w.kinds {
+		for _, kind := range h.w.kinds {
 			if kind.GVR == f.GVR && kind.Kind == f.GVK.Kind && kind.Namespaced {
-				label, choiceIndex = kind.Label(), i
+				label = kind.Label()
 				return true
 			}
 		}
 		return false
 	})
-	h.click("Resource kind")
-	if !h.tt.Focused("Resource kind") {
-		t.Fatal("resource kind select did not receive native focus")
-	}
-	// Resource kind is a rendered Select popup. Its discovered index may be
-	// outside the visible rows, so use its public Home/Down/Enter interaction.
-	h.tt.Key(0, ui.KeyHome)
-	for range choiceIndex {
-		h.tt.Key(0, ui.KeyDown)
-	}
-	h.tt.Key(0, ui.KeyEnter)
+	h.selectSidebarResource(f.GVK.Kind)
 	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
-		t.Fatal("native select did not choose the actually discovered multipleOf CRD")
+		t.Fatal("native sidebar did not choose the actually discovered multipleOf CRD")
 	}
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Live.GetUID())) })
 	h.click(f.Live.GetName())
@@ -55,6 +45,7 @@ func TestNativeSchemaMultipleOfAgainstRealCluster(t *testing.T) {
 	if h.w.detail.GroupVersionKind() != f.GVK || h.w.detail.GetUID() != f.Live.GetUID() || h.w.detail.GetResourceVersion() != f.Live.GetResourceVersion() {
 		t.Fatal("native discovery opened a different live multipleOf resource identity")
 	}
+	h.click("YAML")
 	h.click("Edit")
 	buffer, original := h.w.editor, h.w.editor.Snapshot()
 	obj, err := manifest.Decode([]byte(h.w.editorText()))
@@ -81,7 +72,7 @@ func TestNativeSchemaMultipleOfAgainstRealCluster(t *testing.T) {
 	snapshot, identity := h.w.editor.Snapshot(), h.w.draftIdentity()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/even · multipleOf") || !strings.Contains(h.w.schemaText, "/spec/quarter · multipleOf") || strings.Contains(h.w.schemaText, "/spec/half · multipleOf") || len(h.w.schemaLocations) != 2 {
+	if !strings.Contains(h.w.schemaText, "/spec/even: multipleOf") || !strings.Contains(h.w.schemaText, "/spec/quarter: multipleOf") || strings.Contains(h.w.schemaText, "/spec/half: multipleOf") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published multipleOf fields")
 	}
 	for _, private := range []string{"PRIVATE_NATIVE_MULTIPLEOF_SOURCE", "0.625", "0.25"} {
@@ -129,7 +120,7 @@ func TestNativeSchemaMultipleOfAgainstRealCluster(t *testing.T) {
 	quarterCorrected := h.w.editorText()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/even · multipleOf") || strings.Contains(h.w.schemaText, "/spec/quarter · multipleOf") || len(h.w.schemaLocations) != 1 || h.w.editorText() != quarterCorrected || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/even: multipleOf") || strings.Contains(h.w.schemaText, "/spec/quarter: multipleOf") || len(h.w.schemaLocations) != 1 || h.w.editorText() != quarterCorrected || h.w.plan != nil {
 		t.Fatal("native correction did not refresh the actual published quarter constraint")
 	}
 	chooseDiagnostic(h, "/spec/even")
@@ -184,6 +175,10 @@ func TestNativeSchemaMultipleOfAgainstRealCluster(t *testing.T) {
 		t.Fatal("actual native server preview did not contain the corrected resource identity and values")
 	}
 	assertLiveUnchanged()
+	h.click("Cancel review")
+	if h.w.plan != nil || h.w.detailMode == "Diff" || h.w.pendingWrites != 0 {
+		t.Fatal("canceling the review retained a plan or started a write")
+	}
 	h.click("Disconnect")
 	if h.w.backend != nil || h.w.plan != nil || h.w.schemaSource != nil || h.w.schemaJump != nil || len(h.w.schemaLocations) != 0 || h.w.schemaText != "" {
 		t.Fatal("disconnect retained multipleOf assistance or its reviewed plan")

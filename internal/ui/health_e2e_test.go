@@ -78,6 +78,10 @@ func TestNativeScaleTracksActualReadiness(t *testing.T) {
 	pump(func() bool { return containsRowUID(w.rows, string(f.Deployment.UID)) })
 	click(f.Deployment.Name)
 	pump(func() bool { return w.detail != nil })
+	click("Actions")
+	if err := tt.Click("Scale"); err != nil {
+		t.Fatal(err)
+	}
 	click("Replica count")
 	tt.Key(ui.Cmd, ui.KeyA)
 	tt.Type("1")

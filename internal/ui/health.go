@@ -26,7 +26,6 @@ func (w *Workbench) loadHealth() {
 	if w.detail == nil || w.backend == nil || w.creating {
 		return
 	}
-	w.stopLogs()
 	w.stopHealth()
 	epoch, revision := w.detailEpoch, w.healthEpoch
 	backend, target, parent := w.backend, w.target(), w.operationContext()
@@ -61,7 +60,6 @@ func (w *Workbench) startHealthTracking(obj *unstructured.Unstructured, operatio
 	if obj == nil || w.backend == nil || !health.Supports(obj) {
 		return
 	}
-	w.stopLogs()
 	w.stopHealth()
 	epoch, revision := w.detailEpoch, w.healthEpoch
 	target := resource.Identity{SessionID: w.sessionID, GVR: w.detailKind.GVR, Namespace: obj.GetNamespace(), Name: obj.GetName(), UID: obj.GetUID()}
@@ -89,7 +87,7 @@ func (w *Workbench) startHealthTracking(obj *unstructured.Unstructured, operatio
 				w.healthText += "\n\n" + err.Error()
 			}
 			if operationID != "" {
-				w.recordHistory(fmt.Sprintf("%s [%s] readiness %s/%s · %s", operationID[:min(12, len(operationID))], contextName, target.Namespace, target.Name, final.State))
+				w.recordHistory(fmt.Sprintf("%s [%s] readiness %s/%s; %s", operationID[:min(12, len(operationID))], contextName, target.Namespace, target.Name, final.State))
 			}
 		})
 	})
@@ -108,7 +106,7 @@ func (w *Workbench) healthView(c *ui.Context) {
 			w.healthText += "\n\nObservation stopped. The Kubernetes change was not undone."
 		})
 	})
-	ui.Text(c, "Read-only observation · no automatic rollback or command replay").FontSize(11)
+	ui.Text(c, "Read-only observation; no automatic rollback or command replay").FontSize(12 * max(1, c.Preferences().TextScale))
 	ui.TextArea(c.Key("field.healthText"), &w.healthText).Label("Workload health").ReadOnly(true).Grow(1)
 }
 

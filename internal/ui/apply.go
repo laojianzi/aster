@@ -12,7 +12,6 @@ func (w *Workbench) beginApply() {
 		return
 	}
 	w.stopPreview()
-	w.stopLogs()
 	w.plan, w.confirmation, w.diff = nil, "", ""
 	w.applyAcknowledged = false
 	w.draftRevision++
@@ -33,10 +32,10 @@ func (w *Workbench) beginApply() {
 	w.detailMessage = "Provide minimal declarative intent, not a copy of the live object. New resources use Create."
 }
 
-func (w *Workbench) applyView(c *ui.Context) {
-	ui.Text(c, "Existing resource · manager "+operation.ApplyFieldManager+" · never force conflicts").FontSize(11)
-	ui.Text(c, "Omitted fields previously owned by this manager can be deleted or defaulted.").FontSize(11)
-	if ui.TextArea(c.Key("field.applyDraft"), &w.applyDraft).Label("Apply intent YAML").Grow(1).Changed() {
+func (w *Workbench) applyView(c *ui.Context) ui.Element {
+	ui.Text(c, "Existing resource; manager "+operation.ApplyFieldManager+"; never force conflicts").FontSize(12 * max(1, c.Preferences().TextScale))
+	ui.Text(c, "Omitted fields previously owned by this manager can be deleted or defaulted.").FontSize(12 * max(1, c.Preferences().TextScale))
+	if ui.TextArea(c.Key("field.applyDraft"), &w.applyDraft).Label("Apply intent YAML").Font("monospace").Grow(1).Changed() {
 		w.stopPreview()
 		w.draftRevision++
 		w.applyAcknowledged = false
@@ -51,7 +50,7 @@ func (w *Workbench) applyView(c *ui.Context) {
 		w.confirmation = ""
 		w.diff = ""
 	}
-	ui.PrimaryButton(c, "Preview apply").Disabled(w.preparing || !w.applyAcknowledged).OnClick(func() {
+	return ui.PrimaryButton(c, "Preview apply").Disabled(w.preparing || !w.applyAcknowledged).OnClick(func() {
 		w.prepare("apply")
 	})
 }

@@ -59,9 +59,9 @@ class MyGoFeatureLedgerTests(unittest.TestCase):
     def test_module_native_pins_and_review_stay_coupled(self):
         import json
         spec = json.loads((ROOT / 'third_party/native-terminal/UPSTREAM.json').read_text())
-        self.assertEqual(spec['version'], 'v0.5.5')
-        self.assertEqual(len(spec['files']), 31)
-        self.assertIn('github.com/egoist/mygo v0.5.5', (ROOT / 'go.mod').read_text())
+        self.assertEqual(spec['version'], 'v0.7.4')
+        self.assertEqual(len(spec['files']), 39)
+        self.assertIn('github.com/egoist/mygo v0.7.4', (ROOT / 'go.mod').read_text())
         text = (ROOT / 'docs/dependency-review-mygo-0.5.1.md').read_text()
         for boundary in ('previous-frame', 'transfer.Data', 'CRLF', 'physical', 'unreleased'):
             self.assertIn(boundary, text)

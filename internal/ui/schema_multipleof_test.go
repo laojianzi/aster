@@ -111,7 +111,7 @@ func TestNativeSchemaMultipleOfPreservesNumbersAndHistory(t *testing.T) {
 	h.tt.SetClipboard("selection was not copied after inspection")
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/count · multipleOf") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/count: multipleOf") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("exact large-integer mismatch was missed or the valid decimal was rejected")
 	}
 	// Right-click at the previously observed selected endpoint. A native text
@@ -180,7 +180,7 @@ func TestNativeSchemaMultipleOfPreservesNumbersAndHistory(t *testing.T) {
 	h.tt.Type(neighbour)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/count · multipleOf") || !strings.Contains(h.w.schemaText, "/spec/fraction · multipleOf") || len(h.w.schemaLocations) != 2 || h.w.editorText() != neighbour || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/count: multipleOf") || !strings.Contains(h.w.schemaText, "/spec/fraction: multipleOf") || len(h.w.schemaLocations) != 2 || h.w.editorText() != neighbour || h.w.plan != nil {
 		t.Fatal("adjacent integer or inexact decimal was rounded into a multiple")
 	}
 	focusMultipleOfEditorByKeyboard(h)
@@ -223,7 +223,7 @@ func TestNativeSchemaMultipleOfMinimumWindowAndIncomplete(t *testing.T) {
 			if tc.wantType {
 				wantLocations++
 			}
-			if !strings.Contains(h.w.schemaText, "/spec/checked · multipleOf") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · multipleOf") || strings.Contains(h.w.schemaText, "/spec/malformed · type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: multipleOf") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: multipleOf") || strings.Contains(h.w.schemaText, "/spec/malformed: type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
 				t.Fatal("invalid divisor lost incomplete disclosure or invented a secondary violation")
 			}
 			for _, private := range []string{"7919", "7918", "123456789", "2147483648", "PRIVATE_SCHEMA_DIVISOR", "PRIVATE_DRAFT_VALUE"} {

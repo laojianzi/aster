@@ -18,18 +18,18 @@ func (w *Workbench) clearOIDCSignOut() {
 func (w *Workbench) oidcSignOutView(c *ui.Context) {
 	capability := w.oidcSignOut
 	if capability == nil {
-		ui.Text(c, "No supported issuer sign-out endpoint for this connection. Disconnect only closes this workspace.").Label("OIDC sign-out unavailable").FontSize(11)
+		ui.Text(c, "No supported issuer sign-out endpoint for this connection. Disconnect only closes this workspace.").Label("OIDC sign-out unavailable")
 		return
 	}
 	info, epoch, reviewEpoch, services := capability.Info(), w.contextEpoch, w.oidcEpoch, c.Services()
-	ui.Text(c, "Issuer sign-out · separate from local Disconnect").FontSize(16).Bold()
+	ui.Text(c, "Issuer sign-out (separate from local Disconnect)").FontSize(c.Theme().FontSize * 1.4).Bold()
 	ui.Row(c).Label("OIDC sign-out issuer").Children(func() {
-		ui.Text(c, "Original issuer: "+info.Issuer).FontSize(12).SingleLine().Grow(1)
+		ui.Text(c, "Original issuer: "+info.Issuer).Grow(1)
 	})
-	ui.Text(c, fmt.Sprintf("Workspace context: %s · Aster subject: %q", info.Context, info.Subject)).Label("OIDC sign-out identity").FontSize(12).SingleLine()
-	ui.Text(c, "Browser destination: "+info.Endpoint).Label("OIDC sign-out endpoint").FontSize(12).SingleLine()
-	ui.Text(c, "This closes this workspace first. Confirm the browser's current account at the issuer; it may differ or be shared by other apps.").FontSize(12)
-	ui.Text(c, "No token is sent to the browser. Handoff does not prove issuer completion or revoke existing Kubernetes JWTs; other workspaces and stored tokens are not erased.").Label("OIDC sign-out boundary").FontSize(11)
+	ui.Text(c, fmt.Sprintf("Workspace context: %s; Aster subject: %q", info.Context, info.Subject)).Label("OIDC sign-out identity")
+	ui.Text(c, "Browser destination: "+info.Endpoint).Label("OIDC sign-out endpoint")
+	ui.Text(c, "This closes this workspace first. Confirm the browser's current account at the issuer; it may differ or be shared by other apps.")
+	ui.Text(c, "No token is sent to the browser. Handoff does not prove issuer completion or revoke existing Kubernetes JWTs; other workspaces and stored tokens are not erased.").Label("OIDC sign-out boundary")
 	w.oidcSignOutComposing = ui.TextInput(c.Key(fmt.Sprintf("oidc.signoutConfirm.%d.%d", w.contextEpoch, w.oidcEpoch)), &w.oidcSignOutConfirmation).Label("Confirm issuer sign-out context").Placeholder("Type exact active context; watches, logs and terminal sessions will stop").Composing()
 	ui.Button(c, "Disconnect and open issuer sign-out").Disabled(!w.eligibleOIDCSignOut(epoch, reviewEpoch, capability)).OnClick(func() {
 		w.signOutOIDC(services, epoch, reviewEpoch, capability)

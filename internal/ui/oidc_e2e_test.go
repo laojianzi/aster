@@ -78,6 +78,7 @@ func TestNativeOIDCWithDexAndRealKubernetes(t *testing.T) {
 	f, h := newDexWorkbench(t)
 	before, _ := os.ReadFile(h.w.path)
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Review OIDC target")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -102,7 +103,10 @@ func TestNativeOIDCWithDexAndRealKubernetes(t *testing.T) {
 	}
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Logs")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
 	saveNativeScreenshot(t, h.tt)
@@ -122,6 +126,7 @@ func TestNativeOIDCRenewalWithDexAndRealKubernetes(t *testing.T) {
 	f, h := newDexWorkbench(t)
 	before, _ := os.ReadFile(h.w.path)
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Allow memory-only renewal (requests offline access and consent)")
 	h.click("Review OIDC target")
@@ -147,9 +152,13 @@ func TestNativeOIDCRenewalWithDexAndRealKubernetes(t *testing.T) {
 	old, oldCtx, oldSession := h.w.backend, h.w.connectionCtx, h.w.sessionID
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Logs")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -188,6 +197,7 @@ func TestNativeOIDCRenewalWithDexAndRealKubernetes(t *testing.T) {
 	// A second rotation proves continuation uses the replacement capability. Its
 	// pending identity may then be discarded without altering the active client.
 	active := h.w.connectionCtx
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -215,6 +225,7 @@ func TestNativeOIDCSignOutWithDexAndRealKubernetes(t *testing.T) {
 	f, h := newDexWorkbench(t)
 	before, _ := os.ReadFile(h.w.path)
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Allow memory-only renewal (requests offline access and consent)")
 	h.click("Review OIDC target")
@@ -243,7 +254,10 @@ func TestNativeOIDCSignOutWithDexAndRealKubernetes(t *testing.T) {
 	}
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Logs")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
 	browser := h.w.oidcSignOutBrowser
@@ -253,6 +267,7 @@ func TestNativeOIDCSignOutWithDexAndRealKubernetes(t *testing.T) {
 		}
 		return browser(link)
 	}
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Confirm issuer sign-out context")
 	h.tt.Type("vault-test")

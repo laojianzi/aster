@@ -32,6 +32,7 @@ func TestNativeMetricsAgainstRealServerAndTeardown(t *testing.T) {
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Pod.UID)) })
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
+	h.click("Overview")
 	h.click("Metrics")
 	h.pump(func() bool { return !h.w.metricsLoading })
 	if h.w.metricsResult.State != resourcemetrics.Ready || h.w.metricsResult.Total.MemoryBytes <= 0 {

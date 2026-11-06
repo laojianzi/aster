@@ -50,14 +50,16 @@ func TestNativeApplyReviewAgainstRealCluster(t *testing.T) {
 	h.tt.Frame()
 	h.click("Connect")
 	h.pump(func() bool { return h.w.status == "Live" })
-	h.click("ConfigMaps")
+	h.selectSidebarResource("ConfigMaps")
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(cm.UID)) })
 	h.click(cm.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Owners")
+	h.click("YAML")
+	h.click("Field ownership")
 	if !strings.Contains(h.w.ownersText, "fixture-controller") {
 		t.Fatal("actual field manager was not displayed")
 	}
+	h.click("YAML")
 	h.click("Edit")
 	h.click("Apply")
 	if strings.Contains(h.w.applyDraft, "keep-controller-value") {
@@ -95,7 +97,8 @@ func TestNativeApplyReviewAgainstRealCluster(t *testing.T) {
 	if err != nil || actual.Data["managed"] != "applied-through-native-ui" || actual.Data["foreign"] != "keep-controller-value" {
 		t.Fatalf("apply not persisted safely: %v UI=%s", err, h.w.detailMessage)
 	}
-	h.click("Owners")
+	h.click("YAML")
+	h.click("Field ownership")
 	if !strings.Contains(h.w.ownersText, operation.ApplyFieldManager) || h.w.applyDraft != "" || h.w.applyAcknowledged {
 		t.Fatal("ownership or post-execution lifecycle incorrect")
 	}

@@ -60,12 +60,39 @@ func TestNativeTerminalMinimumWindowAndConfirmation(t *testing.T) {
 	if w.terminalConfirmation != "" {
 		t.Fatal("argv edit retained confirmation")
 	}
+	w.terminalActive = true
+	w.terminalStatus = "Terminal open"
+	w.diagnosticOverviewPercent = 40
+	tt.SetSize(1440, 1000)
+	tt.SetSize(1100, 700)
+	dock, _ := tt.Find("Diagnostic dock")
+	if r, ok := tt.Find("Remote terminal screen"); !ok || r.H < 100 || r.Y < dock.Y || r.Y+r.H > dock.Y+dock.H {
+		saveNativeScreenshot(t, tt)
+		t.Fatalf("active split terminal is not usable after resize: %+v", r)
+	}
+	for _, label := range []string{"Terminal argv JSON", "Confirm Pod for terminal", "Open terminal"} {
+		if _, ok := tt.Find(label); ok {
+			t.Errorf("active session still shows setup control %s", label)
+		}
+	}
+	if _, ok := tt.Find("Terminal session"); !ok {
+		t.Fatal("active terminal has no session summary")
+	}
 	saveNativeScreenshot(t, tt)
 	if err := tt.Click("YAML"); err != nil {
 		t.Fatal(err)
 	}
-	if w.terminal != nil || ctx.Err() == nil {
-		t.Fatal("hidden interactive terminal remained attached")
+	if w.terminal == nil || ctx.Err() != nil {
+		t.Fatal("object tab switch disconnected the visible terminal")
+	}
+	if box, ok := tt.Find("Remote terminal screen"); !ok || box.H <= 0 {
+		t.Fatal("terminal disappeared behind the object tab")
+	}
+	if err := tt.Click("Close diagnostic"); err != nil {
+		t.Fatal(err)
+	}
+	if w.terminal != nil || ctx.Err() == nil || w.detailMode != "YAML" {
+		t.Fatal("explicit diagnostic close failed or changed the object tab")
 	}
 }
 func TestNativeTerminalCloseClearsScreenAndPreventsPendingReopen(t *testing.T) {

@@ -31,6 +31,7 @@ func TestNativeSchemaAssistanceAgainstRealCluster(t *testing.T) {
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Pod.UID)) })
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
+	h.click("YAML")
 	h.click("Edit")
 	buffer, snapshot := h.w.editor, h.w.editor.Snapshot()
 	h.click("Schema field pointer")
@@ -60,7 +61,7 @@ func TestNativeSchemaAssistanceAgainstRealCluster(t *testing.T) {
 	if h.w.editor != buffer || snapshot.String() != h.w.detailText {
 		t.Fatal("schema processing replaced buffer or modified original snapshot")
 	}
-	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · type") || h.w.editorText() != text || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image: type") || h.w.editorText() != text || h.w.plan != nil {
 		t.Fatalf("%s %s", h.w.schemaStatus, h.w.schemaText)
 	}
 	saveNativeScreenshot(t, h.tt)
@@ -91,6 +92,7 @@ func TestNativeSchemaDiagnosticNavigationAgainstRealCluster(t *testing.T) {
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Pod.UID)) })
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
+	h.click("YAML")
 	h.click("Edit")
 	obj, err := manifest.Decode([]byte(h.w.editorText()))
 	if err != nil {
@@ -111,7 +113,7 @@ func TestNativeSchemaDiagnosticNavigationAgainstRealCluster(t *testing.T) {
 	h.tt.Type(text)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · type") {
+	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image: type") {
 		t.Fatal(h.w.schemaText)
 	}
 	target := chooseDiagnostic(h, "/spec/containers/0/image")
@@ -135,7 +137,7 @@ func TestNativeSchemaDiagnosticNavigationAgainstRealCluster(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if strings.Contains(h.w.schemaText, "/spec/containers/0/image · type") || h.w.schemaText == "" || h.w.plan != nil {
+	if strings.Contains(h.w.schemaText, "/spec/containers/0/image: type") || h.w.schemaText == "" || h.w.plan != nil {
 		t.Fatal("correction did not refresh advisory diagnostics")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

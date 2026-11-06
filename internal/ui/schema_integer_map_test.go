@@ -28,7 +28,7 @@ func TestNativeSchemaIntegerMapKeysHistoryAndNavigation(t *testing.T) {
 	if !strings.Contains(h.w.schemaText, "required string/int64/boolean map-list identities") || strings.Contains(h.w.schemaText, "string-key map-list identities") {
 		t.Fatal("native report advertises an outdated map-list identity scope")
 	}
-	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/named · list-map-keys") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised key identity.") != 1 {
+	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/named: list-map-keys") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised key identity.") != 1 {
 		t.Fatal("integer map inspection missed the repeated mixed tuple")
 	}
 	for _, private := range []string{"PRIVATE_", "9007199254740993", "9223372036854775807", "TCP", "UDP"} {
@@ -117,7 +117,7 @@ func TestNativeSchemaIntegerMapKeysMinimumWindowIncomplete(t *testing.T) {
 			if !strings.Contains(h.w.schemaText, "required string/int64/boolean map-list identities") || strings.Contains(h.w.schemaText, "string-key map-list identities") {
 				t.Fatal("native report advertises an outdated map-list identity scope")
 			}
-			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "· list-map-keys") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {
+			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, ": list-map-keys") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {
 				t.Fatal("incomplete integer list produced an early hint or disclosed input")
 			}
 			if h.w.editorText() != draft || h.w.draftIdentity() != identity || h.w.editor != buffer || h.w.plan != nil || writes.Load() != 0 {

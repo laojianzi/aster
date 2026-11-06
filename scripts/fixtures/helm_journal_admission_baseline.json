@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "source_commit": "aa84d7adb3a3c4d19d58d7a39443e49b2eb51490",
   "hash_convention": "SHA-256 of sorted unique names joined by newline without a trailing newline",
   "required": {
@@ -1790,11 +1790,12 @@
     ".github/workflows/native-migration.yml": "7f0d5609c7e7b674e37236b21a338bdcdb95253eaa92112e54d128d8a9c3af06",
     ".github/workflows/source-evidence.yml": "b0d4cde5750f15a46a4c749d1edc656bd68f6c7d11cfcd83296fa5fd27f31453",
     ".github/workflows/oidc-qualification.yml": "dbd09f1223f11683dbaa1f59f057dab08e9ce04a5ddc0a16b921b5b3082b059a",
-    "go.mod": "2462ac2ec5f888077ed86aa4561b747272b710719c1623ab8028659e8c6fd2a8",
-    "go.sum": "5310164c6636b92fc32f7b8ae4019f2246e0d06c9ecfa607f38b83a9446ef0c2",
     "internal/ui/helm_uninstall_journal_test.go": "585958a41944b0d2a37fbb8d6bf1d01e76cbae5aef527bb235605838c1dc4e79",
-    "internal/ui/helm_uninstall_ui_test.go": "58d276c29b07189d0873fc5520611c547f765f3b8878fac0fe91f529c9815288",
     "internal/ui/helm_uninstall_lifecycle_test.go": "70b6e61debe1fb9248270b924128597b018e76f6a0a871a4184f70b65d0facc0",
     "internal/ui/helm_uninstall_e2e_test.go": "2e6cfb8925688aca7deb1e1d8989b8dad3aacb86a5c7e28701a1f3a35f46edc6"
+  },
+  "refrozen_source_sha256": {
+    "go.sum": "53133cc8afe72c9ae7fe4af0340b7303edea97a2707aa578a716131a70d69d3d",
+    "internal/ui/helm_uninstall_ui_test.go": "96dab4176f5820c985039e0c6147f0cbde9db4221ccb44715619441b39dd0263"
   }
 }

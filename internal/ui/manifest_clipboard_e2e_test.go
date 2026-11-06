@@ -35,7 +35,7 @@ func TestNativeManifestClipboardAgainstRealCluster(t *testing.T) {
 	h.tt.Frame()
 	h.click("Connect")
 	h.pump(func() bool { return h.w.status == "Live" })
-	h.click("ConfigMaps")
+	h.selectSidebarResource("ConfigMaps")
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(live.UID)) })
 	assertUnchanged := func() {
 		t.Helper()
@@ -49,8 +49,12 @@ func TestNativeManifestClipboardAgainstRealCluster(t *testing.T) {
 	}
 	incoming := strings.Repeat("PRIVATE_CLIPBOARD_", 600)
 	t.Run("edit", func(t *testing.T) {
+		parent := h.t
+		h.t = t
+		defer func() { h.t = parent }()
 		h.click(live.Name)
 		h.pump(func() bool { return h.w.detail != nil })
+		h.click("YAML")
 		h.click("Edit")
 		buffer, original := h.w.editor, h.w.editor.Snapshot()
 		h.click("Manifest editor")
@@ -90,11 +94,18 @@ func TestNativeManifestClipboardAgainstRealCluster(t *testing.T) {
 			t.Fatal("fresh reviewed edit dry-run did not resume")
 		}
 		assertUnchanged()
+		h.click("Cancel review")
+		if h.w.plan != nil || h.w.detailMode == "Diff" {
+			t.Fatal("cancel retained review approval")
+		}
 	})
 	if t.Failed() {
 		return
 	}
 	t.Run("create", func(t *testing.T) {
+		parent := h.t
+		h.t = t
+		defer func() { h.t = parent }()
 		h.click("Close detail")
 		h.click("New resource")
 		if !h.w.creating {
@@ -129,6 +140,10 @@ func TestNativeManifestClipboardAgainstRealCluster(t *testing.T) {
 			t.Fatal("create dry-run persisted or absence was not proven")
 		}
 		assertUnchanged()
+		h.click("Cancel review")
+		if h.w.plan != nil || h.w.detailMode == "Diff" {
+			t.Fatal("cancel retained review approval")
+		}
 	})
 	if t.Failed() {
 		return

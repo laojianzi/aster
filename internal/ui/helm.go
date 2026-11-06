@@ -104,7 +104,7 @@ func (w *Workbench) helmRenderView(c *ui.Context) {
 		return
 	}
 	ui.Column(c.Key("helm.render.panel")).Gap(4).Children(func() {
-		ui.Text(c, "Local Helm · "+helmrender.ApprovedArchive()+" · chart .tgz · optional values YAML").FontSize(11).SingleLine()
+		ui.Text(c, "Local Helm; "+helmrender.ApprovedArchive()+"; chart .tgz; optional values YAML").FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 		disabled := d.busy != "" || h.result != nil
 		composing, changed := false, false
 		field := func(key string, value *string, label, placeholder string) {
@@ -129,7 +129,9 @@ func (w *Workbench) helmRenderView(c *ui.Context) {
 			w.stopDeliveryReview()
 		}
 		if h.result != nil {
-			ui.Scroll(c.Key("helm.summary.scroll")).Height(40).Children(func() { ui.Text(c, h.result.Summary()).Label("Helm result summary").FontSize(11) })
+			ui.Scroll(c.Key("helm.summary.scroll")).Height(40).Children(func() {
+				ui.Text(c, h.result.Summary()).Label("Helm result summary").FontSize(12 * max(1, c.Preferences().TextScale))
+			})
 			guardedCheckbox(c, "helm.replace", &h.replace, "Replace current input; start a new Undo/review history", d.busy == "").Disabled(d.busy != "")
 		}
 		ui.Row(c).Gap(6).Children(func() {

@@ -134,7 +134,7 @@ func (w *Workbench) manifestBudgetView(c *ui.Context) bool {
 			w.editorIdentity++
 			w.invalidateDraft()
 		})
-		ui.Text(c, "Restore discards the oversized edit and any retained paste. Refresh detail discards all local edits.").FontSize(11)
+		ui.Text(c, "Restore discards the oversized edit and any retained paste. Refresh detail discards all local edits.").FontSize(12 * max(1, c.Preferences().TextScale))
 	})
 	return true
 }

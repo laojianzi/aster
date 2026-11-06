@@ -95,7 +95,7 @@ func (w *Workbench) startSchema(check bool) {
 			}
 			w.setSchemaLocations(source, locations)
 			w.schemaText = boundedSchemaOutput(output)
-			w.schemaStatus = "Read-only hints · not server validation"
+			w.schemaStatus = "Read-only hints: not server validation"
 		})
 	})
 }
@@ -112,7 +112,7 @@ func (w *Workbench) schemaView(c *ui.Context) {
 	})
 	w.schemaLocationsView(c)
 	if w.schemaStatus != "" {
-		ui.Text(c, w.schemaStatus).FontSize(11).SingleLine()
+		ui.Text(c, w.schemaStatus).FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 	}
 	if w.schemaText != "" {
 		ui.TextArea(c.Key("field.schemaText"), &w.schemaText).Label("Schema assistance").ReadOnly(true).Height(145)

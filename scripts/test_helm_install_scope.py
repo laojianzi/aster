@@ -10,6 +10,11 @@ import test_evidence as evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 # Independent d19a692 baseline. Updating a workflow/pin requires a new scope.
+# Re-frozen, not re-reviewed, for the mygo v0.7.x migrations: go.mod
+# 89f0705d -> 75f65e22, go.sum 5e0f9648 -> 53133cc8 and UPSTREAM.json
+# 9fec119b -> 1015174c for v0.7.4 (the v0.7.3 values were ced4d9f5 /
+# 5310164c / c98eaa31 at 8de1541). Every other entry is still the d19a692
+# image; no workflow byte moved.
 FROZEN = {'.github/workflows/branch-cleanup.yml': 'dc31f44ae8aedf3f2cdc3f34d908e938d3fb0f7870db4adf1e75e63f302212c0',
  '.github/workflows/ci.yml': '7ee11db7b12f95aac5c21c4800848bcbf8ca034aefd5676d01534fa8bbb4b1c6',
  '.github/workflows/native-migration.yml': '899e1b524b26ab3396b65e4d2acc1788575ffd4b7576f6976a62bccc9289cb33',
@@ -19,10 +24,10 @@ FROZEN = {'.github/workflows/branch-cleanup.yml': 'dc31f44ae8aedf3f2cdc3f34d908e
  '.github/workflows/retire-completed-oidc.yml': '36b231f83ebc0f79c93dff94966e638197fbb3d8cce359ac9878ee1dcedfb07b',
  '.github/workflows/source-evidence.yml': '6e1c5b4508b9cf184d16a03347f3f29e1c970599ff5ba52a064a57dfb855d072',
  '.github/workflows/terminal-devkit.yml': '5502c443df4dd085b547f4c0cc00c4814e36ee15b041156d35ea40e25ab6d0d0',
- 'go.mod': 'ced4d9f572eb1cab3b8835856721d92f552452c58f55685c0274241c8677b5a9',
- 'go.sum': '5310164c6636b92fc32f7b8ae4019f2246e0d06c9ecfa607f38b83a9446ef0c2',
+ 'go.mod': '75f65e223ff31075f82184c4093f177ece4e1f2a6f599cf4cd28aeb36c3fafc8',
+ 'go.sum': '53133cc8afe72c9ae7fe4af0340b7303edea97a2707aa578a716131a70d69d3d',
  'internal/helmrender/distributions.json': '50ffd7dcb3430899e5e577466eddca52fa4461b7981c42834220650c495475f2',
- 'third_party/native-terminal/UPSTREAM.json': 'c98eaa315a57173a2892ecd5c45c7b2d86887ede8b655921dc0ff89fcd62121a'}
+ 'third_party/native-terminal/UPSTREAM.json': '1015174c58c15d170b361ef59a92e5681e82c285de80d120eb7241dde449e439'}
 
 class HelmInstallScopeTests(unittest.TestCase):
     def test_exact_required_census_and_additive_gates(self):

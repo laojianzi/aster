@@ -140,7 +140,7 @@ func TestNativeManifestDeliveryAgainstRealCluster(t *testing.T) {
 		t.Fatalf("native Deployment source was not persisted: %v", err)
 	}
 	h.click("Delivery outcomes")
-	if strings.Count(h.w.delivery.outcomeText(), " · Succeeded") != 6 {
+	if strings.Count(h.w.delivery.outcomeText(), "; Succeeded") != 6 {
 		t.Fatal("native outcomes omitted accepted objects or their individual attempts")
 	}
 	saveNativeScreenshot(t, h.tt)
@@ -152,11 +152,13 @@ func TestNativeManifestDeliveryAgainstRealCluster(t *testing.T) {
 	if h.w.detail.GetUID() != createdUIDs["delivery-workload"] || h.w.detailKind.GVR != (schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}) || h.w.delivery.open {
 		t.Fatal("inspection did not pin the accepted Deployment")
 	}
+	h.click("Overview")
 	h.click("Health")
 	h.pump(func() bool { return h.w.healthText != "" && h.w.healthText != "Loading current status…" })
 	if h.w.detail.GetUID() != createdUIDs["delivery-workload"] || h.w.detailMode != "Health" || strings.HasPrefix(h.w.healthText, "Health unavailable:") {
 		t.Fatal("existing health inspection escaped the accepted UID")
 	}
+	h.click("Close detail")
 	h.click("Deliver manifests")
 	if h.w.delivery.set == nil || h.w.delivery.set.ID() != setID || h.w.delivery.outcomes[2].UID != createdUIDs["delivery-workload"] {
 		t.Fatal("resource inspection lost the paused delivery outcomes")

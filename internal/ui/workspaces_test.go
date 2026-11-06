@@ -52,6 +52,7 @@ func TestNativeLoadingContextsRequiresExplicitConnect(t *testing.T) {
 	h := newRelationshipHarness(t, 5*time.Second)
 	h.w.path = path
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Load contexts")
 	h.pump(func() bool { return h.w.status == "Choose a context and connect" })
 	if requests.Load() != 0 || h.w.backend != nil || h.w.trustRequired || h.w.trustedFingerprint != "" || h.w.currentContext != "test" {
@@ -99,7 +100,9 @@ func TestNativeWorkspacesKeepCredentialsDataAndCancellationSeparate(t *testing.T
 		h.w.detailKind = catalog()[0]
 		h.tt.Frame()
 	}
+	a.click("Overview")
 	a.click("Metrics")
+	b.click("Overview")
 	b.click("Metrics")
 	a.pump(func() bool { return !a.w.metricsLoading })
 	b.pump(func() bool { return !b.w.metricsLoading })
@@ -136,6 +139,9 @@ func TestNativeWorkspaceControlsAtMinimumWindow(t *testing.T) {
 	w.workspaceNumber = 4
 	w.newWorkspace = func() error { return nil }
 	tt := ui.NewTester(w.View, 1100, 700)
+	if err := tt.Click("Connections"); err != nil {
+		t.Fatal(err)
+	}
 	for _, label := range []string{"Workspace identity", "New workspace", "Load contexts"} {
 		r, ok := tt.Find(label)
 		if !ok || r.X < 0 || r.Y < 0 || r.W <= 0 || r.H <= 0 || r.X+r.W > 1100 || r.Y+r.H > 700 {

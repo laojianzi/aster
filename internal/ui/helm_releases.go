@@ -112,7 +112,7 @@ func (w *Workbench) refreshHelmReleases() {
 			}
 			current.snapshot = snapshot
 			current.list = ui.ListState{}
-			current.status = fmt.Sprintf("%d observed revision(s) · snapshot %s UTC", len(snapshot.Revisions), snapshot.ObservedAt.Format("15:04:05"))
+			current.status = fmt.Sprintf("%d observed revision(s); snapshot %s UTC", len(snapshot.Revisions), snapshot.ObservedAt.Format("15:04:05"))
 		})
 	})
 }
@@ -120,8 +120,10 @@ func (w *Workbench) refreshHelmReleases() {
 func (w *Workbench) helmReleasesView(c *ui.Context) {
 	r := &w.helmReleases
 	ui.Column(c).Grow(1).MinHeight(0).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "Helm revision metadata").Bold().FontSize(20)
-		ui.Text(c, "Namespace: "+r.namespace).Label("Helm metadata namespace").SingleLine()
+		ui.Row(c).Gap(12).Wrap().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "Helm revision metadata").Bold().FontSize(c.Theme().FontSize * 1.4).Tooltip("Read-only Secret-driver labels; requires list secrets. ConfigMap/SQL drivers and workload health are not queried. Content requires separate consent; metadata does not authorize writes.")
+			ui.Text(c, "Namespace: "+r.namespace).Label("Helm metadata namespace").SingleLine()
+		})
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Button(c, "Refresh Helm metadata").Disabled(r.busy || !helmrelease.ValidNamespace(r.namespace)).OnClick(w.refreshHelmReleases)
 			ui.Button(c, "Stop Helm metadata").Disabled(!r.busy).OnClick(w.stopHelmReleases)
@@ -131,16 +133,13 @@ func (w *Workbench) helmReleasesView(c *ui.Context) {
 		if r.preview != nil {
 			w.helmUninstallPreviewView(c)
 		} else {
-			ui.Text(c, r.status).Label("Helm metadata status").FontSize(12)
-			ui.Text(c, "Read-only Secret-driver labels · not decoded release state or workload health").FontSize(11)
-			ui.Text(c, "Content requires separate selection and consent. No release writes or write approval.").FontSize(11)
-			ui.Text(c, "Requires list secrets permission. ConfigMap/SQL drivers are not queried.").FontSize(11)
+			ui.Text(c, r.status).Label("Helm metadata status").FontSize(12 * max(1, c.Preferences().TextScale))
 			ui.List(c.Key("helm-release-revisions"), &r.list, len(rows), func(i int) {
 				row := rows[i]
 				ui.Column(c).Padding(6).Gap(3).Children(func() {
-					ui.Text(c, fmt.Sprintf("%s · revision %d · label: %s", row.Release, row.Number, row.Status)).Label("Helm revision " + row.StorageName).SingleLine()
+					ui.Text(c, fmt.Sprintf("%s; revision %d; label: %s", row.Release, row.Number, row.Status)).Label("Helm revision " + row.StorageName).SingleLine()
 					ui.Row(c).Gap(8).Children(func() {
-						ui.Text(c, row.StorageName).FontSize(10).SingleLine()
+						ui.Text(c, row.StorageName).FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 						ui.Button(c, "Select revision").Label("Select " + row.StorageName).Disabled(r.busy).OnClick(func() { w.selectHelmRevision(row) })
 					})
 				})
@@ -148,7 +147,7 @@ func (w *Workbench) helmReleasesView(c *ui.Context) {
 		}
 		w.helmInspectionView(c)
 		if !r.busy && r.snapshot.ResourceVersion != "" && len(rows) == 0 {
-			ui.Text(c, "No matching Secret-driver labels in this namespace snapshot. Other drivers were not checked.").FontSize(11)
+			ui.Text(c, "No matching Secret-driver labels in this namespace snapshot. Other drivers were not checked.").FontSize(12 * max(1, c.Preferences().TextScale))
 		}
 	})
 }

@@ -19,12 +19,17 @@ func TestNativeNavigationAndUnicodeInput(t *testing.T) {
 	if !tt.HasText("Aster") {
 		t.Fatal("brand not rendered")
 	}
+	if err := tt.Click("Configuration"); err != nil {
+		t.Fatal(err)
+	}
 	if err := tt.Click("ConfigMaps"); err != nil {
 		t.Fatal(err)
 	}
 	if w.currentKind.GVR.Resource != "configmaps" {
 		t.Fatal("navigation did not select ConfigMaps")
 	}
+	w.status = "Live"
+	tt.Frame()
 	if err := tt.Click("Filter resources"); err != nil {
 		t.Fatal(err)
 	}
@@ -83,12 +88,12 @@ func TestProjectionRejectsOldUIDDeletionAndOwnsSnapshot(t *testing.T) {
 		t.Fatalf("%+v", snap)
 	}
 	snap.Rows[0].Name = "mutated"
-	s.setQuery("Running", "Name")
+	s.setQuery("Running", "Name", false)
 	again, _ := s.snapshot()
 	if len(again.Rows) != 1 || again.Rows[0].Name != "api" {
 		t.Fatal("snapshot mutation changed store")
 	}
-	s.setQuery("missing", "Name")
+	s.setQuery("missing", "Name", false)
 	again, _ = s.snapshot()
 	if len(again.Rows) != 0 || again.Total != 1 {
 		t.Fatal("filter lost total")

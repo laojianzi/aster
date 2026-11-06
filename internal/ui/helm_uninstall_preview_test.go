@@ -32,7 +32,7 @@ func previewServer(t *testing.T, manifest string, reads *atomic.Int32) *httptest
 			return
 		}
 		if r.URL.Path != "/api/v1/namespaces/team/secrets/sh.helm.release.v1.example.v2" {
-			t.Error("unexpected read path")
+			t.Errorf("unexpected read path: %s agent=%q", r.URL.Path, r.UserAgent())
 			w.WriteHeader(400)
 			return
 		}
@@ -227,7 +227,7 @@ func TestNativeHelmUninstallPreviewFailuresAndCancellation(t *testing.T) {
 }
 
 func TestNativeHelmUninstallPreviewScaledInventory(t *testing.T) {
-	for _, scale := range []float32{1, 1.25, 1.5} {
+	for _, scale := range []float32{1, 1.25, 1.5, 2} {
 		for _, rtl := range []bool{false, true} {
 			t.Run(fmt.Sprintf("scale-%g-rtl-%t", scale, rtl), func(t *testing.T) {
 				var text strings.Builder
@@ -238,6 +238,11 @@ func TestNativeHelmUninstallPreviewScaledInventory(t *testing.T) {
 				srv := previewServer(t, text.String(), &reads)
 				h := helmMetadataHarness(t, srv.URL)
 				h.tt = ui.NewTester(h.w.View, 1100, 700)
+				t.Cleanup(func() {
+					if t.Failed() {
+						saveNativeScreenshot(t, h.tt)
+					}
+				})
 				if rtl {
 					h.tt.SetLocale("ar")
 					h.tt.SetDirection(ui.RightToLeft)

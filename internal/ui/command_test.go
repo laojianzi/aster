@@ -18,7 +18,7 @@ func TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell(t *testing.T)
 	w.containers = []string{"http"}
 	w.commandArgv = `["printf","%s",";touch /x"]`
 	tt := ui.NewTester(w.View, 1100, 700)
-	for _, label := range []string{"Command", "Command container", "Command argv JSON", "Confirm Pod for command", "Run command", "Stop command", "Command output"} {
+	for _, label := range []string{"Diagnostic target", "Command container", "Command argv JSON", "Confirm Pod for command", "Run command", "Stop command", "Command output"} {
 		r, ok := tt.Find(label)
 		if !ok || r.X < 0 || r.Y < 0 || r.X+r.W > 1088 || r.Y+r.H > 700 || r.W <= 0 || r.H <= 0 {
 			t.Fatalf("missing/outside control %s %+v", label, r)

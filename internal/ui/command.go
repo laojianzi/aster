@@ -16,16 +16,16 @@ func (w *Workbench) stopCommand() {
 		w.commandCancel = nil
 	}
 	if w.commandActive {
-		w.commandStatus = "Disconnected · remote process termination is not confirmed"
+		w.commandStatus = "Disconnected; remote process termination is not confirmed"
 	}
 	w.commandActive = false
 	w.commandConfirmation = ""
 }
 func (w *Workbench) startCommand() {
-	if w.detail == nil || w.backend == nil || w.creating || w.commandActive || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods" {
+	if !w.bindDiagnostic() || w.backend == nil || w.commandActive {
 		return
 	}
-	if w.commandConfirmation != w.detail.GetName() {
+	if w.commandConfirmation != w.diagnostic.target.Name {
 		w.commandStatus = "Confirm the exact Pod name before execution"
 		return
 	}
@@ -40,10 +40,10 @@ func (w *Workbench) startCommand() {
 		return
 	}
 	w.stopCommand()
-	epoch, revision := w.detailEpoch, w.commandEpoch
-	backend, target, contextName := w.backend, w.target(), w.activeContext
+	epoch, revision := w.diagnosticEpoch, w.commandEpoch
+	backend, target, contextName := w.backend, w.diagnostic.target, w.diagnostic.context
 	ctx, cancel := context.WithCancel(w.operationContext())
-	w.commandCancel, w.commandActive, w.commandStatus, w.commandOutput = cancel, true, "Connecting · no automatic replay", ""
+	w.commandCancel, w.commandActive, w.commandStatus, w.commandOutput = cancel, true, "Connecting; no automatic replay", ""
 	output, err := execsession.NewOutput(execsession.DefaultOutputLimit, nil)
 	if err != nil {
 		cancel()
@@ -68,17 +68,17 @@ func (w *Workbench) startCommand() {
 			case ended := <-done:
 				snapshot := output.Snapshot()
 				w.emit(func() {
-					if epoch != w.detailEpoch || revision != w.commandEpoch {
+					if epoch != w.diagnosticEpoch || revision != w.commandEpoch {
 						return
 					}
 					w.commandActive, w.commandCancel = false, nil
 					w.commandOutput = snapshot.Display()
 					w.commandStatus = ended.result.String()
 					if ended.err != nil && ended.result.State == execsession.Rejected {
-						w.commandStatus += " · " + ended.err.Error()
+						w.commandStatus += "; " + ended.err.Error()
 					}
 					// Never retain argv or output in operation history.
-					w.recordHistory(fmt.Sprintf("[%s] command %s/%s (%s) · %s", contextName, target.Namespace, target.Name, cmd.Container, ended.result.State))
+					w.recordHistory(fmt.Sprintf("[%s] command %s/%s (%s); %s", contextName, target.Namespace, target.Name, cmd.Container, ended.result.State))
 				})
 				return
 			case <-ticker.C:
@@ -93,37 +93,43 @@ func (w *Workbench) startCommand() {
 				last = snapshot.Revision
 				w.emit(func() {
 					defer pending.Store(false)
-					if epoch != w.detailEpoch || revision != w.commandEpoch || ctx.Err() != nil {
+					if epoch != w.diagnosticEpoch || revision != w.commandEpoch || ctx.Err() != nil {
 						return
 					}
 					w.commandOutput = snapshot.Display()
-					w.commandStatus = "Receiving output · remote exit pending"
+					w.commandStatus = "Receiving output; remote exit pending"
 				})
 			}
 		}
 	})
 }
 func (w *Workbench) commandView(c *ui.Context) {
-	ui.Text(c, "Non-interactive command · no PTY, stdin or implicit shell").FontSize(11)
-	ui.Text(c, "Two-minute deadline · 128 KiB output · stopping may leave the remote process running").FontSize(11)
-	if w.commandContainer == "" && len(w.containers) > 0 {
-		w.commandContainer = w.containers[0]
+	if !w.bindDiagnostic() {
+		return
 	}
-	if guardedSelect(c, "field.commandContainer", &w.commandContainer, w.containers, !w.commandActive).Label("Command container").Disabled(w.commandActive).Changed() && !w.commandActive {
-		w.commandConfirmation = ""
+	if w.commandContainer == "" && len(w.diagnostic.containers) > 0 {
+		w.commandContainer = w.diagnostic.containers[0]
 	}
-	if guardedTextArea(c, "field.commandArgv", &w.commandArgv, !w.commandActive).Label("Command argv JSON").Height(65).ReadOnly(w.commandActive).Changed() && !w.commandActive {
-		w.commandConfirmation = ""
-	}
-	guardedTextInput(c, "field.commandConfirmation", &w.commandConfirmation, !w.commandActive).Label("Confirm Pod for command").Placeholder("Type the exact Pod name").Disabled(w.commandActive)
-	ui.Row(c).Gap(8).Children(func() {
-		ui.PrimaryButton(c, "Run command").Disabled(w.commandActive || w.detail == nil || w.commandConfirmation != w.detail.GetName() || w.commandContainer == "").OnClick(func() {
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		if guardedSelect(c, "field.commandContainer", &w.commandContainer, w.diagnostic.containers, !w.commandActive).Label("Command container").Disabled(w.commandActive).Width(180).Changed() && !w.commandActive {
+			w.commandConfirmation = ""
+		}
+		if guardedTextArea(c, "field.commandArgv", &w.commandArgv, !w.commandActive).Label("Command argv JSON").Height(48).Grow(1).MinWidth(200).ReadOnly(w.commandActive).Changed() && !w.commandActive {
+			w.commandConfirmation = ""
+		}
+	})
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		guardedTextInput(c, "field.commandConfirmation", &w.commandConfirmation, !w.commandActive).Label("Confirm Pod for command").Placeholder("Type the exact Pod name").Disabled(w.commandActive).Grow(1).MinWidth(180)
+		ui.PrimaryButton(c, "Run command").Disabled(w.commandActive || w.diagnostic == nil || w.commandConfirmation != w.diagnostic.target.Name || w.commandContainer == "").OnClick(func() {
 			w.startCommand()
 		})
 		ui.Button(c, "Stop command").Disabled(!w.commandActive).OnClick(func() {
 			w.stopCommand()
 		})
 	})
-	ui.Text(c, w.commandStatus).FontSize(11)
-	ui.TextArea(c.Key("field.commandOutput"), &w.commandOutput).Label("Command output").ReadOnly(true).Grow(1)
+	ui.Text(c, "Disconnecting may leave the remote process running").FontSize(12 * max(1, c.Preferences().TextScale)).Tooltip("No PTY, stdin or implicit shell. Two-minute deadline. Output limited to 128 KiB.")
+	if w.commandStatus != "" {
+		ui.Text(c, w.commandStatus).FontSize(12 * max(1, c.Preferences().TextScale))
+	}
+	ui.TextArea(c.Key("field.commandOutput"), &w.commandOutput).Label("Command output").ReadOnly(true).Grow(1).MinHeight(120)
 }

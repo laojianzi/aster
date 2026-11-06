@@ -35,7 +35,7 @@ type manifestFind struct {
 type findInputKey struct{ Epoch uint64 }
 
 func (w *Workbench) findEligible() bool {
-	return w.ctx.Err() == nil && w.backend != nil && w.detail != nil && w.detailMode == "Edit" &&
+	return !w.connectionsOpen && w.ctx.Err() == nil && w.backend != nil && w.detail != nil && w.detailMode == "Edit" &&
 		w.detailKind.Kind != "Secret" && w.detail.GetKind() != "Secret" && !w.oidcOpen && !w.vaultOpen &&
 		w.operationContext().Err() == nil
 }
@@ -97,7 +97,7 @@ func (w *Workbench) openFind() {
 	}
 	w.clearFind(true)
 	w.find.open = true
-	w.find.status = "Literal · case-sensitive · local draft only"
+	w.find.status = "Literal; case-sensitive; local draft only"
 }
 func (w *Workbench) startFind() {
 	if !w.find.open || w.find.busy || !w.findEligible() {
@@ -141,7 +141,7 @@ func (w *Workbench) startFind() {
 			}
 			w.find.result = result
 			if result.Len() == 0 {
-				w.find.status = "No literal matches · draft unchanged"
+				w.find.status = "No literal matches; draft unchanged"
 				return
 			}
 			w.queueFindJump(epoch, 0, false)
@@ -171,9 +171,9 @@ func (w *Workbench) findView(c *ui.Context) {
 		status = "Finishing previous search…"
 	}
 	if status == "" {
-		status = "Literal · case-sensitive · local draft only"
+		status = "Literal; case-sensitive; local draft only"
 	}
-	ui.Text(c, status).Label("Find status").FontSize(11).SingleLine()
+	ui.Text(c, status).Label("Find status").FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 }
 func (w *Workbench) stepFind(epoch uint64, delta int) {
 	if epoch != w.find.epoch || !w.findFresh() || w.find.result.Len() == 0 {
@@ -208,12 +208,12 @@ func (w *Workbench) findMatchStatus(index int, wrap bool) string {
 	if !ok {
 		return "No current match"
 	}
-	status := fmt.Sprintf("%d / %d · L%d:C%d", index+1, w.find.result.Len(), match.Line, match.Column)
+	status := fmt.Sprintf("%d / %d; L%d:C%d", index+1, w.find.result.Len(), match.Line, match.Column)
 	if w.find.result.Truncated() {
-		status += " · truncated to first 512"
+		status += "; truncated to first 512"
 	}
 	if wrap {
-		status += " · wrapped"
+		status += "; wrapped"
 	}
 	return status
 }
@@ -232,12 +232,12 @@ func (w *Workbench) applyFindJump(editor ui.Element) {
 	}
 	if editor.Composing() {
 		request.deferred = true
-		w.find.status = w.findMatchStatus(request.index, request.wrapped) + " · finish composition to navigate"
+		w.find.status = w.findMatchStatus(request.index, request.wrapped) + "; finish composition to navigate"
 		return
 	}
 	w.find.jump = nil
 	if request.deferred && !editor.Focused() {
-		w.find.status = w.findMatchStatus(request.index, request.wrapped) + " · navigation canceled after focus change"
+		w.find.status = w.findMatchStatus(request.index, request.wrapped) + "; navigation canceled after focus change"
 		return
 	}
 	match, ok := w.find.result.At(request.index)

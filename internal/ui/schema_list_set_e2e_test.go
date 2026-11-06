@@ -42,27 +42,19 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 	h.w.namespace = f.Namespace
 	h.tt.Frame()
 	h.click("Connect")
-	label, choiceIndex := "", -1
+	label := ""
 	h.pump(func() bool {
-		for i, kind := range h.w.kinds {
+		for _, kind := range h.w.kinds {
 			if kind.GVR == f.GVR && kind.Kind == f.GVK.Kind && kind.Namespaced {
-				label, choiceIndex = kind.Label(), i
+				label = kind.Label()
 				return true
 			}
 		}
 		return false
 	})
-	h.click("Resource kind")
-	if !h.tt.Focused("Resource kind") {
-		t.Fatal("resource kind select did not receive native focus")
-	}
-	h.tt.Key(0, ui.KeyHome)
-	for range choiceIndex {
-		h.tt.Key(0, ui.KeyDown)
-	}
-	h.tt.Key(0, ui.KeyEnter)
+	h.selectSidebarResource(f.GVK.Kind)
 	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
-		t.Fatal("native select did not choose the actually discovered list-set CRD")
+		t.Fatal("native sidebar did not choose the actually discovered list-set CRD")
 	}
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Live.GetUID())) })
 	h.click(f.Live.GetName())
@@ -70,6 +62,7 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 	if h.w.detail.GroupVersionKind() != f.GVK || h.w.detail.GetName() != f.Live.GetName() || h.w.detail.GetNamespace() != f.Namespace || h.w.detail.GetUID() != f.Live.GetUID() || h.w.detail.GetResourceVersion() != f.Live.GetResourceVersion() {
 		t.Fatal("native discovery opened a different live list-set resource identity")
 	}
+	h.click("YAML")
 	h.click("Edit")
 	buffer, original := h.w.editor, h.w.editor.Snapshot()
 	obj, err := manifest.Decode([]byte(h.w.editorText()))
@@ -116,7 +109,7 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || !strings.Contains(h.w.schemaText, "/spec/defaulted · list-set") || len(h.w.schemaLocations) != 2 {
+	if !strings.Contains(h.w.schemaText, "/spec/values: list-set") || !strings.Contains(h.w.schemaText, "/spec/defaulted: list-set") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published string set lists")
 	}
 	if kind != "string" && !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") {
@@ -176,7 +169,7 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 	defaultedCorrected := h.w.editorText()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || strings.Contains(h.w.schemaText, "/spec/defaulted · list-set") || len(h.w.schemaLocations) != 1 || h.w.editorText() != defaultedCorrected || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/values: list-set") || strings.Contains(h.w.schemaText, "/spec/defaulted: list-set") || len(h.w.schemaLocations) != 1 || h.w.editorText() != defaultedCorrected || h.w.plan != nil {
 		t.Fatal("native defaulted-string correction did not refresh the actual parent-array diagnostic")
 	}
 	target = chooseDiagnostic(h, "/spec/values")
@@ -236,6 +229,10 @@ func runNativeSchemaListSetAgainstRealCluster(t *testing.T, kind string) {
 		t.Fatal("actual native server preview lost complete corrected strings or nullable parent")
 	}
 	assertLiveUnchanged()
+	h.click("Cancel review")
+	if h.w.plan != nil || h.w.detailMode == "Diff" || h.w.pendingWrites != 0 {
+		t.Fatal("canceling the review retained a plan or started a write")
+	}
 	h.click("Disconnect")
 	if h.w.backend != nil || h.w.plan != nil || h.w.schemaSource != nil || h.w.schemaJump != nil || len(h.w.schemaLocations) != 0 || h.w.schemaText != "" {
 		t.Fatal("disconnect retained list-set assistance or its reviewed plan")

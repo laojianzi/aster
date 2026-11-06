@@ -27,30 +27,19 @@ func TestNativeSchemaConstraintsAgainstRealCluster(t *testing.T) {
 	h.w.namespace = f.Namespace
 	h.tt.Frame()
 	h.click("Connect")
-	label, choiceIndex := "", -1
+	label := ""
 	h.pump(func() bool {
-		for i, kind := range h.w.kinds {
+		for _, kind := range h.w.kinds {
 			if kind.GVR == f.GVR && kind.Kind == f.GVK.Kind && kind.Namespaced {
-				label, choiceIndex = kind.Label(), i
+				label = kind.Label()
 				return true
 			}
 		}
 		return false
 	})
-	h.click("Resource kind")
-	if !h.tt.Focused("Resource kind") {
-		t.Fatal("resource kind select did not receive focus")
-	}
-	// Select opens a rendered popup, unlike the platform menu used by the
-	// Schema location MenuButton. Use its public keyboard interaction so a
-	// discovered resource outside the popup viewport is still selectable.
-	h.tt.Key(0, ui.KeyHome)
-	for range choiceIndex {
-		h.tt.Key(0, ui.KeyDown)
-	}
-	h.tt.Key(0, ui.KeyEnter)
+	h.selectSidebarResource(f.GVK.Kind)
 	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
-		t.Fatal("native resource kind selection did not choose the discovered CRD")
+		t.Fatal("native sidebar did not choose the discovered CRD")
 	}
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Live.GetUID())) })
 	h.click(f.Live.GetName())
@@ -58,6 +47,7 @@ func TestNativeSchemaConstraintsAgainstRealCluster(t *testing.T) {
 	if h.w.detail.GroupVersionKind() != f.GVK || h.w.detail.GetUID() != f.Live.GetUID() {
 		t.Fatal("native discovery opened a different CRD identity")
 	}
+	h.click("YAML")
 	h.click("Edit")
 	buffer, original := h.w.editor, h.w.editor.Snapshot()
 	obj, err := manifest.Decode([]byte(h.w.editorText()))
@@ -80,7 +70,7 @@ func TestNativeSchemaConstraintsAgainstRealCluster(t *testing.T) {
 	h.tt.Type(draft)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/mode · enum") || !strings.Contains(h.w.schemaText, "/spec/title · minLength") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_NATIVE_DRAFT_CHOICE") {
+	if !strings.Contains(h.w.schemaText, "/spec/mode: enum") || !strings.Contains(h.w.schemaText, "/spec/title: minLength") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_NATIVE_DRAFT_CHOICE") {
 		t.Fatal("native CRD constraint hints were absent or echoed a draft value")
 	}
 	if h.w.editor != buffer || h.w.editorText() != draft || original.String() != h.w.detailText || h.w.plan != nil {
@@ -108,7 +98,7 @@ func TestNativeSchemaConstraintsAgainstRealCluster(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/mode · enum") || strings.Contains(h.w.schemaText, "/spec/title · minLength") || strings.Contains(h.w.schemaText, "/spec/title · maxLength") || h.w.editorText() != corrected || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/mode: enum") || strings.Contains(h.w.schemaText, "/spec/title: minLength") || strings.Contains(h.w.schemaText, "/spec/title: maxLength") || h.w.editorText() != corrected || h.w.plan != nil {
 		t.Fatal("native Unicode correction did not refresh the actual published constraint")
 	}
 	h.click("Manifest editor")

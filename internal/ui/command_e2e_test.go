@@ -65,7 +65,10 @@ func TestNativePodCommandLifecycleAgainstRealCluster(t *testing.T) {
 	pump(func() bool { return containsRowUID(w.rows, string(f.Pod.UID)) })
 	click(f.Pod.Name)
 	pump(func() bool { return w.detail != nil })
-	click("Command")
+	click("Diagnostics")
+	if err := tt.Click("Command"); err != nil {
+		t.Fatal(err)
+	}
 	set("Command argv JSON", `["/bin/sh","-c","printf 'native-command-out'; printf 'native-command-err' >&2; exit 7"]`)
 	if w.commandConfirmation != "" {
 		t.Fatal("command already confirmed")

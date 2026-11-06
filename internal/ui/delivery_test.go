@@ -282,11 +282,21 @@ func TestNativeDeliveryImportPreviewAndConfirm(t *testing.T) {
 	if h.w.delivery.set.Len() != 2 || h.w.delivery.set.Items()[0].Name != "first" || h.w.delivery.set.Items()[1].Name != "existing" {
 		t.Fatal("import changed source order")
 	}
-	h.click("2. existing")
+	target := "2. existing"
+	for attempts := 0; attempts < 100 && (!h.tt.Focused(target) || h.tt.Focused("Source order / object")); attempts++ {
+		h.tt.Key(0, ui.KeyTab)
+	}
+	if !h.tt.Focused(target) || h.tt.Focused("Source order / object") {
+		t.Fatal("Tab did not reach " + target)
+	}
+	h.tt.Key(0, ui.KeyEnter)
+	if h.w.delivery.selected != 1 {
+		t.Fatal("Enter did not select the delivery item")
+	}
 	previewDeliveryUI(h, "Preview next object")
 	firstPlan := h.w.delivery.plan
 	before, after := firstPlan.Preview()
-	if firstPlan.Kind() != "create" || firstPlan.Target().Name != "first" || !strings.Contains(h.w.delivery.diff, "CREATE ONLY · aster-desktop") || h.w.plan != nil {
+	if firstPlan.Kind() != "create" || firstPlan.Target().Name != "first" || !strings.Contains(h.w.delivery.diff, "CREATE ONLY; aster-desktop") || h.w.plan != nil {
 		t.Fatal("arbitrary inventory selection replaced the first unfinished target")
 	}
 	submitDeliveryUI(h, "wrong-name")
@@ -511,7 +521,7 @@ func TestNativeDeliveryStaleWorkAndWorkspaceIsolation(t *testing.T) {
 	h.tt.Key(ui.Cmd, ui.KeyA)
 	h.tt.Type("different")
 	h.pump(func() bool { return h.w.pendingWrites == 0 })
-	if h.w.delivery.set != nil || h.w.delivery.plan != nil || h.w.delivery.busy != "" || !strings.Contains(strings.Join(h.w.history, "\n"), "[original-cluster] create team/delayed · Unknown") {
+	if h.w.delivery.set != nil || h.w.delivery.plan != nil || h.w.delivery.busy != "" || !strings.Contains(strings.Join(h.w.history, "\n"), "[original-cluster] create team/delayed; Unknown") {
 		t.Fatal("stale submission polluted a new namespace or lost original-context history")
 	}
 	if h2.w.delivery.plan != otherPlan || h2.w.pendingWrites != 0 {
@@ -739,4 +749,109 @@ func TestNativeDeliveryMinimumWindowUnicodeAndBudget(t *testing.T) {
 			t.Fatal("a lookup failure fell back to a write")
 		}
 	})
+}
+
+func TestNativeDeliveryExitNoticeRequiresRetainedWork(t *testing.T) {
+	for _, scale := range []float32{1, 2} {
+		for _, scenario := range []string{"empty", "draft", "imported", "helm", "retained-paste"} {
+			t.Run(fmt.Sprintf("%s-scale-%g", scenario, scale), func(t *testing.T) {
+				f := newDeliveryUIServer(t)
+				h := deliveryHarness(t, f, "notice")
+				h.tt.SetSize(1100, 900)
+				h.tt.SetPreferences(ui.Preferences{TextScale: scale, ReduceMotion: true})
+				if scenario == "empty" {
+					h.tt.Frame()
+					identity, identityOK := h.tt.Find("Delivery identity")
+					editor, editorOK := h.tt.Find("Delivery manifests")
+					if !identityOK || !editorOK || editor.Y-identity.Y-identity.H > 16 {
+						t.Fatalf("empty editor must follow target identity: identity=%+v editor=%+v", identity, editor)
+					}
+				}
+				switch scenario {
+				case "draft", "imported":
+					pasteDelivery(h, deliveryYAML("notice", "retained"))
+					if scenario == "imported" {
+						importDeliveryUI(h)
+					}
+				case "helm":
+					h.click("Render Helm chart")
+				case "retained-paste":
+					h.w.delivery.retainedPaste = "retained fixture"
+					h.tt.Frame()
+				}
+				before := h.w.delivery.editor.Snapshot().String()
+				h.click("Back to resources")
+				saveNativeScreenshot(t, h.tt)
+				if (h.w.notice != "") != (scenario != "empty") {
+					t.Fatalf("%s exit notice: %q", scenario, h.w.notice)
+				}
+				h.click("Deliver manifests")
+				if scenario == "empty" && h.w.delivery.status != "" {
+					t.Fatalf("empty delivery reopened with a work status: %q", h.w.delivery.status)
+				}
+				if h.w.delivery.editor.Snapshot().String() != before {
+					t.Fatal("navigation changed retained input")
+				}
+				if scenario == "imported" && h.w.delivery.set == nil {
+					t.Fatal("navigation discarded imported set")
+				}
+				if scenario == "helm" && !h.w.delivery.helm.open {
+					t.Fatal("navigation discarded Helm rendering")
+				}
+				if scenario == "retained-paste" && h.w.delivery.retainedPaste != "retained fixture" {
+					t.Fatal("navigation discarded retained paste")
+				}
+			})
+		}
+	}
+}
+
+func TestNativeDeliveryInventoryRowsRemainReachable(t *testing.T) {
+	for _, size := range [][2]int{{1440, 1000}, {1100, 700}} {
+		for _, scale := range []float32{1, 2} {
+			t.Run(fmt.Sprintf("%dx%d-scale-%g", size[0], size[1], scale), func(t *testing.T) {
+				f := newDeliveryUIServer(t)
+				h := deliveryHarness(t, f, "inventory")
+				var changeWidth float32
+				h.tt = ui.NewTester(func(c *ui.Context) {
+					changeWidth, _ = c.MeasureText(0, ui.Span{Text: "Change manifests"})
+					h.w.View(c)
+				}, size[0], size[1])
+				h.tt.SetPreferences(ui.Preferences{TextScale: scale})
+				pasteDelivery(h, deliveryYAML("first", "one")+"---\n"+deliveryYAML("second", "two")+"---\n"+deliveryYAML("third", "three"))
+				importDeliveryUI(h)
+				h.tt.Frame()
+				first, ok := h.tt.Find("1. first")
+				if !ok || first.H < 12 {
+					t.Fatal("first inventory row missing", first)
+				}
+				if size[1] == 700 && scale == 2 {
+					viewport, _ := h.tt.Find("Delivery inventory")
+					h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 1000)
+					h.tt.Frame()
+				}
+				last, ok := h.tt.Find("3. third")
+				if !ok || last.H < first.H || last.W <= 0 {
+					saveNativeScreenshot(t, h.tt)
+					t.Fatal("third inventory row clipped", first, last)
+				}
+				h.click("3. third")
+				if h.w.delivery.selected != 2 {
+					t.Fatal("third inventory row not selectable")
+				}
+				status, _ := h.tt.Find("Connection status")
+				for _, label := range []string{"Delivery confirmation", "Submit reviewed object", "Change manifests"} {
+					b, ok := h.tt.Find(label)
+					if !ok || b.H < 12 || b.Y+b.H > status.Y || b.X+b.W > float32(size[0]) || label == "Change manifests" && b.W < changeWidth {
+						t.Fatal("delivery action clipped", label, b)
+					}
+				}
+				_, previews, writes := f.counts()
+				if previews != 0 || writes != 0 {
+					t.Fatal("inventory browsing admitted an operation")
+				}
+				saveNativeScreenshot(t, h.tt)
+			})
+		}
+	}
 }

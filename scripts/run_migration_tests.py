@@ -140,6 +140,8 @@ REQUIRED = [
 ]
 
 TERMINAL_REQUIRED = [
+    "TestTerminalNativeRemoteImagesStayDisabled",
+    "TestTerminalNativeFileDropDoesNotSendLocalPaths",
     "TestTerminalNativeMyGo055RuntimeCopyAndImagePasteStayDenied",
     "TestTerminalNativeMyGo05ClipboardReadsNeverEvaluateProviders",
     "TestTerminalNativeMyGo05MultiformatPasteIsBoundedTextOnly",

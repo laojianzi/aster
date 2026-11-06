@@ -17,7 +17,7 @@ func ownershipFixture() *unstructured.Unstructured {
 func TestOwnershipShowsManagerPathsNotResourceValues(t *testing.T) {
 	o := ownershipFixture()
 	got := Ownership(o)
-	if !strings.Contains(got, "aster-apply · Apply · v1") || !strings.Contains(got, "/f:data/f:a") || strings.Index(got, "/f:data/f:z") < strings.Index(got, "/f:data/f:a") {
+	if !strings.Contains(got, "aster-apply; Apply; v1") || !strings.Contains(got, "/f:data/f:a") || strings.Index(got, "/f:data/f:z") < strings.Index(got, "/f:data/f:a") {
 		t.Fatal(got)
 	}
 	if strings.Contains(got, "do-not-include-payload") {

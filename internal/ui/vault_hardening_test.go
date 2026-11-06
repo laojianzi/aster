@@ -54,6 +54,7 @@ func TestNativeVaultCAFileChangeInvalidatesReviewedTarget(t *testing.T) {
 	h.w.currentContext = "vault-test"
 	h.w.contexts = []string{"vault-test"}
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Credentials")
 	h.click("Review credential target")
 	h.pump(func() bool { return !h.w.vaultPending })

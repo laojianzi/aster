@@ -123,20 +123,20 @@ func (w *Workbench) helmArchiveView(c *ui.Context) {
 	if r.Archived() {
 		location = "Archived"
 	}
-	ui.Text(c, "Record location: "+location+" · original bytes retained").Label("Helm archive location").FontSize(12)
-	ui.Text(c, "Archival only frees active journal quota. It does not delete disk bytes, clear Unknown, or authorize any cluster request.").Label("Helm archive boundary").FontSize(11)
+	ui.Text(c, "Record location: "+location+"; original bytes retained").Label("Helm archive location").FontSize(12 * max(1, c.Preferences().TextScale))
+	ui.Text(c, "Archival only frees active journal quota. It does not delete disk bytes, clear Unknown, or authorize any cluster request.").Label("Helm archive boundary").FontSize(12 * max(1, c.Preferences().TextScale))
 	if result := u.archiveResult; result != nil {
-		ui.Text(c, "Local archive outcome: "+string(result.Outcome)).Label("Helm archive outcome").Bold().FontSize(13)
+		ui.Text(c, "Local archive outcome: "+string(result.Outcome)).Label("Helm archive outcome").Bold()
 	}
 	if u.archiveReload {
-		ui.Text(c, "Reload local history before a new archive review. The selected history remains a pre-operation snapshot.").Label("Helm archive reload needed").FontSize(11)
+		ui.Text(c, "Reload local history before a new archive review. The selected history remains a pre-operation snapshot.").Label("Helm archive reload needed").FontSize(12 * max(1, c.Preferences().TextScale))
 	}
 	ui.Button(c, "Review local archive").Disabled(!w.helmUninstallEligible() || r.Archived() || r.Corrupt() || u.recoveryErr != nil || u.archiveReload || u.journalPath == "").OnClick(w.prepareHelmArchive)
 	if session := u.archive; session != nil {
 		inv := session.Inventory()
-		ui.Text(c, fmt.Sprintf("Active: %d / %d records · %d / %d bytes", inv.Records, helmjournal.MaxRecords, inv.Bytes, helmjournal.MaxStoreBytes)).Label("Helm archive active capacity").FontSize(11)
-		ui.Text(c, fmt.Sprintf("Archived: %d / %d records · %d / %d bytes; this record retains %d bytes", inv.ArchivedRecords, helmjournal.MaxArchivedRecords, inv.ArchivedBytes, helmjournal.MaxArchivedBytes, session.Bytes())).Label("Helm archive retained capacity").FontSize(11)
-		ui.Text(c, "Archive review expires: "+session.ExpiresAt().UTC().Format("15:04:05 UTC")).Label("Helm archive expiry").FontSize(11)
+		ui.Text(c, fmt.Sprintf("Active: %d / %d records; %d / %d bytes", inv.Records, helmjournal.MaxRecords, inv.Bytes, helmjournal.MaxStoreBytes)).Label("Helm archive active capacity").FontSize(12 * max(1, c.Preferences().TextScale))
+		ui.Text(c, fmt.Sprintf("Archived: %d / %d records; %d / %d bytes; this record retains %d bytes", inv.ArchivedRecords, helmjournal.MaxArchivedRecords, inv.ArchivedBytes, helmjournal.MaxArchivedBytes, session.Bytes())).Label("Helm archive retained capacity").FontSize(12 * max(1, c.Preferences().TextScale))
+		ui.Text(c, "Archive review expires: "+session.ExpiresAt().UTC().Format("15:04:05 UTC")).Label("Helm archive expiry").FontSize(12 * max(1, c.Preferences().TextScale))
 		if d := time.Until(session.ExpiresAt()); d > 0 {
 			c.After(d)
 		}

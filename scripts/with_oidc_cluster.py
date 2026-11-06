@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Disposable TLS Dex + OIDC-enabled kind; never reads a user's kubeconfig."""
 import json
+import ipaddress
 import os
 from pathlib import Path
 import ssl
@@ -33,13 +34,17 @@ def main(args):
             if not command('docker', 'network', 'ls', '--filter', 'name=^kind$', '--format', '{{.Name}}').strip():
                 command('docker', 'network', 'create', 'kind')
             network = json.loads(command('docker', 'network', 'inspect', 'kind'))[0]
-            gateway = next(x['Gateway'] for x in network['IPAM']['Config'] if ':' not in x.get('Gateway', ''))
-            issuer = 'https://' + gateway + ':15556/dex'
+            subnet = next(x for x in network['IPAM']['Config'] if ':' not in x.get('Subnet', ''))
+            used = {x.get('IPv4Address', '').split('/')[0] for x in network.get('Containers', {}).values()} | {subnet['Gateway']}
+            provider_ip = next(str(ip) for ip in ipaddress.ip_network(subnet['Subnet']).hosts() if str(ip) not in used)
+            for key in ('NO_PROXY', 'no_proxy'):
+                os.environ[key] = ','.join(filter(None, [os.environ.get(key, ''), provider_ip]))
+            issuer = 'https://' + provider_ip + ':15556/dex'
             stage = 'certificate'
             command('openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=Aster disposable OIDC',
-                '-addext', 'subjectAltName=IP:' + gateway + ',IP:127.0.0.1', '-keyout', str(tmp/'key.pem'), '-out', str(tmp/'cert.pem'))
+                '-addext', 'subjectAltName=IP:' + provider_ip + ',IP:127.0.0.1', '-keyout', str(tmp/'key.pem'), '-out', str(tmp/'cert.pem'))
             config = {'issuer': issuer, 'storage': {'type': 'memory'},
-                'web': {'https': gateway + ':15556', 'tlsCert': '/fixture/cert.pem', 'tlsKey': '/fixture/key.pem'},
+                'web': {'https': '0.0.0.0:15556', 'tlsCert': '/fixture/cert.pem', 'tlsKey': '/fixture/key.pem'},
                 'expiry': {'idTokens': '30s', 'refreshTokens': {'disableRotation': False, 'reuseInterval': '0s', 'absoluteLifetime': '1h'}},
                 'oauth2': {'responseTypes': ['code'], 'skipApprovalScreen': False, 'pkce': {'enforce': True, 'codeChallengeMethodsSupported': ['S256']}},
                 'staticClients': [{'id': 'aster-test', 'name': 'Aster disposable test', 'public': True, 'redirectURIs': ['http://127.0.0.1:17111/oidc/callback']}],
@@ -56,7 +61,7 @@ def main(args):
             # back into its storage mutex. Enable actual issuer sessions so refresh
             # reads the cached identity before the rotation transaction. This is a
             # test IdP configuration, not a relaxation of Aster verification.
-            command('docker', 'run', '-d', '--name', name, '--network', 'host', '--user', '0:0', '-e', 'DEX_SESSIONS_ENABLED=true', '-v', str(tmp)+':/fixture:ro', DEX, 'dex', 'serve', '/fixture/dex.json')
+            command('docker', 'run', '-d', '--name', name, '--network', 'kind', '--ip', provider_ip, '--user', '0:0', '-e', 'DEX_SESSIONS_ENABLED=true', '-v', str(tmp)+':/fixture:ro', DEX, 'dex', 'serve', '/fixture/dex.json')
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=str(tmp/'cert.pem'))))
             stage = 'provider-readiness'
             deadline = time.monotonic()+40

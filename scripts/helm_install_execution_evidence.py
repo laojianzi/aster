@@ -29,11 +29,50 @@ INSTALL_EXECUTION_REQUIRED = {
     ),
     'real-cluster-native': cases('TestRealHelmInstallExecution', ('success','storage-race','target-race','committed-response-loss')),
 }
+# The 28 native-workbench entries were added in the same commit that made those
+# files tracked, because the census enumerates `git ls-files` and would otherwise
+# count them. Adding a path here exempts it from the census permanently: its bytes
+# may then change without the aggregate digest moving. That is the price of
+# letting a protected-file census coexist with additive test work, so the set is
+# pinned by ADDED_TEST_FILES_SHA256 below. Widening the exemption by one path
+# requires editing both the set and that digest, which is exactly the friction
+# this list is supposed to create.
 ADDED_TEST_FILES = {
+    # Restricted Helm install execution (see INSTALL_EXECUTION_REQUIRED above).
     'internal/kube/helm_install_execution_fixture_test.go',
     'internal/kube/helm_install_execution_test.go',
     'internal/kube/helm_install_execution_journal_test.go',
     'internal/kube/helm_install_execution_process_test.go',
     'e2e/helm_install_execution_test.go',
     'internal/helmrelease/install_execution_size_test.go',
+    # Native workbench redesign: terminal theme and mygo v0.7 contract.
+    'internal/nativeterm/mygo07_contract_test.go',
+    'internal/nativeterm/theme_test.go',
+    # Native workbench redesign: focus, theming and application discovery.
+    'internal/ui/application_map_test.go',
+    'internal/ui/applications_test.go',
+    'internal/ui/attention_test.go',
+    'internal/ui/connected_scope_test.go',
+    'internal/ui/connection_hierarchy_test.go',
+    'internal/ui/container_evidence_test.go',
+    'internal/ui/diagnostic_history_test.go',
+    'internal/ui/diagnostic_navigation_test.go',
+    'internal/ui/diagnostics_test.go',
+    'internal/ui/discovery_notice_test.go',
+    'internal/ui/focus_test.go',
+    'internal/ui/manifest_font_test.go',
+    'internal/ui/mygo073_contract_test.go',
+    'internal/ui/object_drafts_test.go',
+    'internal/ui/object_history_test.go',
+    'internal/ui/object_navigation_test.go',
+    'internal/ui/object_router_contract_test.go',
+    'internal/ui/object_sections_test.go',
+    'internal/ui/object_tab_labels_test.go',
+    'internal/ui/resource_columns_test.go',
+    'internal/ui/resource_empty_test.go',
+    'internal/ui/resource_status_visual_test.go',
+    'internal/ui/sidebar_discovery_test.go',
+    'internal/ui/task_history_test.go',
+    'internal/ui/theme_test.go',
+    'internal/ui/workbench_redesign_test.go',
 }

@@ -207,7 +207,7 @@ func TestNativeManifestClipboardMinimumWindowAndComposition(t *testing.T) {
 			if create {
 				labels = append(labels, "Preview create")
 			} else {
-				labels = append(labels, "Preview edit", "Preview delete")
+				labels = append(labels, "Preview edit", "Actions")
 			}
 			footer, ok := h.tt.Find("Connection status")
 			if !ok || footer.Y <= 0 {

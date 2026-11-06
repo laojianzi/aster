@@ -28,7 +28,7 @@ func TestNativeSchemaIntegerSetHistoryAndNavigation(t *testing.T) {
 	if !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
 		t.Fatal("native report advertises an outdated set-list value scope")
 	}
-	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/values · list-set") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised integer value.") != 1 {
+	if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/values: list-set") || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Count(h.w.schemaText, "List entries repeat the advertised integer value.") != 1 {
 		t.Fatal("integer set inspection missed the repeated integer")
 	}
 	for _, private := range []string{"PRIVATE_", "9007199254740993", "9223372036854775807", "TCP", "UDP"} {
@@ -118,7 +118,7 @@ func TestNativeSchemaIntegerSetMinimumWindowIncomplete(t *testing.T) {
 			if !strings.Contains(h.w.schemaText, "string/int64/boolean set-list values") || strings.Contains(h.w.schemaText, "string set-list values") {
 				t.Fatal("native report advertises an outdated set-list value scope")
 			}
-			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "· list-set") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {
+			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, ": list-set") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_INTEGER") {
 				t.Fatal("incomplete integer list produced an early hint or disclosed input")
 			}
 			if h.w.editorText() != draft || h.w.draftIdentity() != identity || h.w.editor != buffer || h.w.plan != nil || writes.Load() != 0 {

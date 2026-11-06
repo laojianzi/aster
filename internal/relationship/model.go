@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/laojianzi/aster/internal/health"
 	"github.com/laojianzi/aster/internal/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -48,6 +49,7 @@ func (l Link) Navigable() bool { return l.State == Verified && l.Target.UID != "
 type Snapshot struct {
 	Target            resource.Identity
 	SourceVersion     string
+	Health            health.State
 	ObservedAt        time.Time
 	Links             []Link
 	Warnings          []string

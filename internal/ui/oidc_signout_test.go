@@ -24,6 +24,7 @@ func signOutWorkbench(t *testing.T) (*relationshipHarness, *testoidc.Provider) {
 	if h.w.oidcSignOut == nil {
 		t.Fatal("missing sign-out transfer")
 	}
+	h.click("Connections")
 	h.click("Browser sign-in")
 	return h, p
 }
@@ -111,6 +112,7 @@ func TestNativeOIDCSignOutOriginalIssuerWithoutRenewal(t *testing.T) {
 			if capability == nil {
 				t.Fatal("sign-out capability missing without renewal")
 			}
+			h.click("Connections")
 			h.click("Browser sign-in")
 			if which == "forgotten" {
 				h.click("Confirm issuer sign-out context")

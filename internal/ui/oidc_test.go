@@ -27,6 +27,7 @@ func setupOIDC(t *testing.T, h *relationshipHarness, p *testoidc.Provider, cfg *
 	h.w.oidcCA = string(p.CA)
 	h.w.oidcBrowser = p.Open
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Review OIDC target")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -44,6 +45,14 @@ func TestNativeOIDCReviewConfirmationAndMinimumWindow(t *testing.T) {
 		b, ok := h.tt.Find(label)
 		if !ok || b.H < 8 || b.X < 0 || b.X+b.W > 1100 || b.Y+b.H > 700 {
 			t.Fatal("OIDC control clipped", label, b)
+		}
+	}
+	if !h.tt.HasText("Confirm context") {
+		t.Error("missing persistent confirmation label")
+	}
+	for _, label := range []string{"OIDC issuer", "OIDC client ID", "Confirm OIDC context"} {
+		if b, ok := h.tt.Find(label); !ok || b.W > 760 {
+			t.Errorf("field exceeds readable form width: %s %+v", label, b)
 		}
 	}
 	h.w.loginOIDC(ui.Services{})
@@ -214,5 +223,94 @@ func TestNativeOIDCBrowserDispatchUsesPersistentServicesOnce(t *testing.T) {
 	h.pump(func() bool { return !h.w.oidcPending })
 	if p.TokenRequests.Load() != 0 {
 		t.Fatal("cancel sent an exchange")
+	}
+}
+
+func TestNativeOIDCScaledReviewRemainsReachable(t *testing.T) {
+	for _, size := range []struct {
+		name          string
+		width, height int
+	}{{"minimum", 900, 480}, {"tiled", 936, 499}, {"desktop", 1100, 700}} {
+		t.Run(size.name, func(t *testing.T) {
+			p := testoidc.New(t)
+			h := newRelationshipHarness(t, 15*time.Second)
+			setupOIDC(t, h, p, &rest.Config{Host: "https://cluster.invalid"})
+			h.tt.SetSize(size.width, size.height)
+			title, _ := h.tt.Find("Browser sign-in (OpenID Connect)")
+			h.tt.SetPreferences(ui.Preferences{TextScale: 2, ReduceMotion: true})
+			large, _ := h.tt.Find("Browser sign-in (OpenID Connect)")
+			if large.H < title.H*1.8 {
+				t.Fatal("authentication heading ignores font preference")
+			}
+			viewport, ok := h.tt.Find("Authentication task")
+			if !ok {
+				t.Fatal("authentication task has no scroll viewport")
+			}
+			for _, label := range []string{"OIDC issuer", "OIDC client ID", "OIDC callback port", "Confirm OIDC context", "Sign in with browser", "Connect verified identity", "OIDC sign-in status"} {
+				h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, -10000)
+				reached := false
+				for range 30 {
+					r, ok := h.tt.Find(label)
+					if ok && r.W > 0 && r.H > 0 && r.X >= viewport.X && r.X+r.W <= viewport.X+viewport.W && r.Y >= viewport.Y && r.Y+r.H <= viewport.Y+viewport.H {
+						reached = true
+						if label == "Confirm OIDC context" {
+							h.click(label)
+							h.tt.Type("vault-test")
+						}
+						break
+					}
+					h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 40)
+				}
+				if !reached {
+					saveNativeScreenshot(t, h.tt)
+					t.Fatalf("scaled authentication control unreachable: %s", label)
+				}
+			}
+			if h.w.oidcConfirmation != "vault-test" || p.TokenRequests.Load() != 0 || h.w.backend != nil {
+				t.Fatal("scrolling lost confirmation or implicitly authenticated")
+			}
+			saveNativeScreenshot(t, h.tt)
+
+		})
+	}
+}
+
+func TestNativeOIDCFormLabelsAndDetails(t *testing.T) {
+	for _, scale := range []float32{1, 2} {
+		t.Run(string(rune('0'+int(scale))), func(t *testing.T) {
+			w := New()
+			t.Cleanup(w.Close)
+			w.oidcOpen = true
+			tt := ui.NewTester(w.View, 1100, 1000)
+			tt.SetPreferences(ui.Preferences{TextScale: scale, ReduceMotion: true})
+			for _, label := range []string{"Issuer URL", "Client ID", "Callback port", "Issuer CA"} {
+				if !tt.HasText(label) {
+					t.Fatalf("missing persistent field label: %s", label)
+				}
+			}
+			for _, label := range []string{"OIDC issuer", "OIDC client ID", "OIDC callback port", "OIDC issuer CA PEM"} {
+				r, ok := tt.Find(label)
+				if !ok || r.X < 0 || r.X+r.W > 1100 || r.W < 160 {
+					t.Fatalf("field clipped: %s %+v", label, r)
+				}
+			}
+			details := "Public client + S256 PKCE; same-origin HTTPS endpoints; single-use exchange; opt-in rotation only; no persistence or automatic refresh; issuer sign-out is a separate reviewed browser handoff"
+			if tt.HasText(details) {
+				t.Fatal("technical details crowd the default form")
+			}
+			if err := tt.Click("Sign-in details"); err != nil {
+				t.Fatal(err)
+			}
+			if !tt.HasText(details) {
+				t.Fatal("sign-in details lost")
+			}
+			if err := tt.Click("Sign-in details"); err != nil {
+				t.Fatal(err)
+			}
+			if tt.HasText(details) {
+				t.Fatal("details did not collapse")
+			}
+			saveNativeScreenshot(t, tt)
+		})
 	}
 }

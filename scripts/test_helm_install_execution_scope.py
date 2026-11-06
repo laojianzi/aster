@@ -22,6 +22,20 @@ class InstallExecutionScopeTests(unittest.TestCase):
         self.assertEqual(len(execution.INSTALL_EXECUTION_REQUIRED['unit-native']), 120)
         self.assertEqual(len(execution.INSTALL_EXECUTION_REQUIRED['real-cluster-native']), 5)
 
+    def test_added_test_exemption_set_is_pinned(self):
+        # A path in ADDED_TEST_FILES is exempt from the census forever, so edits
+        # to it stop being detectable. The exemption list therefore has to be a
+        # reviewed constant, not an append-only convenience. Growing it by one
+        # path means editing this digest in the same change.
+        self.assertEqual(len(execution.ADDED_TEST_FILES), 34)
+        self.assertEqual(hashlib.sha256(
+            '\n'.join(sorted(execution.ADDED_TEST_FILES)).encode()).hexdigest(),
+            'c5b6af9b63817d3f4dacf6135c0f5a110896fffd6ff9397ba119937c799fc3cb')
+        # Only test files may be exempted; otherwise the list becomes a way to
+        # hide production source from the census.
+        for path in execution.ADDED_TEST_FILES:
+            self.assertTrue(path.endswith('_test.go'), path)
+
     def test_every_new_requirement_must_run_and_finish_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'tests.jsonl'
@@ -59,8 +73,12 @@ class InstallExecutionScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
+        # Re-frozen for the mygo v0.7.x migrations. The 250-test census and the
+        # 265 rows are unchanged; only the bytes behind 64 of them moved.
+        # Previous values 261f30e8... (8de1541) and 0474a120... (v0.7.3) are
+        # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '261f30e834d8aa7b6262e892c43bccfae87103bc41530fce8951dfcf1d62d78b')
+                         '6dddf5421fe1cfd330a4129df6e2a8301a20feefe5b92faeacd7f6d3f2ed38c3')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):

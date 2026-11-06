@@ -212,63 +212,79 @@ func (w *Workbench) oidcView(c *ui.Context) {
 	}
 	t := c.Theme()
 	services := c.Services()
-	ui.Column(c).Grow(1).Padding(12).Gap(6).Children(func() {
-		ui.Text(c, "Browser sign-in · OpenID Connect").FontSize(20).Bold()
-		ui.Text(c, "Use a credential-free HTTPS context. Tokens remain in this window's memory; the OS token vault is not read or changed.").FontSize(12)
-		ui.Row(c).Gap(8).Children(func() {
-			if ui.TextInput(c.Key("oidc.issuer"), &w.oidcIssuer).Label("OIDC issuer").Placeholder("HTTPS issuer URL").Grow(1).Changed() {
+	ui.Scroll(c.Key("oidc.task")).Label("Authentication task").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+		ui.Column(c).Padding(12).Gap(6).Children(func() {
+			ui.Text(c, "Browser sign-in (OpenID Connect)").FontSize(t.FontSize * 1.4).Bold()
+			ui.Text(c, "Use a credential-free HTTPS context. Tokens stay in this workspace; the credential vault is unchanged.")
+			ui.Form(c, func() {
+				ui.Field(c, "Issuer URL", func() {
+					if ui.TextInput(c.Key("oidc.issuer"), &w.oidcIssuer).Label("OIDC issuer").Placeholder("https://issuer.example.com").Changed() {
+						w.clearOIDC()
+					}
+				})
+				ui.Field(c, "Client ID", func() {
+					if ui.TextInput(c.Key("oidc.client"), &w.oidcClient).Label("OIDC client ID").Placeholder("Registered public client ID").Changed() {
+						w.clearOIDC()
+					}
+				})
+				ui.Field(c, "Callback port", func() {
+					if ui.TextInput(c.Key("oidc.port"), &w.oidcPort).Label("OIDC callback port").Tooltip("0 selects an available port automatically").Width(180).Changed() {
+						w.clearOIDC()
+					}
+				})
+				ui.Field(c, "Issuer CA", func() {
+					if ui.TextArea(c.Key("oidc.ca"), &w.oidcCA).Label("OIDC issuer CA PEM").Placeholder("Optional PEM certificate").Tooltip("Empty uses system trust. Independent of the cluster CA.").Height(60).Changed() {
+						w.clearOIDC()
+					}
+				})
+			}).MaxWidth(800 * c.Preferences().TextScale).Gap(6)
+			if guardedCheckbox(c, "oidc.allowRenewal", &w.oidcAllowRenewal, "Allow memory-only renewal (requests offline access and consent)", !w.oidcPending).Disabled(w.oidcPending).Changed() && !w.oidcPending {
 				w.clearOIDC()
 			}
-			if ui.TextInput(c.Key("oidc.client"), &w.oidcClient).Label("OIDC client ID").Placeholder("Registered public client ID").Width(240).Changed() {
-				w.clearOIDC()
-			}
-			if ui.TextInput(c.Key("oidc.port"), &w.oidcPort).Label("OIDC callback port").Placeholder("0: automatic").Width(110).Changed() {
-				w.clearOIDC()
-			}
-		})
-		if ui.TextArea(c.Key("oidc.ca"), &w.oidcCA).Label("OIDC issuer CA PEM").Placeholder("Optional issuer CA PEM (empty: system trust). Independent of the cluster CA.").Height(60).Changed() {
-			w.clearOIDC()
-		}
-		if guardedCheckbox(c, "oidc.allowRenewal", &w.oidcAllowRenewal, "Allow memory-only renewal (requests offline access and consent)", !w.oidcPending).Disabled(w.oidcPending).Changed() && !w.oidcPending {
-			w.clearOIDC()
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Button(c, "Review OIDC target").Disabled(w.currentContext == "" || w.backend != nil || w.oidcPending || w.vaultPending || w.connectionPending).OnClick(func() { w.reviewOIDC() })
-			ui.Button(c, "Cancel sign-in").Disabled(!w.oidcPending && w.oidcReview == nil && w.oidcIdentity == nil).OnClick(func() {
-				w.clearOIDC()
-				w.oidcStatus = "Sign-in canceled locally; this does not log out the browser or revoke issuer credentials."
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				ui.Button(c, "Review OIDC target").Disabled(w.currentContext == "" || w.backend != nil || w.oidcPending || w.vaultPending || w.connectionPending).OnClick(func() { w.reviewOIDC() })
+				ui.Button(c, "Cancel sign-in").Disabled(!w.oidcPending && w.oidcReview == nil && w.oidcIdentity == nil).OnClick(func() {
+					w.clearOIDC()
+					w.oidcStatus = "Sign-in canceled locally; this does not log out the browser or revoke issuer credentials."
+				})
+				ui.Button(c, "Back to resources").OnClick(func() { w.clearOIDC(); w.oidcOpen = false; w.connectionsOpen = false })
 			})
-			ui.Button(c, "Back to resources").OnClick(func() { w.clearOIDC(); w.oidcOpen = false })
-		})
-		if w.oidcTrustPending != "" {
-			ui.Button(c, "Trust cluster CA file and review OIDC").Disabled(w.oidcPending).OnClick(func() { w.oidcTrust = w.oidcTrustPending; w.reviewOIDC() })
-		}
-		if w.backend != nil {
-			ui.Text(c, "Disconnect before reviewing another identity.").FontSize(12)
-		}
-		if w.oidcTarget != nil {
-			ui.Text(c, "Context: "+w.oidcTarget.Context+" · Server: "+w.oidcTarget.Server).Label("OIDC reviewed target").SingleLine().FontSize(12)
-			if w.oidcReview != nil {
-				ep := w.oidcReview.Endpoints()
-				ui.Text(c, "Browser: "+ep.Authorization).Label("OIDC authorization endpoint").SingleLine().FontSize(12)
-				ui.Text(c, "Token: "+ep.Token+" · Keys: "+ep.Keys).Label("OIDC token and key endpoints").SingleLine().FontSize(12)
-				if ep.EndSession != "" {
-					ui.Text(c, "Optional issuer sign-out: "+ep.EndSession).Label("OIDC discovered sign-out endpoint").SingleLine().FontSize(11)
+			if w.oidcTrustPending != "" {
+				ui.Button(c, "Trust cluster CA file and review OIDC").Disabled(w.oidcPending).OnClick(func() { w.oidcTrust = w.oidcTrustPending; w.reviewOIDC() })
+			}
+			if w.backend != nil {
+				ui.Text(c, "Disconnect before reviewing another identity.")
+			}
+			if w.oidcTarget != nil {
+				ui.Text(c, "Context: "+w.oidcTarget.Context+"; Server: "+w.oidcTarget.Server).Label("OIDC reviewed target")
+				if w.oidcReview != nil {
+					ep := w.oidcReview.Endpoints()
+					ui.Text(c, "Browser: "+ep.Authorization).Label("OIDC authorization endpoint")
+					ui.Text(c, "Token: "+ep.Token+"; Keys: "+ep.Keys).Label("OIDC token and key endpoints")
+					if ep.EndSession != "" {
+						ui.Text(c, "Optional issuer sign-out: "+ep.EndSession).Label("OIDC discovered sign-out endpoint")
+					}
 				}
+				if w.oidcIdentity != nil {
+					info := w.oidcIdentity.Info()
+					ui.Text(c, fmt.Sprintf("Verified subject: %q; Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity")
+					ui.Text(c, "ID token expires "+info.ExpiresAt.Local().Format("2006-01-02 15:04:05")+"; Connection capped at 15 minutes").Label("OIDC expiry")
+				}
+				ui.Form(c, func() {
+					ui.Field(c, "Confirm context", func() {
+						guardedTextInput(c, "oidc.confirm", &w.oidcConfirmation, !w.oidcPending).Label("Confirm OIDC context").Placeholder("Type exact context name; confirmation is cleared after each step").Disabled(w.oidcPending)
+					})
+				}).MaxWidth(800 * c.Preferences().TextScale)
+				enabled := !w.oidcPending && !w.vaultPending && !w.connectionPending && w.backend == nil && w.oidcConfirmation == w.oidcTarget.Context
+				ui.Row(c).Gap(8).Wrap().Children(func() {
+					ui.Button(c, "Sign in with browser").Disabled(!enabled || w.oidcReview == nil).OnClick(func() { w.loginOIDC(services) })
+					ui.Button(c, "Connect verified identity").Disabled(!enabled || w.oidcIdentity == nil).OnClick(func() { w.connectOIDC() })
+				})
 			}
-			if w.oidcIdentity != nil {
-				info := w.oidcIdentity.Info()
-				ui.Text(c, fmt.Sprintf("Verified subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity").SingleLine().FontSize(12)
-				ui.Text(c, "ID token expires "+info.ExpiresAt.Local().Format("2006-01-02 15:04:05")+" · Connection capped at 15 minutes").Label("OIDC expiry").FontSize(12)
-			}
-			guardedTextInput(c, "oidc.confirm", &w.oidcConfirmation, !w.oidcPending).Label("Confirm OIDC context").Placeholder("Type exact context name; confirmation is cleared after each step").Disabled(w.oidcPending)
-			enabled := !w.oidcPending && !w.vaultPending && !w.connectionPending && w.backend == nil && w.oidcConfirmation == w.oidcTarget.Context
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Button(c, "Sign in with browser").Disabled(!enabled || w.oidcReview == nil).OnClick(func() { w.loginOIDC(services) })
-				ui.Button(c, "Connect verified identity").Disabled(!enabled || w.oidcIdentity == nil).OnClick(func() { w.connectOIDC() })
+			ui.Text(c, w.oidcStatus).Label("OIDC sign-in status").TextColor(t.TextMuted)
+			ui.Collapsible(c, "Sign-in details", &w.oidcDetailsOpen, func() {
+				ui.Text(c, "Public client + S256 PKCE; same-origin HTTPS endpoints; single-use exchange; opt-in rotation only; no persistence or automatic refresh; issuer sign-out is a separate reviewed browser handoff").TextColor(t.TextMuted)
 			})
-		}
-		ui.Text(c, w.oidcStatus).Label("OIDC sign-in status").FontSize(12).TextColor(t.TextMuted)
-		ui.Text(c, "Public client + S256 PKCE · same-origin HTTPS endpoints · single-use exchange · opt-in rotation only · no persistence or automatic refresh · issuer sign-out is a separate reviewed browser handoff").FontSize(11).TextColor(t.TextMuted)
+		})
 	})
 }

@@ -53,26 +53,18 @@ const nativeEnumIncompleteDocument = `{
 // through Copy, before replacing an object/array at the original field pointer.
 func selectNativeSchemaEnumLine(t *testing.T, tt *ui.Tester, line string) {
 	t.Helper()
-	runes := len([]rune(line))
-	remaining, steps := runes, 0
-	for remaining > 0 && steps+remaining <= 2*runes+1 {
-		for range remaining {
-			tt.Key(ui.Shift, ui.KeyRight)
-			steps++
-		}
+	for range 2*len([]rune(line)) + 1 {
+		tt.Key(ui.Shift, ui.KeyRight)
 		tt.SetClipboard("the complete enum line was not selected")
 		tt.Key(ui.Cmd, ui.KeyC)
 		selected := tt.Clipboard()
 		if selected == line {
 			return
 		}
-		// A soft-wrap boundary can expose two caret positions at one source
-		// offset. Account for it using the actual copied source prefix, with
-		// a fixed step bound, rather than assuming one key always advances.
-		if selected == "" || !strings.HasPrefix(line, selected) {
+		// Native arrows advance grapheme clusters and can pause at soft wraps.
+		if !strings.HasPrefix(line, selected) {
 			t.Fatal("native selection left the intended original enum source line")
 		}
-		remaining = runes - len([]rune(selected))
 	}
 	t.Fatal("native rune navigation did not select the complete bounded enum source line")
 }
@@ -108,7 +100,7 @@ func TestNativeSchemaEnumPreservesDraftAndHistory(t *testing.T) {
 	h.tt.SetClipboard("selection was not copied after inspection")
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/objectChoice · enum") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/objectChoice: enum") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("structured mismatch was missed or ordered array and local nullable enum equality were rejected")
 	}
 	for _, private := range []string{"PRIVATE_DRAFT_ENUM", "PRIVATE_ENUM_ALPHA", "PRIVATE_ENUM_NESTED_KEY", "PRIVATE_NULL_ALT", "保密🚢", "9007199254740993"} {
@@ -197,7 +189,7 @@ func TestNativeSchemaEnumPreservesDraftAndHistory(t *testing.T) {
 	h.tt.Type(unmatched)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/objectChoice · enum") || !strings.Contains(h.w.schemaText, "/spec/arrayChoice · enum") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "9007199254740992") || h.w.editorText() != unmatched || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/objectChoice: enum") || !strings.Contains(h.w.schemaText, "/spec/arrayChoice: enum") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "9007199254740992") || h.w.editorText() != unmatched || h.w.plan != nil {
 		t.Fatal("enum inspection lost exact integer or array-order distinctions, privacy or source immutability")
 	}
 	focusMultipleOfEditorByKeyboard(h)
@@ -258,7 +250,7 @@ func TestNativeSchemaEnumMinimumWindowAndIncomplete(t *testing.T) {
 			if tc.wantType {
 				wantLocations++
 			}
-			if !strings.Contains(h.w.schemaText, "/spec/checked · enum") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · enum") || strings.Contains(h.w.schemaText, "/spec/malformed · type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: enum") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: enum") || strings.Contains(h.w.schemaText, "/spec/malformed: type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
 				t.Fatal("incomplete enum metadata or input lost disclosure or invented a secondary mismatch")
 			}
 			for _, private := range []string{"PRIVATE_SCHEMA_ALLOWED", "PRIVATE_DRAFT_CHECKED", "PRIVATE_SCHEMA_ENUM", "PRIVATE_SCHEMA_DEEP", "PRIVATE_DRAFT_VALUE", largeValueMarker, "123456789", "2147483648"} {

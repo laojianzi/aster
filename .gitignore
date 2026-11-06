@@ -3,9 +3,14 @@
 /coverage/
 *.prof
 *.out
+# Core dumps land in the working directory when a desktop-session process
+# crashes. They are never part of this project, and each one is ~49 MB.
+core.*
 .DS_Store
 .idea/
 .vscode/
+# Local agent session state (memory notes, caches); not project source.
+/.workbuddy/
 
 /artifacts/
 __pycache__/

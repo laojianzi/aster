@@ -12,7 +12,7 @@ from helm_install_journal_evidence import INSTALL_JOURNAL_NAMES
 import helm_uninstall_contract_evidence as contract
 import test_evidence as evidence
 import retire_completed_oidc as retirement
-from go_toolchain_policy import previous_toolchain_bytes
+from go_toolchain_policy import PINS, previous_toolchain_bytes, verify_admitted
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -110,7 +110,13 @@ class HelmJournalArchiveScopeTests(unittest.TestCase):
         for path in ('go.mod', '.github/workflows/ci.yml', '.github/workflows/native-migration.yml',
                      '.github/workflows/source-evidence.yml', '.github/workflows/oidc-qualification.yml',
                      '.github/workflows/offline-devkit.yml', '.github/workflows/terminal-devkit.yml'):
-            previous_toolchain_bytes(path, (ROOT/path).read_bytes())
+            data = (ROOT/path).read_bytes()
+            if PINS[path][1] is None:
+                # go.mod is admitted without a reversible image since the mygo
+                # v0.7.x migration; the reviewed digest is still the whole gate.
+                verify_admitted(path, data)
+            else:
+                previous_toolchain_bytes(path, data)
         native = (ROOT / '.github/workflows/native-migration.yml').read_text()
         self.assertIn('go test -race -shuffle=on -count=1 -timeout=3m -json ./internal/helmjournal/...', native)
         self.assertIn('python scripts/helm_journal_evidence.py artifacts/journal/tests.jsonl', native)

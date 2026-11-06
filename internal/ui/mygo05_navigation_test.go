@@ -37,6 +37,10 @@ func TestNativeMyGo05ScaledNavigationStaysAboveStatus(t *testing.T) {
 				x, y := first.X+first.W/2, first.Y+first.H/2
 				tt.Scroll(x, y, 0, 4000)
 				tt.Frame()
+				if err := tt.Click("Cluster"); err != nil {
+					t.Fatal(err)
+				}
+				tt.Scroll(x, y, 0, 4000)
 				last := requireVisible("Namespaces")
 				nav, ok := tt.Find("Resource navigation")
 				status, _ := tt.Find("Connection status")

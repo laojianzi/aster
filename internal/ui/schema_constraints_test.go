@@ -69,7 +69,7 @@ func TestNativeSchemaConstraintsPreserveNumbersDraftAndHistory(t *testing.T) {
 	draft := h.w.editor.Snapshot()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/count · minimum") || len(h.w.schemaLocations) != 1 {
+	if !strings.Contains(h.w.schemaText, "/spec/count: minimum") || len(h.w.schemaLocations) != 1 {
 		t.Fatalf("exact lower boundary missing or valid decimal/Unicode rejected: %s", h.w.schemaText)
 	}
 	if h.w.editor != buffer || h.w.editorText() != before || draft.String() != before || original.String() != schemaDraft || h.w.plan != nil || writes.Load() != 0 {
@@ -112,7 +112,7 @@ func TestNativeSchemaConstraintsPreserveNumbersDraftAndHistory(t *testing.T) {
 	h.tt.Type(above)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/count · maximum") || len(h.w.schemaLocations) != 1 || h.w.editorText() != above || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/count: maximum") || len(h.w.schemaLocations) != 1 || h.w.editorText() != above || h.w.plan != nil {
 		t.Fatalf("exact upper boundary missing: %s", h.w.schemaText)
 	}
 	h.click("Manifest editor")
@@ -148,14 +148,14 @@ func TestNativeSchemaConstraintsMinimumWindowAndNoValueDisclosure(t *testing.T) 
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
 			for i, path := range []string{"/spec/title", "/spec/items", "/spec/attributes"} {
-				if !strings.Contains(h.w.schemaText, path+" · "+tc.codes[i]) {
+				if !strings.Contains(h.w.schemaText, path+": "+tc.codes[i]) {
 					t.Errorf("missing size constraint %s at %s", tc.codes[i], path)
 				}
 			}
 			// The existing literal pattern now contributes a known mismatch.
 			// Keep a separate format annotation to retain incomplete/privacy
 			// coverage, without removing the original pattern or draft value.
-			if !strings.Contains(h.w.schemaText, "/spec/mode · enum") || !strings.Contains(h.w.schemaText, "/spec/uninspected · pattern") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || len(h.w.schemaLocations) != 5 {
+			if !strings.Contains(h.w.schemaText, "/spec/mode: enum") || !strings.Contains(h.w.schemaText, "/spec/uninspected: pattern") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || len(h.w.schemaLocations) != 5 {
 				t.Fatal("scalar choices or unsupported-constraint disclosure missing")
 			}
 			for _, private := range []string{"PRIVATE_DRAFT_CHOICE", "PRIVATE_ENUM_CHOICE", "PRIVATE_UNCHECKED_VALUE", "PRIVATE_SCHEMA_PATTERN", "PRIVATE_SCHEMA_FORMAT"} {

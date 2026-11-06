@@ -64,6 +64,7 @@ func setupVault(t *testing.T, h *relationshipHarness, cfg *rest.Config) *vaultMe
 	h.w.currentContext = "vault-test"
 	h.w.contexts = []string{"vault-test"}
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Credentials")
 	h.click("Review credential target")
 	h.pump(func() bool { return !h.w.vaultPending })
@@ -81,6 +82,14 @@ func TestNativeVaultControlsAtMinimumWindow(t *testing.T) {
 		if !ok || box.H < 8 || box.X < 0 || box.X+box.W > 1100 || box.Y+box.H > 700 {
 			t.Fatal("credential control clipped", label, box)
 		}
+	}
+	for _, label := range []string{"Token", "Storage lifetime", "Confirm context"} {
+		if _, ok := h.tt.Find(label); !ok {
+			t.Errorf("credential field has no persistent label: %s", label)
+		}
+	}
+	if box, ok := h.tt.Find("Token to store"); !ok || box.W > 760 {
+		t.Errorf("credential input exceeds readable form width: %+v", box)
 	}
 	saveNativeScreenshot(t, h.tt)
 }
@@ -215,5 +224,54 @@ func TestNativeVaultSubmissionCannotUndoTokenHistory(t *testing.T) {
 	h.tt.Frame()
 	if h.w.vaultToken != "" {
 		t.Fatal("submitted token recovered from input redo history")
+	}
+}
+
+func TestNativeVaultScaledReviewRemainsReachable(t *testing.T) {
+	for _, size := range []struct {
+		name          string
+		width, height int
+	}{{"minimum", 900, 480}, {"tiled", 936, 499}, {"desktop", 1100, 700}} {
+		t.Run(size.name, func(t *testing.T) {
+			h := newRelationshipHarness(t, 15*time.Second)
+			store := setupVault(t, h, &rest.Config{Host: "https://example.invalid"})
+			h.w.vaultUncertain = true
+			h.tt.SetSize(size.width, size.height)
+			title, _ := h.tt.Find("OS credential storage")
+			h.tt.SetPreferences(ui.Preferences{TextScale: 2, ReduceMotion: true})
+			large, _ := h.tt.Find("OS credential storage")
+			if large.H < title.H*1.8 {
+				t.Fatal("vault heading ignores font preference")
+			}
+			viewport, ok := h.tt.Find("Credential task")
+			if !ok {
+				t.Fatal("credential task has no scroll viewport")
+			}
+			for _, label := range []string{"Token to store", "Confirm credential context", "Store token", "Connect with stored token", "Forget stored token", "Credential storage status"} {
+				h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, -10000)
+				reached := false
+				for range 30 {
+					r, ok := h.tt.Find(label)
+					if ok && r.W > 0 && r.H > 0 && r.X >= viewport.X && r.X+r.W <= viewport.X+viewport.W && r.Y >= viewport.Y && r.Y+r.H <= viewport.Y+viewport.H {
+						reached = true
+						if label == "Confirm credential context" {
+							h.click(label)
+							h.tt.Type("vault-test")
+						}
+						break
+					}
+					h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 40)
+				}
+				if !reached {
+					saveNativeScreenshot(t, h.tt)
+					t.Fatalf("scaled credential control unreachable: %s", label)
+				}
+			}
+			if h.w.vaultConfirmation != "vault-test" || store.puts+store.gets+store.deletes != 0 || h.w.backend != nil {
+				t.Fatal("scrolling lost confirmation or accessed credential storage")
+			}
+			saveNativeScreenshot(t, h.tt)
+
+		})
 	}
 }

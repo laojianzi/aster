@@ -19,6 +19,7 @@ import (
 
 func TestNativeLogsAndPortForwardLifecycle(t *testing.T) {
 	f := testcluster.NewHTTPPod(t)
+	next := testcluster.NewHTTPPod(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	_, current, err := kubeconfig.Contexts("")
 	if err != nil {
@@ -69,16 +70,28 @@ func TestNativeLogsAndPortForwardLifecycle(t *testing.T) {
 	pump(func() bool { return containsRowUID(w.rows, string(f.Pod.UID)) })
 	click(f.Pod.Name)
 	pump(func() bool { return w.detail != nil })
-	click("Logs")
+	click("Diagnostics")
+	if err := tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	click("Follow logs")
 	pump(func() bool { return strings.Contains(strings.Join(w.logRows, "\n"), "aster-log-ready") })
-	click("Port forward")
+	click("Diagnostics")
+	if err := tt.Click("Port forward"); err != nil {
+		t.Fatal(err)
+	}
 	click("Start port forward")
 	pump(func() bool { return w.forwardLocal != 0 || !w.forwardActive })
 	if w.forwardLocal == 0 {
 		t.Fatal(w.forwardStatus)
 	}
 	address := fmt.Sprintf("127.0.0.1:%d", w.forwardLocal)
+	w.openResourceKind(catalog()[0], resourceRow{Name: next.Pod.Name, Namespace: next.Pod.Namespace, UID: string(next.Pod.UID)})
+	pump(func() bool { return w.detail != nil && w.detail.GetUID() == next.Pod.UID })
+	if !w.forwardActive || w.diagnostic.target.UID != f.Pod.UID || address != fmt.Sprintf("127.0.0.1:%d", w.forwardLocal) {
+		t.Fatal("navigation replaced or stopped the real forward")
+	}
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	response, err := client.Get("http://" + address + "/")
 	if err != nil {

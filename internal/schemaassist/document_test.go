@@ -45,7 +45,7 @@ func TestSchemaFieldHelpAndStructuralHints(t *testing.T) {
 	if e != nil || r.Partial || len(r.Diagnostics) != 3 {
 		t.Fatalf("%+v %v", r, e)
 	}
-	for _, want := range []string{"/spec/containers/0/image · required", "/spec/count · type", "/spec/unexpected · unknown"} {
+	for _, want := range []string{"/spec/containers/0/image: required", "/spec/count: type", "/spec/unexpected: unknown"} {
 		if !strings.Contains(r.Text(), want) {
 			t.Errorf("missing %s in %s", want, r.Text())
 		}

@@ -69,15 +69,15 @@ func (w *Workbench) observeHelmPreview() {
 func (w *Workbench) helmLiveControlsView(c *ui.Context) {
 	r := &w.helmReleases
 	ui.Column(c.Key("helm.live.controls")).Gap(4).Shrink(0).Children(func() {
-		ui.Text(c, "Live check reads revision labels and object metadata only; foreign namespaces are not read.").FontSize(11)
+		ui.Text(c, "Live check reads revision labels and object metadata only; foreign namespaces are not read.").FontSize(12 * max(1, c.Preferences().TextScale))
 		guardedCheckbox(c, fmt.Sprintf("helm.live.consent.%d", r.contentEpoch), &r.liveAcknowledged, helmLiveConsentLabel, !r.busy && !r.inspecting).Label("Helm live consent control").MinHeight(28).Shrink(0)
 		ui.Button(c, "Check live metadata").Label("Helm live check action").MinHeight(32).Shrink(0).Disabled(!r.liveAcknowledged || r.busy || r.inspecting).OnClick(w.observeHelmPreview)
 		if r.liveStatus != "" {
-			ui.Text(c, r.liveStatus).Label("Helm live status").FontSize(11)
+			ui.Text(c, r.liveStatus).Label("Helm live status").FontSize(12 * max(1, c.Preferences().TextScale))
 		}
 		if r.live != nil {
-			ui.Text(c, "Live sample expires: "+r.live.ExpiresAt().UTC().Format("15:04:05 UTC")).Label("Helm live expiry").FontSize(11)
-			ui.Text(c, "Marker match is not authentic ownership. Stored manifests do not bind the originally installed UID. Objects may change immediately.").FontSize(11)
+			ui.Text(c, "Live sample expires: "+r.live.ExpiresAt().UTC().Format("15:04:05 UTC")).Label("Helm live expiry").FontSize(12 * max(1, c.Preferences().TextScale))
+			ui.Text(c, "Marker match is not authentic ownership. Stored manifests do not bind the originally installed UID. Objects may change immediately.").FontSize(12 * max(1, c.Preferences().TextScale))
 			if d := time.Until(r.live.ExpiresAt()); d > 0 {
 				c.After(d)
 			}
@@ -88,22 +88,22 @@ func (w *Workbench) helmLiveControlsView(c *ui.Context) {
 func helmLiveItemView(c *ui.Context, i int, item helmrelease.LiveItem) {
 	text := item.State
 	if item.State == "present" {
-		text = "present · Helm markers: " + item.Markers
+		text = "present; Helm markers: " + item.Markers
 	}
 	if item.State == "outside-namespace" {
 		text = "foreign namespace: not requested"
 	}
 	if item.Terminating {
-		text += " · terminating"
+		text += "; terminating"
 	}
 	if item.Finalizers {
-		text += " · finalizers present"
+		text += "; finalizers present"
 	}
 	if item.Owners {
-		text += " · owner references present"
+		text += "; owner references present"
 	}
 	if item.Keep || item.Hook {
-		text += " · live lifecycle annotations present"
+		text += "; live lifecycle annotations present"
 	}
-	ui.Text(c, text).Label(fmt.Sprintf("Helm live object %d", i+1)).FontSize(11).MinHeight(18).Shrink(0)
+	ui.Text(c, text).Label(fmt.Sprintf("Helm live object %d", i+1)).FontSize(12 * max(1, c.Preferences().TextScale)).MinHeight(18).Shrink(0)
 }

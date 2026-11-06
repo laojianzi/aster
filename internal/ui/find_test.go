@@ -206,7 +206,7 @@ func TestNativeFindReadOnlyBudgetsAndMinimumWindow(t *testing.T) {
 	findSearch(h)
 	h.tt.SetSize(1100, 700)
 	h.tt.Frame()
-	for _, label := range []string{"Manifest editor", "Find text", "Search", "Previous match", "Next match", "Close find", "Find status", "Schema assistance", "Go to location", "Preview edit", "Apply", "Close detail", "Preview delete"} {
+	for _, label := range []string{"Manifest editor", "Find text", "Search", "Previous match", "Next match", "Close find", "Find status", "Schema assistance", "Go to location", "Preview edit", "Apply", "Close detail", "Actions"} {
 		r, ok := h.tt.Find(label)
 		if !ok || r.W <= 0 || r.H <= 0 || r.X < 0 || r.Y < 0 || r.X+r.W > 1100 || r.Y+r.H > 654 {
 			t.Errorf("%s outside minimum window: %+v %v", label, r, ok)
@@ -239,6 +239,7 @@ func TestNativeFindReadOnlyBudgetsAndMinimumWindow(t *testing.T) {
 		t.Fatal("untrusted query reflected or excess budget accepted")
 	}
 	h.click("YAML")
+	h.click("Read-only")
 	if h.w.find.open || h.w.find.result != nil || h.w.find.query != "" {
 		t.Fatal("hidden Find retained state")
 	}

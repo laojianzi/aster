@@ -72,7 +72,10 @@ func TestNativeRelationshipNavigationToPodForwardAgainstRealCluster(t *testing.T
 	if h.w.detailKind.Kind != "Pod" {
 		t.Fatal("refresh used the wrong resource kind")
 	}
-	h.click("Port forward")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Port forward"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Start port forward")
 	h.pump(func() bool { return h.w.forwardLocal != 0 || !h.w.forwardActive })
 	if h.w.forwardLocal == 0 {

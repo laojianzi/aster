@@ -37,7 +37,10 @@ func TestNativeExecCredentialLiveLogsExpireAgainstRealCluster(t *testing.T) {
 	oldBackend, oldContext := h.w.backend, h.w.connectionCtx
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Logs")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
 	if h.w.logCancel == nil {

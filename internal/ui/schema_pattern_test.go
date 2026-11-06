@@ -72,7 +72,7 @@ func TestNativeSchemaPatternPreservesDraftAndHistory(t *testing.T) {
 	h.tt.SetClipboard("selection was not copied after inspection")
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/slug · pattern") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/slug: pattern") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("anchored mismatch was missed or valid unanchored, Unicode, empty or nullable input was rejected")
 	}
 	for _, private := range []string{"PRIVATE_INVALID_SLUG", "^[a-z][a-z0-9-]*$", "prefix-ok-suffix", "中文船🚢"} {
@@ -146,7 +146,7 @@ func TestNativeSchemaPatternPreservesDraftAndHistory(t *testing.T) {
 	h.tt.Type(unmatched)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/contains · pattern") || !strings.Contains(h.w.schemaText, "/spec/unicode · pattern") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_MISSING_TOKEN") || h.w.editorText() != unmatched || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/contains: pattern") || !strings.Contains(h.w.schemaText, "/spec/unicode: pattern") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_MISSING_TOKEN") || h.w.editorText() != unmatched || h.w.plan != nil {
 		t.Fatal("supported BMP patterns did not diagnose unmatched values containing supplementary Unicode")
 	}
 	focusMultipleOfEditorByKeyboard(h)
@@ -208,7 +208,7 @@ func TestNativeSchemaPatternMinimumWindowAndIncomplete(t *testing.T) {
 			if tc.wantType {
 				wantLocations++
 			}
-			if !strings.Contains(h.w.schemaText, "/spec/checked · pattern") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · pattern") || strings.Contains(h.w.schemaText, "/spec/malformed · type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: pattern") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: pattern") || strings.Contains(h.w.schemaText, "/spec/malformed: type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
 				t.Fatal("unsupported pattern lost incomplete disclosure or invented a secondary violation")
 			}
 			for _, private := range []string{"PRIVATE_SCHEMA_CHECKED", "PRIVATE_CHECKED_DRAFT", "PRIVATE_SCHEMA_PATTERN", "PRIVATE_DRAFT_VALUE", largeValueMarker, "123456789", "((ab){20}){20}"} {

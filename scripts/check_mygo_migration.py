@@ -25,11 +25,12 @@ if __name__ == '__main__':
     version = subprocess.check_output(
         ['go', 'list', '-m', '-f', '{{.Version}}', 'github.com/egoist/mygo'],
         cwd=ROOT, text=True).strip()
-    if version != spec['version'] or version not in ('v0.3.7', 'v0.4.1', 'v0.4.2', 'v0.4.5', 'v0.4.8', 'v0.5.1', 'v0.5.5'):
-        raise SystemExit('framework/native-source pins differ from the audited 0.3/0.4/0.5 contract')
+    if version != spec['version'] or version not in ('v0.3.7', 'v0.4.1', 'v0.4.2', 'v0.4.5', 'v0.4.8', 'v0.5.1', 'v0.5.5', 'v0.7.1', 'v0.7.3', 'v0.7.4'):
+        raise SystemExit('framework/native-source pins differ from a supported migration version')
     before = snapshot()
-    subprocess.run(['go', 'run', 'github.com/egoist/mygo/cmd/mygo@' + version,
-                    'migrate-ui', '-write', '.'], cwd=ROOT, check=True)
+    for directory in ('cmd', 'internal', 'e2e'):
+        subprocess.run(['go', 'run', 'github.com/egoist/mygo/cmd/mygo@' + version,
+                        'migrate-ui', '-write', directory], cwd=ROOT, check=True)
     after = snapshot()
     if before != after:
         changed = sorted(p for p in before.keys() | after.keys() if before.get(p) != after.get(p))

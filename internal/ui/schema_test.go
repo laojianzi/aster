@@ -27,11 +27,13 @@ func schemaServer(w http.ResponseWriter, r *http.Request) {
 }
 func schemaHarness(t *testing.T, host string) *relationshipHarness {
 	t.Helper()
-	h := newRelationshipHarness(t, 15*time.Second)
+	// Multi-step native edit sequences share this lifetime, including time between requests.
+	h := newRelationshipHarness(t, time.Minute)
 	attachRelationshipBackend(t, h, host)
 	h.w.setEditor(schemaDraft)
 	h.w.schemaPointer = "/spec/containers/0/image"
 	h.tt.Frame()
+	h.click("YAML")
 	h.click("Edit")
 	return h
 }
@@ -53,7 +55,7 @@ func TestNativeSchemaReadOnlyDraftAndTabLifecycle(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image · required") || h.w.editorText() != schemaDraft || writes.Load() != 0 {
+	if !strings.Contains(h.w.schemaText, "/spec/containers/0/image: required") || h.w.editorText() != schemaDraft || writes.Load() != 0 {
 		t.Fatalf("%s", h.w.schemaText)
 	}
 	saveNativeScreenshot(t, h.tt)
@@ -65,10 +67,12 @@ func TestNativeSchemaReadOnlyDraftAndTabLifecycle(t *testing.T) {
 	h.click("Field help")
 	h.pump(func() bool { return !h.w.schemaActive })
 	h.click("YAML")
+	h.click("Read-only")
 	if h.w.schemaText != "" || h.w.schemaCancel != nil {
 		t.Fatal("schema retained on hidden tab")
 	}
 	count := calls.Load()
+	h.click("YAML")
 	h.click("Edit")
 	h.tt.Frame()
 	if calls.Load() != count {
@@ -106,6 +110,7 @@ func TestNativeSchemaQueuedResultsCannotCrossIdentityOrDraft(t *testing.T) {
 				h.tt.Type("x")
 			case "tab":
 				h.click("YAML")
+				h.click("Read-only")
 			}
 			complete()
 			h.tt.Frame()
@@ -127,6 +132,7 @@ func TestNativeSchemaTabChangeCancelsRequest(t *testing.T) {
 		t.Fatal("request not started")
 	}
 	h.click("YAML")
+	h.click("Read-only")
 	select {
 	case <-canceled:
 	case <-h.ctx.Done():
@@ -154,10 +160,10 @@ func TestNativeSchemaControlsAtMinimumWindow(t *testing.T) {
 	w.detailMode = "Edit"
 	w.setEditor(schemaDraft)
 	w.schemaPointer = "/spec/containers/0/image"
-	w.schemaStatus = "Read-only hints · not server validation"
-	w.schemaText = "/spec/containers/0/image · required: Required field is absent.\nThe draft was not changed. Server dry-run remains required."
+	w.schemaStatus = "Read-only hints: not server validation"
+	w.schemaText = "/spec/containers/0/image: required: Required field is absent.\nThe draft was not changed. Server dry-run remains required."
 	tt := ui.NewTester(w.View, 1100, 700)
-	for _, label := range []string{"Manifest editor", "Schema field pointer", "Field help", "Check draft", "Clear schema", "Schema assistance", "Preview edit", "Apply", "Close detail", "Preview delete"} {
+	for _, label := range []string{"Manifest editor", "Schema field pointer", "Field help", "Check draft", "Clear schema", "Schema assistance", "Preview edit", "Apply", "Close detail", "Actions"} {
 		r, ok := tt.Find(label)
 		if !ok || r.W <= 0 || r.H <= 0 || r.X < 0 || r.Y < 0 || r.X+r.W > 1088 || r.Y+r.H > 700 {
 			t.Errorf("%s out of bounds: %+v found=%v", label, r, ok)

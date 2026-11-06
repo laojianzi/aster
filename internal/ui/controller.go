@@ -48,6 +48,7 @@ func (w *Workbench) loadContexts() {
 }
 
 func (w *Workbench) disconnect() {
+ w.clearApplications()
 	w.clearHelmReleases()
 	w.clearDelivery()
 	w.clearOIDCSignOut()
@@ -62,6 +63,9 @@ func (w *Workbench) disconnect() {
 		w.connectionCancel = nil
 	}
 	w.activeContext, w.activeNamespace, w.notice = "", "", ""
+	w.appliedLabelSelector = ""
+	w.resourceView = 0
+	w.focusDiagnosis = false
 	w.credentialExpiry = time.Time{}
 	w.kinds = catalog()
 	if w.scopeCancel != nil {
@@ -155,6 +159,7 @@ func (w *Workbench) beginConnectionWithCompletion(resolve connectionResolver, co
 			w.connectionCtx, w.connectionCancel = sessionCtx, closeConnection
 			w.credentialExpiry = resolved.ExpiresAt
 			w.backend = backend
+			w.connectionsOpen = false
 			w.activeContext, w.currentContext, w.namespace = conn.ContextName, conn.ContextName, conn.Namespace
 			w.sessionID = hex.EncodeToString(sessionBytes[:])
 			w.ops = operation.NewService(backend, w.sessionID)
@@ -184,7 +189,10 @@ func (w *Workbench) beginConnectionWithCompletion(resolve connectionResolver, co
 					if len(kinds) > 0 {
 						w.kinds = kinds
 					}
-					w.notice = fmt.Sprintf("%d resource types · %d unavailable API group(s)", len(kinds), len(warnings))
+					w.notice = ""
+					if len(warnings) > 0 {
+						w.notice = fmt.Sprintf("%d resource types; %d unavailable API group(s)", len(kinds), len(warnings))
+					}
 				})
 			})
 		})
@@ -204,7 +212,7 @@ func (w *Workbench) expireConnection(epoch uint64) {
 
 func (w *Workbench) connectionStatus() string {
 	if w.backend != nil && !w.credentialExpiry.IsZero() {
-		return w.status + " · Credentials expire " + w.credentialExpiry.Local().Format("15:04:05") + " · Reconnect to renew"
+		return w.status + "; Credentials expire " + w.credentialExpiry.Local().Format("15:04:05") + "; Reconnect to renew"
 	}
 	return w.status
 }

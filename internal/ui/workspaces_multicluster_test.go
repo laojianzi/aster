@@ -98,7 +98,7 @@ func TestNativeIndependentWorkspacesAgainstTwoRealClusters(t *testing.T) {
 	}
 	for i, h := range []*relationshipHarness{a, b} {
 		h.pump(func() bool { return h.w.status == "Live" })
-		h.click("ConfigMaps")
+		h.selectSidebarResource("ConfigMaps")
 		h.pump(func() bool { return containsRowUID(h.w.rows, string(maps[i].UID)) })
 		h.click("shared-name")
 		h.pump(func() bool { return h.w.detail != nil })
@@ -110,6 +110,7 @@ func TestNativeIndependentWorkspacesAgainstTwoRealClusters(t *testing.T) {
 	if a.w.sessionID == b.w.sessionID || a.w.backend == b.w.backend || a.w.ops == b.w.ops {
 		t.Fatal("identity/session objects were shared")
 	}
+	a.click("YAML")
 	a.click("Edit")
 	a.click("Manifest editor")
 	next := a.w.detail.DeepCopy()

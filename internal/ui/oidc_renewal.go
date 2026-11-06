@@ -75,37 +75,39 @@ func (w *Workbench) renewOIDC() {
 }
 func (w *Workbench) oidcRenewalView(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c).Grow(1).Padding(12).Gap(8).Children(func() {
-		ui.Text(c, "OIDC · reviewed connection renewal").FontSize(20).Bold()
-		ui.Text(c, "Explicit, memory-only rotation. No background renewal, persistent refresh storage or token revocation. Issuer sign-out below is a separate explicit action.").FontSize(12)
-		if w.oidcRenewalTarget != nil {
-			ui.Text(c, "Context: "+w.oidcRenewalTarget.Context+" · Server: "+w.oidcRenewalTarget.Server).Label("OIDC renewal target").SingleLine().FontSize(12)
-		}
-		if w.oidcRenewal != nil {
-			info := w.oidcRenewal.Info()
-			ui.Text(c, fmt.Sprintf("Bound subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC renewal identity").SingleLine().FontSize(12)
-			ui.Text(c, fmt.Sprintf("Local family expires %s · %d rotations remaining", info.FamilyExpiresAt.Local().Format("15:04:05"), info.Remaining)).Label("OIDC renewal budget").FontSize(12)
-		} else if !w.oidcPending && w.oidcIdentity == nil {
-			ui.Text(c, "No unused renewal credential. Disconnect and sign in again; offline access is opt-in before login.").Label("OIDC no renewal").FontSize(12)
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Button(c, "Renew identity once").Disabled(w.oidcRenewal == nil || w.oidcPending || w.connectionPending || w.oidcIdentity != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.renewOIDC() })
-			ui.Button(c, "Forget renewal").Disabled(w.oidcRenewal == nil && !w.oidcPending && w.oidcIdentity == nil).OnClick(func() {
-				w.clearOIDC()
-				w.clearOIDCRenewal()
-				w.oidcStatus = "Renewal forgotten locally. The existing connection is unchanged; issuer credentials are not revoked."
+	ui.Scroll(c.Key("oidc.renewalTask")).Label("Authentication task").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+		ui.Column(c).Padding(12).Gap(8).Wrap().Children(func() {
+			ui.Text(c, "OIDC connection renewal").FontSize(t.FontSize * 1.4).Bold()
+			ui.Text(c, "Explicit, memory-only rotation. No background renewal, persistent refresh storage or token revocation. Issuer sign-out below is a separate explicit action.")
+			if w.oidcRenewalTarget != nil {
+				ui.Text(c, "Context: "+w.oidcRenewalTarget.Context+"; Server: "+w.oidcRenewalTarget.Server).Label("OIDC renewal target")
+			}
+			if w.oidcRenewal != nil {
+				info := w.oidcRenewal.Info()
+				ui.Text(c, fmt.Sprintf("Bound subject: %q; Issuer: %s", info.Subject, info.Issuer)).Label("OIDC renewal identity")
+				ui.Text(c, fmt.Sprintf("Local family expires %s; %d rotations remaining", info.FamilyExpiresAt.Local().Format("15:04:05"), info.Remaining)).Label("OIDC renewal budget")
+			} else if !w.oidcPending && w.oidcIdentity == nil {
+				ui.Text(c, "No unused renewal credential. Disconnect and sign in again; offline access is opt-in before login.").Label("OIDC no renewal")
+			}
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				ui.Button(c, "Renew identity once").Disabled(w.oidcRenewal == nil || w.oidcPending || w.connectionPending || w.oidcIdentity != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.renewOIDC() })
+				ui.Button(c, "Forget renewal").Disabled(w.oidcRenewal == nil && !w.oidcPending && w.oidcIdentity == nil).OnClick(func() {
+					w.clearOIDC()
+					w.clearOIDCRenewal()
+					w.oidcStatus = "Renewal forgotten locally. The existing connection is unchanged; issuer credentials are not revoked."
+				})
+				ui.Button(c, "Back to resources").OnClick(func() { w.clearOIDC(); w.oidcOpen = false; w.connectionsOpen = false })
 			})
-			ui.Button(c, "Back to resources").OnClick(func() { w.clearOIDC(); w.oidcOpen = false })
+			if w.oidcIdentity != nil {
+				info := w.oidcIdentity.Info()
+				ui.Text(c, fmt.Sprintf("Verified subject: %q; Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity")
+				ui.Text(c, "New token expires "+info.ExpiresAt.Local().Format("15:04:05")+"; the old connection has NOT been replaced.").Label("OIDC replacement deadline")
+				ui.TextInput(c.Key(fmt.Sprintf("oidc.renewalConfirm.%d", w.oidcEpoch)), &w.oidcConfirmation).Label("Confirm OIDC replacement context").Placeholder("Type exact context to replace; old logs, watches, commands and terminal sessions will stop")
+				ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.connectOIDC() })
+			}
+			ui.Text(c, w.oidcStatus).Label("OIDC renewal status").TextColor(t.TextMuted)
+			w.oidcSignOutView(c)
 		})
-		if w.oidcIdentity != nil {
-			info := w.oidcIdentity.Info()
-			ui.Text(c, fmt.Sprintf("Verified subject: %q · Issuer: %s", info.Subject, info.Issuer)).Label("OIDC verified identity").SingleLine().FontSize(12)
-			ui.Text(c, "New token expires "+info.ExpiresAt.Local().Format("15:04:05")+"; the old connection has NOT been replaced.").Label("OIDC replacement deadline").FontSize(12)
-			ui.TextInput(c.Key(fmt.Sprintf("oidc.renewalConfirm.%d", w.oidcEpoch)), &w.oidcConfirmation).Label("Confirm OIDC replacement context").Placeholder("Type exact context to replace; old logs, watches, commands and terminal sessions will stop")
-			ui.Button(c, "Replace verified connection").Disabled(!w.oidcReplacing || w.oidcTarget == nil || w.oidcConfirmation != w.oidcTarget.Context || w.oidcPending || w.connectionPending || w.oidcReplacementEpoch != w.contextEpoch || w.connectionCtx == nil || w.connectionCtx.Err() != nil || !time.Now().Before(w.credentialExpiry)).OnClick(func() { w.connectOIDC() })
-		}
-		ui.Text(c, w.oidcStatus).Label("OIDC renewal status").FontSize(12).TextColor(t.TextMuted)
-		w.oidcSignOutView(c)
 	})
 }
 

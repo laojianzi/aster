@@ -42,6 +42,11 @@ func newRelationshipHarness(t *testing.T, timeout time.Duration) *relationshipHa
 }
 func (h *relationshipHarness) click(label string) {
 	h.t.Helper()
+	if _, visible := h.tt.Find(label); !visible && (label == "Deliver manifests" || label == "Helm releases" || label == "Helm recovery") {
+		if err := h.tt.Click("Tools"); err != nil {
+			h.t.Fatal(err)
+		}
+	}
 	if err := h.tt.Click(label); err != nil {
 		saveNativeScreenshot(h.t, h.tt)
 		h.t.Fatal(err)
@@ -123,8 +128,38 @@ func TestNativeRelationshipsNavigateAndRevalidateIdentity(t *testing.T) {
 	if len(h.w.relatedResult.Links) != 1 || !h.w.relatedResult.Links[0].Navigable() {
 		t.Fatalf("%+v %s", h.w.relatedResult, h.w.relatedStatus)
 	}
+	h.click("Controlled by")
+	h.tt.Key(0, ui.KeyLeft)
+	if _, visible := h.tt.Find("Open ReplicaSet/owner-rs"); visible {
+		saveNativeScreenshot(t, h.tt)
+		t.Fatal("relationship group cannot collapse with the keyboard")
+	}
+	h.tt.Key(0, ui.KeyRight)
+	if _, visible := h.tt.Find("Open ReplicaSet/owner-rs"); !visible {
+		t.Fatal("expanded relationship lost its owner")
+	}
+	for _, scale := range []float32{1, 2} {
+		h.tt.SetPreferences(ui.Preferences{TextScale: scale, ReduceMotion: true})
+		h.tt.Key(0, ui.KeyRight)
+		h.tt.Key(0, ui.KeyLeft)
+		tree, treeOK := h.tt.Find("Direct relationships")
+		pixels := h.tt.Image()
+		visible := false
+		for y := int(tree.Y); y < int(tree.Y)+4; y++ {
+			pixel := pixels.RGBAAt(int(tree.X+tree.W/2), y)
+			if int(pixel.B) > int(pixel.R)+30 {
+				visible = true
+			}
+		}
+		if !treeOK || !visible {
+			saveNativeScreenshot(t, h.tt)
+			t.Fatalf("relationship top focus line clipped at scale %v: tree=%+v", scale, tree)
+		}
+	}
+	h.tt.SetPreferences(ui.Preferences{TextScale: 1, ReduceMotion: true})
 	saveNativeScreenshot(t, h.tt)
-	h.click("Open ReplicaSet/owner-rs")
+	h.tt.Key(0, ui.KeyRight)
+	h.tt.Key(0, ui.KeyEnter)
 	h.pump(func() bool { return h.w.detail != nil })
 	if h.w.detailKind.Kind != "ReplicaSet" || h.w.currentKind.Kind != "Pod" {
 		t.Fatal("related navigation corrupted the list scope")
@@ -207,4 +242,34 @@ func TestNativeRelationshipsCloseCancelsOutstandingRead(t *testing.T) {
 	if h.w.relatedActive || h.w.relatedCancel != nil {
 		t.Fatal("lookup lifecycle retained after closing")
 	}
+}
+
+func (h *relationshipHarness) selectSidebarResource(label string) {
+	h.t.Helper()
+	nav, ok := h.tt.Find("Resource navigation")
+	if !ok {
+		h.t.Fatal("resource sidebar missing")
+	}
+	h.tt.Scroll(nav.X+nav.W/2, nav.Y+nav.H/2, 0, -100000)
+	for range 100 {
+		if row, ok := h.tt.Find(label); ok && row.Y >= nav.Y && row.Y+row.H <= nav.Y+nav.H {
+			h.click(label)
+			return
+		}
+		opened := false
+		for group, title := range []string{"Workloads", "Network", "Configuration", "Storage", "Access", "Cluster", "Custom resources"} {
+			if row, ok := h.tt.Find(title); ok && !h.w.resourceGroups[group] && row.Y >= nav.Y && row.Y+row.H <= nav.Y+nav.H {
+				h.click(title)
+				opened = true
+				break
+			}
+		}
+		if opened {
+			h.tt.Scroll(nav.X+nav.W/2, nav.Y+nav.H/2, 0, -100000)
+			continue
+		}
+		h.tt.Scroll(nav.X+nav.W/2, nav.Y+nav.H/2, 0, nav.H/2)
+	}
+	saveNativeScreenshot(h.t, h.tt)
+	h.t.Fatalf("resource %q unreachable through sidebar", label)
 }

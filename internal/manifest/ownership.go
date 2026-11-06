@@ -66,7 +66,7 @@ func Ownership(obj *unstructured.Unstructured) string {
 		if scope == "" {
 			scope = "main resource"
 		}
-		if !appendLine(fmt.Sprintf("%s · %s · %s · %s", value("manager"), value("operation"), value("apiVersion"), scope)) {
+		if !appendLine(fmt.Sprintf("%s; %s; %s; %s", value("manager"), value("operation"), value("apiVersion"), scope)) {
 			break
 		}
 		if value("fieldsType") != "FieldsV1" {

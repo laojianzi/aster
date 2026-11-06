@@ -141,54 +141,65 @@ func (w *Workbench) connectVault() {
 }
 func (w *Workbench) vaultView(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c).Grow(1).Padding(16).Gap(10).Children(func() {
-		ui.Text(c, "OS credential storage").FontSize(20).Bold()
-		if w.vaultUncertain {
-			ui.Text(c, "An interrupted OS operation may have changed storage. Explicitly review and load or forget; cancellation is not rollback.").FontSize(12).TextColor(t.Danger)
-		}
-		ui.Text(c, "Explicit operations only. Use an HTTPS kubeconfig context with an empty user entry; existing credentials are never overridden.").FontSize(12)
-		ui.Row(c).Gap(8).Children(func() {
-			ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil).OnClick(func() {
-				w.reviewVault()
+	ui.Scroll(c.Key("vault.task")).Label("Credential task").Grow(1).MinWidth(0).MinHeight(0).Children(func() {
+		ui.Column(c).Padding(16).Gap(10).Children(func() {
+			ui.Text(c, "OS credential storage").FontSize(t.FontSize * 1.4).Bold()
+			if w.vaultUncertain {
+				ui.Text(c, "An interrupted OS operation may have changed storage. Explicitly review and load or forget; cancellation is not rollback.").TextColor(t.Danger)
+			}
+			ui.Text(c, "Use an HTTPS context without credentials. Existing credentials stay unchanged.")
+			ui.Row(c).Gap(8).Wrap().Children(func() {
+				ui.Button(c, "Review credential target").Disabled(w.currentContext == "" || w.oidcPending || w.vaultPending || w.connectionPending || w.backend != nil).OnClick(func() {
+					w.reviewVault()
+				})
+				ui.Button(c, "Back to resources").OnClick(func() {
+					w.clearVault()
+					w.vaultOpen = false
+					w.connectionsOpen = false
+				})
 			})
-			ui.Button(c, "Back to resources").OnClick(func() {
-				w.clearVault()
-				w.vaultOpen = false
-			})
+			if w.backend != nil {
+				ui.Text(c, "Disconnect first to review, store, load or forget a token.")
+			}
+			if w.vaultTrustPending != "" {
+				ui.Button(c, "Trust CA file and review").Disabled(w.vaultPending).OnClick(func() {
+					w.vaultTrust = w.vaultTrustPending
+					w.reviewVault()
+				})
+			}
+			if w.vaultTarget != nil {
+				ui.Text(c, "Context: "+w.vaultTarget.Context).Label("Credential target context")
+				ui.Text(c, "Server: "+w.vaultTarget.Server).Label("Credential target server")
+				ui.Text(c, "User alias: "+w.vaultTarget.User)
+				ui.Form(c, func() {
+					ui.Field(c, "Token", func() {
+						guardedTextInput(c, struct {
+							Field string
+							Epoch uint64
+						}{"vault-token", w.vaultEpoch}, &w.vaultToken, !w.vaultPending).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
+					})
+					ui.Field(c, "Storage lifetime", func() {
+						guardedSelect(c, "field.vaultDuration", &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}, !w.vaultPending).Label("Local token lifetime").Disabled(w.vaultPending)
+					})
+					ui.Field(c, "Confirm context", func() {
+						guardedTextInput(c, "field.vaultConfirmation", &w.vaultConfirmation, !w.vaultPending).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
+					})
+				}).MaxWidth(800 * c.Preferences().TextScale).Gap(10)
+				enabled := !w.vaultPending && !w.connectionPending && w.backend == nil && w.vaultConfirmation == w.vaultTarget.Context
+				ui.Row(c).Gap(8).Wrap().Children(func() {
+					ui.Button(c, "Store token").Disabled(!enabled || w.vaultToken == "").OnClick(func() {
+						w.writeVault(false)
+					})
+					ui.Button(c, "Connect with stored token").Disabled(!enabled).OnClick(func() {
+						w.connectVault()
+					})
+					ui.Button(c, "Forget stored token").Disabled(!enabled).OnClick(func() {
+						w.writeVault(true)
+					})
+				})
+				ui.Text(c, "A connection lasts at most 15 minutes. Forget affects this OS slot only, not other workspaces or server-issued token validity.")
+			}
+			ui.Text(c, w.vaultStatus).Label("Credential storage status").TextColor(t.TextMuted)
 		})
-		if w.backend != nil {
-			ui.Text(c, "Disconnect first to review, store, load or forget a token.").FontSize(12)
-		}
-		if w.vaultTrustPending != "" {
-			ui.Button(c, "Trust CA file and review").Disabled(w.vaultPending).OnClick(func() {
-				w.vaultTrust = w.vaultTrustPending
-				w.reviewVault()
-			})
-		}
-		if w.vaultTarget != nil {
-			ui.Text(c, "Context: "+w.vaultTarget.Context).Label("Credential target context").SingleLine()
-			ui.Text(c, "Server: "+w.vaultTarget.Server).Label("Credential target server").SingleLine()
-			ui.Text(c, "User alias: "+w.vaultTarget.User).SingleLine()
-			guardedTextInput(c, struct {
-				Field string
-				Epoch uint64
-			}{"vault-token", w.vaultEpoch}, &w.vaultToken, !w.vaultPending).Password().Label("Token to store").Placeholder("Token (never written to kubeconfig)").Disabled(w.vaultPending)
-			guardedSelect(c, "field.vaultDuration", &w.vaultDuration, []string{"15 minutes", "1 hour", "8 hours", "24 hours"}, !w.vaultPending).Label("Local token lifetime").Disabled(w.vaultPending)
-			guardedTextInput(c, "field.vaultConfirmation", &w.vaultConfirmation, !w.vaultPending).Label("Confirm credential context").Placeholder("Type the exact context name to authorize an action").Disabled(w.vaultPending)
-			enabled := !w.vaultPending && !w.connectionPending && w.backend == nil && w.vaultConfirmation == w.vaultTarget.Context
-			ui.Row(c).Gap(8).Children(func() {
-				ui.Button(c, "Store token").Disabled(!enabled || w.vaultToken == "").OnClick(func() {
-					w.writeVault(false)
-				})
-				ui.Button(c, "Connect with stored token").Disabled(!enabled).OnClick(func() {
-					w.connectVault()
-				})
-				ui.Button(c, "Forget stored token").Disabled(!enabled).OnClick(func() {
-					w.writeVault(true)
-				})
-			})
-			ui.Text(c, "A connection lasts at most 15 minutes. Forget affects this OS slot only, not other workspaces or server-issued token validity.").FontSize(12)
-		}
-		ui.Text(c, w.vaultStatus).Label("Credential storage status").FontSize(12).TextColor(t.TextMuted)
 	})
 }

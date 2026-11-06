@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/laojianzi/aster/internal/health"
 	"github.com/laojianzi/aster/internal/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,6 +58,7 @@ func (r *Reader) Read(parent context.Context, target resource.Identity) (Snapsho
 		return s.out, errors.New("namespaced relationships require a namespace")
 	}
 	s.out.SourceVersion = root.GetResourceVersion()
+	s.out.Health = health.Assess(root).State
 	s.owners(root)
 	if root.GetNamespace() != "" {
 		s.dependents(root, rootType)

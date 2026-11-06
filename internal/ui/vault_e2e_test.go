@@ -46,6 +46,7 @@ func TestNativeOSStoredTokenIdentityAndExpiryAgainstRealCluster(t *testing.T) {
 		}
 	})
 	h.tt.Frame()
+	h.click("Connections")
 	h.click("Credentials")
 	h.click("Review credential target")
 	h.pump(func() bool { return !h.w.vaultPending })
@@ -88,7 +89,10 @@ func TestNativeOSStoredTokenIdentityAndExpiryAgainstRealCluster(t *testing.T) {
 	}
 	h.click(f.Pod.Name)
 	h.pump(func() bool { return h.w.detail != nil })
-	h.click("Logs")
+	h.click("Diagnostics")
+	if err := h.tt.Click("Logs"); err != nil {
+		t.Fatal(err)
+	}
 	h.click("Follow logs")
 	h.pump(func() bool { return len(h.w.logRows) > 0 })
 	h.pump(func() bool { return h.w.status == "Credentials expired" })

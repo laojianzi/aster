@@ -78,14 +78,14 @@ class MyGoPatchLedgerTests(unittest.TestCase):
 
     def test_fixed_module_and_native_provenance(self):
         spec = json.loads((ROOT / 'third_party/native-terminal/UPSTREAM.json').read_text())
-        self.assertEqual(spec['version'], 'v0.5.5')
+        self.assertEqual(spec['version'], 'v0.7.4')
         self.assertEqual(spec['ghostty_commit'], 'befcdfd2c3a1cb24d9ec886e93c95b2b5daa7028')
-        self.assertEqual(len(spec['files']), 31)
+        self.assertEqual(len(spec['files']), 39)
         sums = (ROOT / 'go.sum').read_text()
-        self.assertIn('github.com/egoist/mygo v0.5.5 h1:3pvlEwumsck/L99cbDpay/Eqcf51B7zhKNXekiodLOw=', sums)
-        self.assertIn('github.com/egoist/mygo v0.5.5/go.mod h1:daHGetyAlBkHhIZOOIcAI7C82yLUY7HgeT2+Z6w2VPU=', sums)
+        self.assertIn('github.com/egoist/mygo v0.7.4 h1:0qkDpDRo7C9g8PM8eu4V6FVouhLiTrUdqKD6I31Lv3Q=', sums)
+        self.assertIn('github.com/egoist/mygo v0.7.4/go.mod h1:dVav53PwF2xEotjf4oA5lTY2Jp2exgzyjLhbSXhbMwE=', sums)
         self.assertIn('github.com/go-jose/go-jose/v4 v4.1.6', (ROOT / 'go.mod').read_text())
-        self.assertIn('MyGo v0.5.5', (ROOT / 'README.md').read_text())
+        self.assertIn('MyGo v0.7.4', (ROOT / 'README.md').read_text())
 
     def test_only_exact_patch_scope_can_retire_after_five_gates(self):
         self.assertEqual(cleanup.APPROVED[75], 'renovate/mygo-native-framework')

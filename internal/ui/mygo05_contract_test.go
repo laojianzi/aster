@@ -103,7 +103,7 @@ func TestNativeMyGo05ScaledWorkbenchKeepsActionsVisible(t *testing.T) {
 			}
 			tt.SetPreferences(ui.Preferences{TextScale: 1.25, HighContrast: true, ReduceMotion: true})
 			tt.Frame()
-			for _, label := range []string{"Refresh detail", "Close detail", "Command container", "Command argv JSON", "Cluster context", "Namespace", "Connect", "Disconnect", "Kubeconfig path", "Load contexts", "Credentials", "Browser sign-in", "New workspace", "Run command", "Stop command", "Confirm Pod for command", "Metrics", "Owners", "Preview scale", "Preview restart", "Preview delete"} {
+			for _, label := range []string{"Refresh detail", "Close detail", "Command container", "Command argv JSON", "Cluster context", "Namespace", "Connect", "Disconnect", "New workspace", "Run command", "Stop command", "Confirm Pod for command", "Metrics", "YAML", "Actions"} {
 				r, ok := tt.Find(label)
 				if !ok || r.X < 0 || r.Y < 0 || r.X+r.W > 1100 || r.Y+r.H > 700 || r.W <= 0 || r.H <= 0 {
 					t.Fatalf("scaled action %q missing/outside window: %+v", label, r)
@@ -115,6 +115,15 @@ func TestNativeMyGo05ScaledWorkbenchKeepsActionsVisible(t *testing.T) {
 				t.Fatal("untranslated workbench unexpectedly inherited mirrored action ordering")
 			}
 			saveNativeScreenshot(t, tt)
+			if err := tt.Click("Connections"); err != nil {
+				t.Fatal(err)
+			}
+			for _, label := range []string{"Kubeconfig path", "Load contexts", "Credentials", "Browser sign-in"} {
+				r, ok := tt.Find(label)
+				if !ok || r.X < 0 || r.Y < 0 || r.X+r.W > 1100 || r.Y+r.H > 700 || r.W <= 0 || r.H <= 0 {
+					t.Fatalf("scaled connection action %q missing/outside window: %+v", label, r)
+				}
+			}
 		})
 	}
 }

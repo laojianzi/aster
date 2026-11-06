@@ -15,13 +15,13 @@ import helm_install_dry_run_evidence as install_dry
 import helm_install_journal_evidence as install_journal
 import run_migration_tests as migration
 import test_evidence as evidence
-from go_toolchain_policy import previous_toolchain_bytes
+from go_toolchain_policy import PINS, previous_toolchain_bytes
 from helm_native_scope import CALL_SITES, production_calls
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json'
 BASELINE_COMMIT = 'aa84d7adb3a3c4d19d58d7a39443e49b2eb51490'
-BASELINE_SHA256 = 'a67c2846450f78c9fe8cfea87d0a90dd8d6b6470368eb8b895b9dff3e7d77109'
+BASELINE_SHA256 = 'e5c86c5f57c995689c5b3ac1f4dc2a534863c7c6e5da7fee97aeb265098ed561'
 
 # Independently freeze the accepted #95 inventories. The fixture stores every
 # full name for a useful diff; neither it nor the live dictionaries alone is an
@@ -88,7 +88,7 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
 
     def test_fullname_fixture_is_bound_to_the_accepted_main(self):
         self.assertEqual(hashlib.sha256(BASELINE_PATH.read_bytes()).hexdigest(), BASELINE_SHA256)
-        self.assertEqual(self.baseline['schema'], 1)
+        self.assertEqual(self.baseline['schema'], 2)
         self.assertEqual(self.baseline['source_commit'], BASELINE_COMMIT)
         self.assertEqual(set(self.baseline['required']), set(BASELINE_INVENTORIES))
         for key, frozen in BASELINE_INVENTORIES.items():
@@ -254,6 +254,19 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
                 # PR #98 admits only the exact reviewed Go patch tokens.
                 data = previous_toolchain_bytes(source, (ROOT / source).read_bytes())
                 self.assertEqual(hashlib.sha256(data).hexdigest(), frozen)
+        # The mygo v0.7.x migrations rewrote these two files outright, so they can
+        # no longer claim to be aa84 images. They are held at their reviewed
+        # bytes instead of being dropped from the fixture.
+        for source, frozen in self.baseline['refrozen_source_sha256'].items():
+            with self.subTest(source=source, refrozen=True):
+                self.assertEqual(hashlib.sha256((ROOT / source).read_bytes()).hexdigest(),
+                                 frozen)
+        # go.mod has neither an aa84 image nor a reversible one left: the
+        # toolchain token and the mygo requirement moved in the same edit. PINS
+        # is its gate, and it must not creep back here as an unverified entry.
+        self.assertNotIn('go.mod', self.baseline['unchanged_source_sha256'])
+        self.assertNotIn('go.mod', self.baseline['refrozen_source_sha256'])
+        self.assertIsNone(PINS['go.mod'][1])
 
 
 if __name__ == '__main__':

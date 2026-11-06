@@ -26,7 +26,7 @@ func (w *Workbench) prepare(kind string) {
 	if w.blockRetainedManifestPaste() {
 		return
 	}
-	if w.detail == nil || w.ops == nil || w.preparing {
+	if w.connectionsOpen || w.detail == nil || w.ops == nil || w.preparing {
 		return
 	}
 	if kind == "apply" && !w.applyAcknowledged {
@@ -34,6 +34,7 @@ func (w *Workbench) prepare(kind string) {
 		return
 	}
 	epoch, revision := w.detailEpoch, w.draftRevision
+	returnMode := w.detailMode
 	binding := w.draftIdentity()
 	target, service, replicas := w.target(), w.ops, w.replicas
 	var text []byte
@@ -101,7 +102,7 @@ func (w *Workbench) prepare(kind string) {
 					if kind == "apply" {
 						var ownership string
 						ownership, err = manifest.OwnershipReview(before, after)
-						diff = "APPLY · aster-apply · force disabled\nOmitted previously owned fields may be removed.\n\n" + diff + ownership
+						diff = "APPLY; aster-apply; force disabled\nOmitted previously owned fields may be removed.\n\n" + diff + ownership
 					}
 				}
 			}
@@ -122,8 +123,10 @@ func (w *Workbench) prepare(kind string) {
 				return
 			}
 			w.planBinding = binding
+			w.reviewReturnMode = returnMode
 			w.plan, w.diff, w.detailMode = plan, diff, "Diff"
-			w.detailMessage = "Review " + kind + " for " + target.Namespace + "/" + target.Name + " · expires " + plan.Expires().Local().Format("15:04:05")
+			w.reviewStartPending = true
+			w.detailMessage = "Review " + kind + " for " + target.Namespace + "/" + target.Name + " / expires " + plan.Expires().Local().Format("15:04:05")
 		})
 	})
 }
@@ -132,7 +135,7 @@ func (w *Workbench) execute() {
 	if w.blockRetainedManifestPaste() {
 		return
 	}
-	if w.plan == nil || w.ops == nil || w.pendingWrites > 0 {
+	if w.connectionsOpen || w.plan == nil || w.ops == nil || w.pendingWrites > 0 {
 		return
 	}
 	if w.planBinding != w.draftIdentity() {
@@ -155,7 +158,7 @@ func (w *Workbench) execute() {
 		result, err := service.Execute(ctx, plan)
 		w.emit(func() {
 			w.pendingWrites--
-			line := fmt.Sprintf("%s [%s] %s %s/%s · %s", plan.ID()[:12], contextName, plan.Kind(), target.Namespace, target.Name, result.State)
+			line := fmt.Sprintf("%s [%s] %s %s/%s; %s", plan.ID()[:12], contextName, plan.Kind(), target.Namespace, target.Name, result.State)
 			w.recordHistory(line)
 			if epoch != w.detailEpoch {
 				return
@@ -164,6 +167,9 @@ func (w *Workbench) execute() {
 				w.detailMessage = result.State + ": " + err.Error()
 			} else {
 				w.detailMessage = "API accepted the change. Workload readiness is a separate observation."
+				if plan.Kind() == "delete" {
+					w.detailMessage = "Deletion requested."
+				}
 				if result.Object != nil {
 					w.creating, w.detail = false, result.Object.DeepCopy()
 					w.applyDraft, w.ownersText, w.applyAcknowledged = "", "", false

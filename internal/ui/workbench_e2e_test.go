@@ -89,10 +89,12 @@ func TestNativeWorkbenchEditAgainstRealCluster(t *testing.T) {
 	}
 	click("Connect")
 	pump(func() bool { return w.status == "Live" })
+	click("Configuration")
 	click("ConfigMaps")
 	pump(func() bool { return containsRowUID(w.rows, string(cm.UID)) })
 	click(cm.Name)
 	pump(func() bool { return w.detail != nil })
+	click("YAML")
 	click("Edit")
 	buffer, snapshot := w.editor, w.editor.Snapshot()
 	click("Manifest editor")

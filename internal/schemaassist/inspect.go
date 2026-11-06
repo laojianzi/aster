@@ -20,11 +20,11 @@ type Help struct {
 
 func (h Help) Text() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Field %s · type %s\n%s\n", text(h.Pointer, 1024), text(h.Type, 80), h.Description)
+	fmt.Fprintf(&b, "Field %s: type %s\n%s\n", text(h.Pointer, 1024), text(h.Type, 80), h.Description)
 	for _, f := range h.Fields {
 		required := ""
 		if f.Required {
-			required = " · required"
+			required = ": required"
 		}
 		fmt.Fprintf(&b, "%s : %s%s\n", text(f.Pointer, 256), text(f.Type, 80), required)
 	}
@@ -137,7 +137,7 @@ func (r Report) Text() string {
 	var b strings.Builder
 	b.WriteString("Advisory structural and constraint hints: required, type, undescribed fields, bounded choices, numeric bounds, exact multiples, sizes, supported string patterns/formats, required string/int64/boolean map-list identities and string/int64/boolean set-list values. Not admission validation.\n")
 	for _, d := range r.Diagnostics {
-		fmt.Fprintf(&b, "%s · %s: %s\n", text(d.Pointer, 160), d.Code, d.Message)
+		fmt.Fprintf(&b, "%s: %s: %s\n", text(d.Pointer, 160), d.Code, d.Message)
 	}
 	if len(r.Diagnostics) == 0 {
 		b.WriteString("No supported structural or constraint hints found.\n")

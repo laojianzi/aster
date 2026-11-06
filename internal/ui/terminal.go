@@ -21,16 +21,16 @@ func (w *Workbench) stopTerminal() {
 		w.terminal = nil
 	}
 	if w.terminalActive {
-		w.terminalStatus = "Disconnected · remote process termination is not confirmed"
+		w.terminalStatus = "Disconnected; remote process termination is not confirmed"
 	}
 	w.terminalActive = false
 	w.terminalConfirmation = ""
 }
 func (w *Workbench) startTerminal() {
-	if w.detail == nil || w.backend == nil || w.creating || w.terminalActive || w.terminalJoining || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods" {
+	if !w.bindDiagnostic() || w.backend == nil || w.terminalActive || w.terminalJoining {
 		return
 	}
-	if w.terminalConfirmation != w.detail.GetName() {
+	if w.terminalConfirmation != w.diagnostic.target.Name {
 		w.terminalStatus = "Confirm the exact Pod name before connecting"
 		return
 	}
@@ -49,18 +49,18 @@ func (w *Workbench) startTerminal() {
 		return
 	}
 	w.stopTerminal()
-	epoch, revision := w.detailEpoch, w.terminalEpoch
-	backend, target, container, contextName := w.backend, w.target(), w.terminalContainer, w.activeContext
+	epoch, revision := w.diagnosticEpoch, w.terminalEpoch
+	backend, target, container, contextName := w.backend, w.diagnostic.target, w.terminalContainer, w.diagnostic.context
 	ctx, cancel := context.WithTimeout(w.operationContext(), ttysession.DefaultLease)
 	w.terminalJoining = true
-	w.terminalCancel, w.terminalActive, w.terminalStatus = cancel, true, "Connecting · no reconnect or replay"
+	w.terminalCancel, w.terminalActive, w.terminalStatus = cancel, true, "Connecting; no reconnect or replay"
 	w.run(func(context.Context) {
 		defer cancel()
 		defer w.emit(func() { w.terminalJoining = false })
 		session, err := backend.OpenPodTerminal(ctx, target, container, argv, ttysession.DefaultLease)
 		if err != nil {
 			w.emit(func() {
-				if epoch == w.detailEpoch && revision == w.terminalEpoch {
+				if epoch == w.diagnosticEpoch && revision == w.terminalEpoch {
 					w.terminalActive = false
 					w.terminalCancel = nil
 					w.terminalStatus = err.Error()
@@ -75,7 +75,7 @@ func (w *Workbench) startTerminal() {
 			session.Close()
 			<-session.Done()
 			w.emit(func() {
-				if epoch == w.detailEpoch && revision == w.terminalEpoch {
+				if epoch == w.diagnosticEpoch && revision == w.terminalEpoch {
 					w.terminalActive = false
 					w.terminalStatus = err.Error()
 				}
@@ -83,9 +83,9 @@ func (w *Workbench) startTerminal() {
 			return
 		}
 		w.emit(func() {
-			if ctx.Err() == nil && epoch == w.detailEpoch && revision == w.terminalEpoch {
+			if ctx.Err() == nil && epoch == w.diagnosticEpoch && revision == w.terminalEpoch {
 				w.terminal = term
-				w.terminalStatus = "Terminal open · remote output and status pending"
+				w.terminalStatus = "Terminal open"
 			}
 		})
 		// The UI owns pointer publication; background cleanup only touches the
@@ -98,46 +98,53 @@ func (w *Workbench) startTerminal() {
 		ended := session.Outcome()
 		term.IOFinished()
 		w.emit(func() {
-			if epoch != w.detailEpoch || revision != w.terminalEpoch {
+			if epoch != w.diagnosticEpoch || revision != w.terminalEpoch {
 				return
 			}
 			w.terminalActive = false
 			w.terminalStatus = ended.Result.String()
 			if err := term.InputError(); err != nil {
-				w.terminalStatus = err.Error() + " · " + ended.Result.String()
+				w.terminalStatus = err.Error() + "; " + ended.Result.String()
 			}
-			w.recordHistory(fmt.Sprintf("[%s] terminal %s/%s (%s) · %s", contextName, target.Namespace, target.Name, container, ended.Result.State))
+			w.recordHistory(fmt.Sprintf("[%s] terminal %s/%s (%s); %s", contextName, target.Namespace, target.Name, container, ended.Result.State))
 		})
-		// Retain the finished screen until explicit closure, switching detail/tab,
+		// Retain the finished screen until explicit closure, switching diagnostic tools,
 		// or expiry. No terminal bytes/argv are written to application history/disk.
 		<-ctx.Done()
 	})
 }
 func (w *Workbench) terminalView(c *ui.Context) {
-	ui.Text(c, "Interactive remote TTY · fifteen-minute maximum session").FontSize(11)
-	ui.Text(c, "Tab/detail close disconnects; remote termination is not guaranteed").FontSize(11)
-	if w.terminalContainer == "" && len(w.containers) > 0 {
-		w.terminalContainer = w.containers[0]
+	if !w.bindDiagnostic() {
+		return
 	}
-	if guardedSelect(c, "field.terminalContainer", &w.terminalContainer, w.containers, !w.terminalActive).Label("Terminal container").Disabled(w.terminalActive).Changed() && !w.terminalActive {
-		w.terminalConfirmation = ""
+	if w.terminalContainer == "" && len(w.diagnostic.containers) > 0 {
+		w.terminalContainer = w.diagnostic.containers[0]
 	}
-	if guardedTextArea(c, "field.terminalArgv", &w.terminalArgv, !w.terminalActive).Label("Terminal argv JSON").Height(48).ReadOnly(w.terminalActive).Changed() && !w.terminalActive {
-		w.terminalConfirmation = ""
-	}
-	guardedTextInput(c, "field.terminalConfirmation", &w.terminalConfirmation, !w.terminalActive).Label("Confirm Pod for terminal").Placeholder("Type the exact Pod name").Disabled(w.terminalActive)
-	ui.Row(c).Gap(8).Children(func() {
-		ui.PrimaryButton(c, "Open terminal").Disabled(w.terminalActive || w.terminalJoining || w.detail == nil || w.terminalConfirmation != w.detail.GetName() || w.terminalContainer == "").OnClick(func() {
+	ui.Row(c).Gap(8).Wrap().Hidden(w.terminalActive).Children(func() {
+		if guardedSelect(c, "field.terminalContainer", &w.terminalContainer, w.diagnostic.containers, !w.terminalActive).Label("Terminal container").Disabled(w.terminalActive).Width(180).Changed() && !w.terminalActive {
+			w.terminalConfirmation = ""
+		}
+		if guardedTextArea(c, "field.terminalArgv", &w.terminalArgv, !w.terminalActive).Label("Terminal argv JSON").Height(48).Grow(1).MinWidth(200).ReadOnly(w.terminalActive).Changed() && !w.terminalActive {
+			w.terminalConfirmation = ""
+		}
+	})
+	ui.Row(c).Gap(8).Wrap().Children(func() {
+		guardedTextInput(c, "field.terminalConfirmation", &w.terminalConfirmation, !w.terminalActive).Label("Confirm Pod for terminal").Hidden(w.terminalActive).Placeholder("Type the exact Pod name").Disabled(w.terminalActive).Grow(1).MinWidth(180)
+		ui.Text(c, w.terminalContainer).Label("Terminal session").Tooltip(w.terminalArgv).Hidden(!w.terminalActive).Grow(1).MinWidth(0).SingleLine()
+		ui.PrimaryButton(c, "Open terminal").Hidden(w.terminalActive).Disabled(w.terminalActive || w.terminalJoining || w.diagnostic == nil || w.terminalConfirmation != w.diagnostic.target.Name || w.terminalContainer == "").OnClick(func() {
 			w.startTerminal()
 		})
 		ui.Button(c, "Close terminal").Disabled(w.terminal == nil && !w.terminalActive).OnClick(func() {
 			w.stopTerminal()
 		})
 	})
-	ui.Text(c, w.terminalStatus).FontSize(11).SingleLine()
+	ui.Text(c, "Disconnecting may leave the remote process running").FontSize(12 * max(1, c.Preferences().TextScale)).Tooltip("Interactive TTY. Maximum session: 15 minutes. Switching diagnostic tools or closing the resource disconnects.")
+	if w.terminalStatus != "" {
+		ui.Text(c, w.terminalStatus).FontSize(12 * max(1, c.Preferences().TextScale))
+	}
 	if w.terminal != nil {
-		nativeterm.View(c, w.terminal).Grow(1)
+		nativeterm.View(c, w.terminal).Grow(1).MinHeight(120)
 	} else {
-		ui.Text(c, "No terminal session · clipboard writes and link opening blocked").FontSize(11).Grow(1)
+		ui.Text(c, "No terminal session").Label("Terminal output").Tooltip("Clipboard writes and link opening are blocked").FontSize(12 * max(1, c.Preferences().TextScale)).Grow(1).MinHeight(120)
 	}
 }

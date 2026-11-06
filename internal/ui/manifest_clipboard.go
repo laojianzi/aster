@@ -64,7 +64,7 @@ func (w *Workbench) manifestPasteView(c *ui.Context) {
 	}
 	epoch := w.editorPasteEpoch
 	ui.Column(c.Key("manifest.retained-paste")).Gap(4).Children(func() {
-		ui.Text(c, fmt.Sprintf("Paste retained separately (%d bytes); not inserted. Resource previews paused.", len(w.editorRetainedPaste))).Label("Manifest retained paste").FontSize(11)
+		ui.Text(c, fmt.Sprintf("Paste retained separately (%d bytes); not inserted. Resource previews paused.", len(w.editorRetainedPaste))).Label("Manifest retained paste").FontSize(12 * max(1, c.Preferences().TextScale))
 		ui.Button(c, "Discard retained editor paste").OnClick(func() { w.discardManifestPaste(epoch) })
 	})
 }

@@ -26,27 +26,19 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 	h.w.namespace = f.Namespace
 	h.tt.Frame()
 	h.click("Connect")
-	label, choiceIndex := "", -1
+	label := ""
 	h.pump(func() bool {
-		for i, kind := range h.w.kinds {
+		for _, kind := range h.w.kinds {
 			if kind.GVR == f.GVR && kind.Kind == f.GVK.Kind && kind.Namespaced {
-				label, choiceIndex = kind.Label(), i
+				label = kind.Label()
 				return true
 			}
 		}
 		return false
 	})
-	h.click("Resource kind")
-	if !h.tt.Focused("Resource kind") {
-		t.Fatal("resource kind select did not receive native focus")
-	}
-	h.tt.Key(0, ui.KeyHome)
-	for range choiceIndex {
-		h.tt.Key(0, ui.KeyDown)
-	}
-	h.tt.Key(0, ui.KeyEnter)
+	h.selectSidebarResource(f.GVK.Kind)
 	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
-		t.Fatal("native select did not choose the actually discovered enum CRD")
+		t.Fatal("native sidebar did not choose the actually discovered enum CRD")
 	}
 	h.pump(func() bool { return containsRowUID(h.w.rows, string(f.Live.GetUID())) })
 	h.click(f.Live.GetName())
@@ -54,6 +46,7 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 	if h.w.detail.GroupVersionKind() != f.GVK || h.w.detail.GetName() != f.Live.GetName() || h.w.detail.GetNamespace() != f.Namespace || h.w.detail.GetUID() != f.Live.GetUID() || h.w.detail.GetResourceVersion() != f.Live.GetResourceVersion() {
 		t.Fatal("native discovery opened a different live enum resource identity")
 	}
+	h.click("YAML")
 	h.click("Edit")
 	buffer, original := h.w.editor, h.w.editor.Snapshot()
 	obj, err := manifest.Decode([]byte(h.w.editorText()))
@@ -95,7 +88,7 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 	}
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/objectChoice · enum") || !strings.Contains(h.w.schemaText, "/spec/arrayChoice · enum") || len(h.w.schemaLocations) != 2 {
+	if !strings.Contains(h.w.schemaText, "/spec/objectChoice: enum") || !strings.Contains(h.w.schemaText, "/spec/arrayChoice: enum") || len(h.w.schemaLocations) != 2 {
 		t.Fatal("native inspection did not diagnose the actual published object and array enums")
 	}
 	for _, private := range []string{"PRIVATE_NATIVE_ENUM_SOURCE", "PRIVATE_NATIVE_ENUM_VALUE", "9007199254740993", "中文船🚢", "结束船", "alpha", "beta"} {
@@ -146,7 +139,7 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 	arrayCorrected := h.w.editorText()
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/objectChoice · enum") || strings.Contains(h.w.schemaText, "/spec/arrayChoice · enum") || len(h.w.schemaLocations) != 1 || h.w.editorText() != arrayCorrected || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/objectChoice: enum") || strings.Contains(h.w.schemaText, "/spec/arrayChoice: enum") || len(h.w.schemaLocations) != 1 || h.w.editorText() != arrayCorrected || h.w.plan != nil {
 		t.Fatal("native array correction did not refresh the actual ordered enum constraint")
 	}
 	target = chooseDiagnostic(h, "/spec/objectChoice")
@@ -206,6 +199,10 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 		t.Fatal("actual native server preview lost corrected object/array values or unchanged nullable/empty fields")
 	}
 	assertLiveUnchanged()
+	h.click("Cancel review")
+	if h.w.plan != nil || h.w.detailMode == "Diff" || h.w.pendingWrites != 0 {
+		t.Fatal("canceling the review retained a plan or started a write")
+	}
 	h.click("Disconnect")
 	if h.w.backend != nil || h.w.plan != nil || h.w.schemaSource != nil || h.w.schemaJump != nil || len(h.w.schemaLocations) != 0 || h.w.schemaText != "" {
 		t.Fatal("disconnect retained structured enum assistance or its reviewed plan")

@@ -3,6 +3,7 @@ package uiworkbench
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -22,7 +23,6 @@ func (w *Workbench) loadRelationships() {
 	if w.detail == nil || w.backend == nil || w.creating {
 		return
 	}
-	w.stopLogs()
 	w.stopRelationships()
 	epoch, revision := w.detailEpoch, w.relatedEpoch
 	target, backend := w.target(), w.backend
@@ -34,7 +34,7 @@ func (w *Workbench) loadRelationships() {
 	ctx, cancel := context.WithCancel(w.operationContext())
 	w.relatedCancel, w.relatedActive, w.detailMode = cancel, true, "Related"
 	w.relatedResult, w.relatedStatus = relationship.Snapshot{}, "Reading one-hop relationships…"
-	w.relatedList = ui.ListState{}
+	w.relatedGroups = nil
 	w.run(func(context.Context) {
 		defer cancel()
 		result, err := reader.Read(ctx, target)
@@ -49,9 +49,9 @@ func (w *Workbench) loadRelationships() {
 				return
 			}
 			w.relatedResult = result
-			w.relatedStatus = fmt.Sprintf("%d links · %d lookups · %d objects scanned", len(result.Links), result.Requests, result.Scanned)
+			w.relatedStatus = fmt.Sprintf("Relationships: %d", len(result.Links))
 			if result.Incomplete {
-				w.relatedStatus += " · PARTIAL"
+				w.relatedStatus += "; partial results"
 			}
 		})
 	})
@@ -70,31 +70,54 @@ func (w *Workbench) relationshipView(c *ui.Context) {
 		})
 		ui.Button(c, "Stop lookup").Disabled(!w.relatedActive).OnClick(func() {
 			w.stopRelationships()
-			w.relatedStatus = "Lookup stopped; no cluster mutation was performed."
+			w.relatedStatus = "Lookup stopped"
 		})
 	})
-	ui.Text(c, w.relatedStatus).FontSize(11).SingleLine()
-	ui.Text(c, "One-hop snapshot · selectors are not ownership or proof of traffic").FontSize(11).SingleLine()
+	ui.Text(c, w.relatedStatus).SingleLine()
 	if len(w.relatedResult.Warnings) > 0 {
 		warning := strings.Join(w.relatedResult.Warnings, "\n")
 		ui.TextArea(c.Key("relationship-warnings"), &warning).Label("Relationship warnings").ReadOnly(true).Height(64)
 	}
 	links := w.relatedResult.Links
-	ui.List(c.Key("field.relatedList"), &w.relatedList, len(links), func(i int) {
-		link := links[i]
-		ui.Column(c).Padding(6).Gap(3).Children(func() {
-			ui.Text(c, link.Relation+" · "+string(link.State)).FontSize(11).SingleLine()
-			ui.Button(c, "Open "+link.Type.Kind+"/"+link.Target.Name).Disabled(!link.Navigable()).OnClick(func() {
-				w.openRelated(link)
-			})
-			ui.Text(c, link.Note).FontSize(10).SingleLine()
-		})
-	}).Grow(1)
+	if w.relatedGroups == nil {
+		w.relatedGroups = make(map[string]*bool)
+	}
+	var groups []string
+	for _, link := range links {
+		if !slices.Contains(groups, link.Relation) {
+			groups = append(groups, link.Relation)
+		}
+		if w.relatedGroups[link.Relation] == nil {
+			w.relatedGroups[link.Relation] = new(true)
+		}
+	}
+	ui.Scroll(c.Key("relationship.scroll")).Grow(1).MinHeight(0).MinWidth(0).Children(func() {
+		ui.Tree(c.Key("relationship.tree"), func() {
+			rowHeight := c.Theme().Space(7) * max(float32(1), c.Preferences().TextScale)
+			for _, group := range groups {
+				ui.TreeItem(c.Key(group), group, w.relatedGroups[group], func() {
+					for _, link := range links {
+						if link.Relation != group {
+							continue
+						}
+						name := link.Type.Kind + "/" + link.Target.Name
+						label := name
+						if link.State != relationship.Verified {
+							label += " (" + string(link.State) + ")"
+						}
+						ui.TreeItem(c.Key(link.Relation+"|"+link.Target.Key()), label, nil, nil).Height(rowHeight).
+							Label("Open " + name).Tooltip(name + "\n" + string(link.State) + "\n" + link.Note).
+							Disabled(!link.Navigable()).OnClick(func() { w.openRelated(link) })
+					}
+				}).Height(rowHeight)
+			}
+		}).Label("Direct relationships").Tooltip("Selectors do not imply ownership or traffic").MinWidth(0).Padding(4)
+	})
 	if !w.relatedActive && len(w.relatedResult.Links) == 0 && w.relatedResult.SourceVersion != "" {
 		text := "No supported direct relationships found in this snapshot."
 		if w.relatedResult.Incomplete {
 			text = "Results are incomplete; absence does not mean no relationships exist."
 		}
-		ui.Text(c, text).FontSize(11)
+		ui.Text(c, text)
 	}
 }

@@ -77,7 +77,7 @@ func TestNativeSchemaListSetPreservesDraftAndHistory(t *testing.T) {
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
 	const message = "List entries repeat the advertised string value."
-	if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || strings.Count(h.w.schemaText, message) != 1 || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/values: list-set") || strings.Count(h.w.schemaText, message) != 1 || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("list-set inspection missed repeated strings or emitted more than one parent hint")
 	}
 	for _, private := range []string{"PRIVATE_DUPLICATE_VALUE", "中文船🚢", "a|b", "a\x00b", `\u0000`} {
@@ -164,7 +164,7 @@ func TestNativeSchemaListSetPreservesDraftAndHistory(t *testing.T) {
 		duplicateIdentity := h.w.draftIdentity()
 		h.click("Check draft")
 		h.pump(func() bool { return !h.w.schemaActive })
-		if !strings.Contains(h.w.schemaText, "/spec/values · list-set") || strings.Count(h.w.schemaText, message) != 1 || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "中文船🚢") || h.w.editorText() != duplicate || h.w.draftIdentity() != duplicateIdentity || h.w.editor != buffer || h.w.plan != nil || writes.Load() != 0 {
+		if !strings.Contains(h.w.schemaText, "/spec/values: list-set") || strings.Count(h.w.schemaText, message) != 1 || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "中文船🚢") || h.w.editorText() != duplicate || h.w.draftIdentity() != duplicateIdentity || h.w.editor != buffer || h.w.plan != nil || writes.Load() != 0 {
 			t.Fatalf("list-set inspection missed the %s duplicate or changed source/privacy", tc.name)
 		}
 		focusMultipleOfEditorByKeyboard(h)
@@ -210,8 +210,8 @@ func TestNativeSchemaListSetMinimumWindowAndIncomplete(t *testing.T) {
 		wantItems             int
 		wantValueBytes        int
 	}{
-		{"late-invalid-values-after-duplicate", nativeListSetFieldSchema, prefix + "  - null\n  - 123456789\n  - {value: PRIVATE_OBJECT}\n  - [PRIVATE_NESTED_ARRAY]\n", []string{"/spec/malformed/2 · type", "/spec/malformed/3 · type", "/spec/malformed/4 · type", "/spec/malformed/5 · type"}, 6, 0},
-		{"late-malformed-metadata-with-wrong-type", malformedMetadata, "  malformed: PRIVATE_WRONG_ARRAY_TYPE\n", []string{"/spec/malformed · type"}, 0, 0},
+		{"late-invalid-values-after-duplicate", nativeListSetFieldSchema, prefix + "  - null\n  - 123456789\n  - {value: PRIVATE_OBJECT}\n  - [PRIVATE_NESTED_ARRAY]\n", []string{"/spec/malformed/2: type", "/spec/malformed/3: type", "/spec/malformed/4: type", "/spec/malformed/5: type"}, 6, 0},
+		{"late-malformed-metadata-with-wrong-type", malformedMetadata, "  malformed: PRIVATE_WRONG_ARRAY_TYPE\n", []string{"/spec/malformed: type"}, 0, 0},
 		{"entry-budget-after-duplicate", nativeListSetFieldSchema, entryBudget, nil, schemaassist.MaxListSetItems + 1, 0},
 		{"value-byte-budget-after-duplicate", nativeListSetFieldSchema, valueBudget, nil, 3, schemaassist.MaxListSetValueBytes + 1},
 	} {
@@ -242,7 +242,7 @@ func TestNativeSchemaListSetMinimumWindowAndIncomplete(t *testing.T) {
 			}
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
-			if !strings.Contains(h.w.schemaText, "/spec/checked · list-set") || strings.Count(h.w.schemaText, "List entries repeat the advertised string value.") != 1 || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · list-set") || len(h.w.schemaLocations) != 1+len(tc.structural) {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: list-set") || strings.Count(h.w.schemaText, "List entries repeat the advertised string value.") != 1 || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: list-set") || len(h.w.schemaLocations) != 1+len(tc.structural) {
 				t.Fatal("late invalid metadata/values or budget emitted a premature set hint or lost incompleteness/structural checks")
 			}
 			for _, diagnostic := range tc.structural {

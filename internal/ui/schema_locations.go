@@ -42,7 +42,7 @@ func schemaLocations(ctx context.Context, draft string, diagnostics []schemaassi
 		if !position.Exact {
 			kind += " (enclosing value)"
 		}
-		label := fmt.Sprintf("%d · L%d:C%d · %s", i+1, position.Line, position.Column, kind)
+		label := fmt.Sprintf("%d: L%d:C%d: %s", i+1, position.Line, position.Column, kind)
 		locations = append(locations, schemaLocation{label: label, position: position})
 	}
 	note := "\nLocations use one-based Unicode line/column coordinates; missing fields use an enclosing explicit value."
@@ -60,7 +60,7 @@ func (w *Workbench) schemaLocationsView(c *ui.Context) {
 		epoch, choice := w.schemaEpoch, w.schemaLocationChoice
 		// A platform menu can scroll a bounded long result set without creating
 		// an unbounded-height inline popup in the minimum-size editor window.
-		ui.MenuButton(c.Key("field.schemaLocation"), choice, func(menu *ui.Menu) {
+		ui.PopoverMenuButton(c.Key("field.schemaLocation"), choice, func(menu *ui.Menu) {
 			for _, label := range w.schemaLocationChoices {
 				if menu.Item(label).Checked(label == choice).Chosen() && epoch == w.schemaEpoch && w.schemaFresh() {
 					w.schemaLocationChoice = label
@@ -92,7 +92,7 @@ func (w *Workbench) manifestEditorView(c *ui.Context) {
 	if w.manifestBudgetView(c) {
 		return
 	}
-	editor := ui.TextAreaBuffer(c.Key("field.editor"), w.editor).Label("Manifest editor").Grow(1).OnPaste(w.manifestPasteHandler())
+	editor := ui.TextAreaBuffer(c.Key("field.editor"), w.editor).Label("Manifest editor").Font("monospace").Grow(1).OnPaste(w.manifestPasteHandler())
 	// Native input may be committed before this frame or while building the
 	// control. Observe both boundaries, not Changed's root-publication flag.
 	w.syncEditor()
@@ -115,7 +115,7 @@ func (w *Workbench) manifestEditorView(c *ui.Context) {
 	if !jump.position.Exact {
 		kind = "enclosing explicit value, not the absent field"
 	}
-	w.schemaStatus = fmt.Sprintf("L%d:C%d · %s · hints only", jump.position.Line, jump.position.Column, kind)
+	w.schemaStatus = fmt.Sprintf("L%d:C%d: %s: hints only", jump.position.Line, jump.position.Column, kind)
 }
 
 func (w *Workbench) setSchemaLocations(source *manifest.SourceIndex, locations []schemaLocation) {

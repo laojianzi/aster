@@ -72,7 +72,7 @@ func TestNativeSchemaFormatPreservesDraftAndHistory(t *testing.T) {
 	h.tt.SetClipboard("selection was not copied after inspection")
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/date · format") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/date: format") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("invalid calendar date was missed or valid base64, optional UUID separators or nullable input was rejected")
 	}
 	for _, private := range []string{"2023-02-29", "AB==", validUUID, "d-a-t-e", "b-y-t-e", "u-u-i-d"} {
@@ -153,7 +153,7 @@ func TestNativeSchemaFormatPreservesDraftAndHistory(t *testing.T) {
 	h.tt.Type(unmatched)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/byte · format") || !strings.Contains(h.w.schemaText, "/spec/uuid · format") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "AA=A") || strings.Contains(h.w.schemaText+h.w.schemaStatus, invalidUUID) || h.w.editorText() != unmatched || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/byte: format") || !strings.Contains(h.w.schemaText, "/spec/uuid: format") || len(h.w.schemaLocations) != 2 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "AA=A") || strings.Contains(h.w.schemaText+h.w.schemaStatus, invalidUUID) || h.w.editorText() != unmatched || h.w.plan != nil {
 		t.Fatal("native formats did not diagnose invalid padding and non-hex UUID without value disclosure")
 	}
 	focusMultipleOfEditorByKeyboard(h)
@@ -213,7 +213,7 @@ func TestNativeSchemaFormatMinimumWindowAndIncomplete(t *testing.T) {
 			if tc.wantType {
 				wantLocations++
 			}
-			if !strings.Contains(h.w.schemaText, "/spec/checked · format") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · format") || strings.Contains(h.w.schemaText, "/spec/malformed · type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: format") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: format") || strings.Contains(h.w.schemaText, "/spec/malformed: type") != tc.wantType || len(h.w.schemaLocations) != wantLocations {
 				t.Fatal("uninspected format lost incomplete disclosure or invented a secondary violation")
 			}
 			for _, private := range []string{"2023-02-29", "PRIVATE_SCHEMA_FORMAT", "PRIVATE_DRAFT_VALUE", largeValueMarker, "123456789"} {

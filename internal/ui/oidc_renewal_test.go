@@ -78,6 +78,7 @@ func TestNativeOIDCRenewalReviewReplacementAndMinimumWindow(t *testing.T) {
 	loginRenewable(t, h, p, cfg)
 	before, _ := os.ReadFile(h.w.path)
 	old, oldCtx, oldID := h.w.backend, h.w.connectionCtx, h.w.sessionID
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -119,6 +120,7 @@ func TestNativeOIDCRenewalReviewReplacementAndMinimumWindow(t *testing.T) {
 	if string(after) != string(before) {
 		t.Fatal("renewal rewrote kubeconfig")
 	}
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Forget renewal")
 	if h.w.backend == nil || h.w.oidcRenewal != nil || h.w.oidcIdentity != nil {
@@ -140,6 +142,7 @@ func TestNativeOIDCRenewalCancellationDisconnectAndWindowIsolation(t *testing.T)
 				t.Fatal("new workspace inherited renewal")
 			}
 			oldCtx := h.w.connectionCtx
+			h.click("Connections")
 			h.click("Browser sign-in")
 			h.click("Renew identity once")
 			select {
@@ -185,6 +188,7 @@ func TestNativeOIDCRenewalChangedTargetFailsBeforePost(t *testing.T) {
 	if e := os.WriteFile(h.w.path, raw, 0600); e != nil {
 		t.Fatal(e)
 	}
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -213,6 +217,7 @@ func TestNativeOIDCRenewalRetargetBeforeConfirmationCannotConnect(t *testing.T) 
 	cfg, _ := renewalAPIServer(t)
 	h := newRelationshipHarness(t, 12*time.Second)
 	loginRenewable(t, h, p, cfg)
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })
@@ -239,6 +244,7 @@ func TestNativeOIDCRenewalConfirmationSurvivesUnrelatedFrame(t *testing.T) {
 	cfg, _ := renewalAPIServer(t)
 	h := newRelationshipHarness(t, 12*time.Second)
 	loginRenewable(t, h, p, cfg)
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })

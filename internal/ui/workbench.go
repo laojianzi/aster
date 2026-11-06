@@ -19,6 +19,7 @@ import (
 	"github.com/laojianzi/aster/internal/oidclogin"
 	"github.com/laojianzi/aster/internal/operation"
 	"github.com/laojianzi/aster/internal/relationship"
+	"github.com/laojianzi/aster/internal/resource"
 	"github.com/laojianzi/aster/internal/resourcemetrics"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -26,6 +27,15 @@ import (
 // Workbench state belongs to the UI goroutine. Workers capture immutable inputs
 // and submit changes through emit; they never access live widget state.
 type Workbench struct {
+	applications    applicationState
+	diagnostic      *diagnosticBinding
+	diagnosticEpoch uint64
+	connectionsOpen bool
+	navigationShown string
+	resourceGroups  [7]bool
+	filtersOpen     bool
+	resourceView    int
+	focusDiagnosis  bool
 	workspaceNumber int
 	newWorkspace    func() error
 	ctx             context.Context
@@ -52,6 +62,7 @@ type Workbench struct {
 	kindChoice              string
 	status, errText, notice string
 	filter, sortBy          string
+	appliedLabelSelector    string
 	rows                    []resourceRow
 	total                   int
 	store                   *rowStore
@@ -60,7 +71,18 @@ type Workbench struct {
 
 	detail                                                    *unstructured.Unstructured
 	detailKind                                                kube.ResourceKind
+	objectDrafts                                              map[resource.Identity]objectDraft
+	objectTabs                                                []objectTab
+	objectRequest                                             *objectTab
+	objectLoadError                                           string
+	objectTabShown                                            resource.Identity
+	objectTabScale                                            float32
+	objectTabScope                                            string
 	detailMode, detailText, diff, confirmation, detailMessage string
+	reviewReturnMode                                          string
+	reviewReturnFocus                                         bool
+	reviewStartPending                                        bool
+	diagnosticOverviewPercent                                 float32
 	containers                                                []string
 	container, replicas                                       string
 	plan                                                      *operation.Prepared
@@ -101,7 +123,7 @@ type Workbench struct {
 	relatedActive bool
 	relatedResult relationship.Snapshot
 	relatedStatus string
-	relatedList   ui.ListState
+	relatedGroups map[string]*bool
 
 	metricsEpoch                  uint64
 	metricsCancel                 context.CancelFunc
@@ -151,7 +173,7 @@ type Workbench struct {
 	vaultTarget                                               *credentialvault.Target
 	vaultStore                                                credentialvault.Store
 
-	oidcOpen, oidcPending                                                  bool
+	oidcOpen, oidcPending, oidcDetailsOpen                                 bool
 	oidcEpoch                                                              uint64
 	oidcCancel                                                             context.CancelFunc
 	oidcIssuer, oidcClient, oidcCA, oidcPort, oidcConfirmation, oidcStatus string
@@ -177,6 +199,7 @@ type Workbench struct {
 
 func New() *Workbench {
 	w := &Workbench{ctx: context.Background(), status: "Not connected", sortBy: "Name", selected: -1, replicas: "1", detailMode: "YAML"}
+	w.resourceGroups = [7]bool{true}
 	w.vaultDuration = "1 hour"
 	w.oidcPort = "0"
 	w.vaultStore = credentialvault.Client{}
@@ -208,7 +231,7 @@ type WindowOptions struct {
 func Open(parent context.Context, options WindowOptions) *Workbench {
 	w := New()
 	w.workspaceNumber, w.newWorkspace = options.Number, options.NewWorkspace
-	win := mygo.NewWindow(mygo.WindowOptions{Title: fmt.Sprintf("Aster · Workspace %d", options.Number), Width: 1440, Height: 900, MinWidth: 1100, MinHeight: 700, StateKey: fmt.Sprintf("workspace-%d", options.Number), Content: ui.View(w.View)})
+	win := mygo.NewWindow(mygo.WindowOptions{Title: fmt.Sprintf("Aster - Workspace %d", options.Number), Width: 1440, Height: 900, MinWidth: 900, MinHeight: 480, StateKey: fmt.Sprintf("workspace-%d", options.Number), Content: ui.View(w.View)})
 	w.attach(parent, func(fn func()) { win.Update(fn) })
 	win.OnClosed(func() {
 		w.clearHelmReleases()
@@ -219,7 +242,7 @@ func Open(parent context.Context, options WindowOptions) *Workbench {
 		}
 	})
 	if os.Getenv("ASTER_NATIVE_SMOKE") == "1" {
-		w.notice = "Smoke fixture · no kubeconfig is read"
+		w.notice = "Smoke fixture; no kubeconfig is read"
 		w.rows = []resourceRow{{UID: "fixture", Name: "aster-native-smoke", Namespace: "fixture", Status: "Rendered"}}
 		w.total = 1
 		w.status = "Smoke fixture"
@@ -282,6 +305,12 @@ func (w *Workbench) emit(fn func()) {
 
 // Close is called after the event loop, or by the owning UI test goroutine.
 func (w *Workbench) Close() {
+	w.clearApplications()
+	w.objectDrafts = nil
+	w.objectTabs = nil
+	w.objectRequest = nil
+	w.objectLoadError = ""
+	w.objectTabScope = ""
 	w.clearHelmReleases()
 	w.editorRetainedPaste = ""
 	w.editorPasteEpoch++

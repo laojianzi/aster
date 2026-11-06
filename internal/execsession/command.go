@@ -72,7 +72,7 @@ type Result struct {
  ExitCode int
 }
 func (r Result) String() string {
- if r.ExitKnown { return fmt.Sprintf("%s · remote exit code %d", r.State, r.ExitCode) }
+ if r.ExitKnown { return fmt.Sprintf("%s; remote exit code %d", r.State, r.ExitCode) }
  if r.State == Rejected { return "Rejected before a successful command session was established" }
- return string(r.State) + " · remote exit not confirmed; the process may still be running"
+ return string(r.State) + "; remote exit not confirmed; the process may still be running"
 }

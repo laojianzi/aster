@@ -3,6 +3,22 @@
 The reviewed patch is CVE-2026-111943 (golang/go 90617fb7). This is not a
 normalizer for arbitrary future upgrades: each current file must first match
 its full reviewed digest, then only its exact version token is reversed.
+
+Reversibility is retired for go.mod by the mygo v0.7.3 migration. The edit that
+moved the toolchain token also moved the mygo requirement, so reversing the
+token alone can no longer reproduce the pre-1.27.3 file. `PINS` records None in
+that previous-digest slot: admission still fails closed on any byte outside the
+reviewed digest, but no reconstruction is offered and asking for one raises.
+The retired previous digest was 2462ac2ec5f888077ed86aa4561b747272b710719c1623ab8028659e8c6fd2a8.
+A two-token reversal (toolchain plus the single mygo requirement line) was
+measured to reproduce that digest exactly on 2026-11-06, so the image is not
+lost; this scope keeps the declaration instead of adding a migration-specific
+substitution rule to the admission path. Rebuilding a provable image is the job
+of the commit that lands the migration.
+
+The same day the mygo requirement moved once more, v0.7.3 to v0.7.4, so the
+reviewed digest was re-set again with no change to the None slot: a dependency
+bump no longer promises any reconstructible pre-image here.
 """
 import hashlib
 import json
@@ -11,10 +27,12 @@ from pathlib import Path
 import subprocess
 
 VERSION = 'go1.27.3'
-# path: (version-token count, original SHA-256, reviewed SHA-256)
+# path: (version-token count, previous SHA-256 or None, reviewed SHA-256)
+# A None previous digest means "admitted but not reversible"; see the module
+# docstring. Only go.mod carries it, and only because of the v0.7.x migrations.
 PINS = {'go.mod': (1,
-            '2462ac2ec5f888077ed86aa4561b747272b710719c1623ab8028659e8c6fd2a8',
-            'ced4d9f572eb1cab3b8835856721d92f552452c58f55685c0274241c8677b5a9'),
+            None,
+            '75f65e223ff31075f82184c4093f177ece4e1f2a6f599cf4cd28aeb36c3fafc8'),
  '.github/workflows/ci.yml': (4,
                               '95b5bbeb09c72d72a348d4dec47f955e42cbee29342432a38cda98b1ff804bc4',
                               '7ee11db7b12f95aac5c21c4800848bcbf8ca034aefd5676d01534fa8bbb4b1c6'),
@@ -42,17 +60,34 @@ X509_BLOBS = {
 }
 
 
-def previous_toolchain_bytes(path, data):
-    """Return the old scope's bytes only for an exact reviewed replacement."""
+def _version_tokens(path):
+    """The single 1.27.2 -> 1.27.3 substitution this policy can undo."""
+    return (b'go 1.27.2\n', b'go 1.27.3\n') if path == 'go.mod' else (
+        b"go-version: '1.27.2'", b"go-version: '1.27.3'")
+
+
+def verify_admitted(path, data):
+    """Fail closed unless `data` is the reviewed image of a pinned file."""
     if path not in PINS:
         return data
-    count, previous, reviewed = PINS[path]
+    count, _, reviewed = PINS[path]
     if hashlib.sha256(data).hexdigest() != reviewed:
         raise ValueError('unreviewed Go toolchain file: ' + path)
-    old, new = (b'go 1.27.2\n', b'go 1.27.3\n') if path == 'go.mod' else (
-        b"go-version: '1.27.2'", b"go-version: '1.27.3'")
+    old, new = _version_tokens(path)
     if data.count(new) != count or old in data:
         raise ValueError('unexpected Go toolchain pin count: ' + path)
+    return data
+
+
+def previous_toolchain_bytes(path, data):
+    """Return the old scope's bytes only for an exact reviewed replacement."""
+    data = verify_admitted(path, data)
+    if path not in PINS:
+        return data
+    previous = PINS[path][1]
+    if previous is None:
+        raise ValueError('no reversible pre-1.27.3 image on record: ' + path)
+    old, new = _version_tokens(path)
     restored = data.replace(new, old)
     if hashlib.sha256(restored).hexdigest() != previous:
         raise ValueError('non-version change in Go toolchain file: ' + path)

@@ -18,6 +18,7 @@ func TestNativeOIDCRenewalCannotReplaceAfterUnpumpedExpiry(t *testing.T) {
 	cfg, _ := renewalAPIServer(t)
 	h := newRelationshipHarness(t, 12*time.Second)
 	loginRenewable(t, h, p, cfg)
+	h.click("Connections")
 	h.click("Browser sign-in")
 	h.click("Renew identity once")
 	h.pump(func() bool { return !h.w.oidcPending })

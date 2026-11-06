@@ -1,5 +1,4 @@
 diff --git a/internal/vt/open_windows.go b/internal/vt/open_windows.go
-index 4b24a3e..f8c0c04 100644
 --- a/internal/vt/open_windows.go
 +++ b/internal/vt/open_windows.go
 @@ -2,13 +2,13 @@
@@ -20,7 +19,6 @@ index 4b24a3e..f8c0c04 100644
 +	return windows.GetProcAddress(windows.Handle(h), name)
  }
 diff --git a/library.go b/library.go
-index 064604e..c63a688 100644
 --- a/library.go
 +++ b/library.go
 @@ -1,56 +1,132 @@
@@ -66,19 +64,11 @@ index 064604e..c63a688 100644
  
 -// Load loads libghostty-vt, once, from LibraryPath. New calls it; call it
 -// earlier to report a missing library before showing a terminal.
--func Load() error {
--	load.once.Do(func() {
--		if !vt.Supported {
--			load.err = fmt.Errorf("terminal: not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
--			return
 +func librarySpec() (string, string, error) {
 +	var m struct {
 +		Libraries []struct {
 +			Files map[string]struct{ Name, SHA256 string }
- 		}
--		load.path, load.err = LibraryPath()
--		if load.err == nil {
--			load.err = vt.Load(load.path)
++		}
 +	}
 +	if json.Unmarshal(natives, &m) != nil || len(m.Libraries) != 1 {
 +		return "", "", errors.New("invalid terminal library manifest")
@@ -141,13 +131,21 @@ index 064604e..c63a688 100644
 +				return "", e
 +			}
 +			return p, nil
- 		}
--	})
--	return load.err
++		}
 +	}
 +	return "", errors.New("terminal library not packaged; run the verified build preparation")
 +}
-+func Load() error {
+ func Load() error {
+-	load.once.Do(func() {
+-		if !vt.Supported {
+-			load.err = fmt.Errorf("terminal: not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+-			return
+-		}
+-		load.path, load.err = LibraryPath()
+-		if load.err == nil {
+-			load.err = vt.Load(load.path)
+-		}
+-	})
 +	load.mu.Lock()
 +	defer load.mu.Unlock()
 +	if load.loaded {
@@ -158,21 +156,8 @@ index 064604e..c63a688 100644
 +		return err
 +	}
 +	return loadFile(p)
- }
- 
--// LibraryPath returns the libghostty-vt the terminal loads, the first of:
--//
--//   - the file $MYGO_GHOSTTY_VT names;
--//   - the one among the app's resources (mygo.PathResources), where `mygo
--//     build` and `mygo dev` put it, signed with the app on macOS;
--//   - the one next to the executable;
--//   - the one in the user's cache, where the CLI downloads it
--//     (<cache>/mygo/natives/<sha256>/), which programs that are not
--//     packaged apps, as under `go run` and `go test`, download there when
--//     it is missing, checking its SHA-256.
--//
--// Packaged apps never download it: build them with the CLI.
--func LibraryPath() (string, error) { return library.Find(natives) }
++}
++
 +// LoadFile is for explicit embedding/test callers, never derived from a
 +// kubeconfig or remote output. Hash verification is always mandatory.
 +func LoadFile(path string) error {
@@ -193,15 +178,28 @@ index 064604e..c63a688 100644
 +	load.path = path
 +	load.loaded = true
 +	load.err = vt.Load(path)
-+	return load.err
-+}
+ 	return load.err
+ }
+-
+-// LibraryPath returns the libghostty-vt the terminal loads, the first of:
+-//
+-//   - the file $MYGO_GHOSTTY_VT names;
+-//   - the one among the app's resources (mygo.PathResources), where `mygo
+-//     build` and `mygo dev` put it, signed with the app on macOS;
+-//   - the one next to the executable;
+-//   - the one in the user's cache, where the CLI downloads it
+-//     (<cache>/mygo/natives/<sha256>/), which programs that are not
+-//     packaged apps, as under `go run` and `go test`, download there when
+-//     it is missing, checking its SHA-256.
+-//
+-// Packaged apps never download it: build them with the CLI.
+-func LibraryPath() (string, error) { return library.Find(natives) }
 diff --git a/paint.go b/paint.go
-index f4e43b1..5b3a22a 100644
 --- a/paint.go
 +++ b/paint.go
-@@ -83,7 +83,7 @@ func (v *view) layout(r ui.Rect, scale float32) {
- 	}
- 	v.ox, v.oy = int(math.Round(padX*float64(scale))), int(math.Round(padY*float64(scale)))
+@@ -103,7 +103,7 @@
+ 	px, py := t.opts.padding()
+ 	v.ox, v.oy = int(math.Round(float64(px*scale))), int(math.Round(float64(py*scale)))
  	w, h := int(math.Round(float64(r.W*scale)))-2*v.ox, int(math.Round(float64(r.H*scale)))-2*v.oy
 -	v.cols, v.rows = max(w/v.cellW, 1), max(h/v.cellH, 1)
 +	v.cols, v.rows = min(max(w/v.cellW, 1), 400), min(max(h/v.cellH, 1), 200)
@@ -209,10 +207,9 @@ index f4e43b1..5b3a22a 100644
  
  const asciiPrintable = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 diff --git a/paste.go b/paste.go
-index ed38aa6..88dd3a6 100644
 --- a/paste.go
 +++ b/paste.go
-@@ -20,6 +20,10 @@ var notTakenAfter = 5 * time.Second
+@@ -24,6 +24,10 @@
  // offered to a program that reads the clipboard itself (mode 5522), which
  // reads it as text/plain.
  func (t *Terminal) Paste(text string) {
@@ -223,7 +220,7 @@ index ed38aa6..88dd3a6 100644
  	if text != "" {
  		t.PasteData(transfer.TextData(text))
  	}
-@@ -100,61 +104,26 @@ func readFormat(d transfer.Data, mime string) []byte {
+@@ -104,61 +108,26 @@
  // view read only some of them, which tell whether a paste of no text had
  // something else.
  func (t *Terminal) pasteData(d transfer.Data, held []transfer.Format) {
@@ -296,7 +293,7 @@ index ed38aa6..88dd3a6 100644
  }
  
  func (t *Terminal) pasteStatus(p PasteProgress) {
-@@ -188,52 +157,8 @@ type clipboardRequest struct {
+@@ -192,61 +161,8 @@
  // the main thread (ClipboardDeferred), which may first ask the app.
  // t.mu is held.
  func (t *Terminal) clipboardRead(req vt.ClipboardRead) (vt.ClipboardReply, vt.ClipboardAnswer) {
@@ -321,6 +318,15 @@ index ed38aa6..88dd3a6 100644
 -		// does not know: it is another window's paste follow-up, and the
 -		// terminal that pasted answers it. Staying silent keeps this one
 -		// from answering twice.
+-		return vt.ClipboardReply{}, vt.ClipboardRefused
+-	}
+-	if t.opts.ClipboardRead == ClipboardForward {
+-		// Silent, as a read another terminal answers: an OSC 52 read goes
+-		// on with a Mirror's next frame.
+-		if len(req.Mimes) == 1 && req.Mimes[0] == "text/plain" && !req.List {
+-			t.clipForward = queue(t.clipForward, req.Primary)
+-			t.redraw()
+-		}
 -		return vt.ClipboardReply{}, vt.ClipboardRefused
 -	}
 -	if t.opts.ClipboardRead == ClipboardDeny {
@@ -350,8 +356,8 @@ index ed38aa6..88dd3a6 100644
 +	return vt.ClipboardReply{}, vt.ClipboardAnswered
  }
  
- // sendReply queues a paste's reply in pieces, each telling how far it went
-@@ -263,7 +188,5 @@ func (t *Terminal) sendReply(p []byte) {
+ // maxQueued bounds what programs' uses of the clipboard queue for a frame
+@@ -289,9 +205,7 @@
  // readsClipboard reports whether the program reads the clipboard itself
  // (mode 5522), as a paste then offers it all the clipboard holds.
  func (t *Terminal) readsClipboard() bool {
@@ -360,11 +366,12 @@ index ed38aa6..88dd3a6 100644
 -	return t.term != nil && t.term.Mode(vt.ModePasteEvents)
 +	return false
  }
+ 
+ // dropFiles pastes the paths of files dropped on the terminal, as Ghostty
 diff --git a/terminal.go b/terminal.go
-index a0054ee..06aeab8 100644
 --- a/terminal.go
 +++ b/terminal.go
-@@ -378,10 +378,11 @@ type Terminal struct {
+@@ -523,10 +523,11 @@
  	held      bool
  	heldSince time.Time
  
@@ -378,9 +385,9 @@ index a0054ee..06aeab8 100644
 +	doneOnce                          sync.Once
 +	code                              atomic.Int64
  
- 	// curTheme is the view's theme, for the program's questions; t.mu
- 	// guards it. v is the view's state, on the main thread.
-@@ -404,40 +405,40 @@ type events struct {
+ 	// find is the search, while one goes (Search).
+ 	find search
+@@ -552,43 +553,41 @@
  // The program starts once a view shows the terminal, at the size of the
  // view, or half a second later at 80×24 when none does.
  func New(opts Options) (*Terminal, error) {
@@ -389,6 +396,7 @@ index a0054ee..06aeab8 100644
 +	}
 +	opts.Command, opts.Dir, opts.Env = nil, "", nil
 +	opts.Scrollback = 2 << 20
++	opts.ImageLimit = -1
 +	// A dependency upgrade must never grant a remote program local capabilities.
 +	opts.NoClipboardWrite, opts.ClipboardRead = true, ClipboardDeny
 +	opts.CopyOnSelect, opts.RightClick = CopyOnSelectNone, RightClickContextMenu
@@ -427,7 +435,10 @@ index a0054ee..06aeab8 100644
 -			if primary || t.opts.NoClipboardWrite {
 -				return false
 -			}
--			t.clipOut = append(t.clipOut, text)
+-			t.clipOut = queue(t.clipOut, text)
+-			for _, m := range t.mirrors {
+-				m.clipOut = queue(m.clipOut, text)
+-			}
 -			t.redraw()
 -			return true
 -		},
@@ -444,7 +455,7 @@ index a0054ee..06aeab8 100644
  	})
  	if err != nil {
  		return nil, err
-@@ -498,7 +499,15 @@ func New(opts Options) (*Terminal, error) {
+@@ -660,7 +659,15 @@
  // run reads the output and writes the input of the program, or Conn.
  func (t *Terminal) run() {
  	go t.read()
@@ -461,7 +472,7 @@ index a0054ee..06aeab8 100644
  }
  
  // start starts the program of launch, which the caller took, in a
-@@ -749,11 +758,11 @@ func (t *Terminal) zoom(z Zoom) {
+@@ -911,11 +918,11 @@
  	t.redraw()
  }
  
@@ -476,7 +487,7 @@ index a0054ee..06aeab8 100644
  	t.mu.Unlock()
  }
  
-@@ -789,7 +798,7 @@ func (t *Terminal) Text() string {
+@@ -989,7 +996,7 @@
  func (t *Terminal) Resize(cols, rows int) {
  	t.mu.Lock()
  	defer t.mu.Unlock()
@@ -484,23 +495,33 @@ index a0054ee..06aeab8 100644
 +	t.resize(gridSize{min(max(cols, 1), 400), min(max(rows, 1), 200), t.size.cellW, t.size.cellH})
  }
  
+ // ResizePixels is Resize with the size of a cell in pixels, for a terminal
+@@ -1003,7 +1010,7 @@
+ 	if cellWidth <= 0 || cellHeight <= 0 {
+ 		cellWidth, cellHeight = t.size.cellW, t.size.cellH
+ 	}
+-	t.resize(gridSize{max(cols, 1), max(rows, 1), cellWidth, cellHeight})
++	t.resize(gridSize{min(max(cols, 1), 400), min(max(rows, 1), 200), cellWidth, cellHeight})
+ }
+ 
  // Snapshot returns what the terminal shows as escape sequences: its
-@@ -808,10 +817,13 @@ func (t *Terminal) Snapshot() []byte {
+@@ -1022,9 +1029,12 @@
  // Send sends data to the program as if typed.
  func (t *Terminal) Send(data []byte) {
  	if len(data) > 0 {
 -		t.in.push(append([]byte(nil), data...))
+-	}
+-}
 +		t.in.push(data)
- 	}
- }
- 
++	}
++}
++
 +// Paste pastes text, bracketed when the program asks (mode 2004), so that
 +// it does not run as commands as it would typed.
-+
+ 
  // Feed shows data as if the program wrote it: text and escape sequences.
  func (t *Terminal) Feed(data []byte) { t.write(data) }
- 
-@@ -822,11 +834,12 @@ func (t *Terminal) Close() error {
+@@ -1075,11 +1085,12 @@
  	t.mu.Lock()
  	if t.closed {
  		t.mu.Unlock()
@@ -515,17 +536,17 @@ index a0054ee..06aeab8 100644
  	src, proc, waiting := t.src, t.proc, t.launch != nil
  	t.launch = nil
  	if t.timer != nil {
-@@ -857,6 +870,9 @@ func (t *Terminal) Close() error {
- 	// free it under the locks.
+@@ -1111,6 +1122,9 @@
  	t.mu.Lock()
  	t.rmu.Lock()
+ 	t.endSearch()
 +	if t.v != nil {
 +		t.v.release()
 +	}
  	t.term.Free()
  	t.term = nil
  	t.rs.Free()
-@@ -987,14 +1003,23 @@ func unhex(c byte) (byte, bool) {
+@@ -1312,14 +1326,23 @@
  // inputQueue writes what is typed to the program in order, from a
  // goroutine of its own: a program that does not read its input must not
  // block the reader, which answers its queries.
@@ -542,6 +563,9 @@ index a0054ee..06aeab8 100644
 -	cond   *sync.Cond
 -	queue  []queued
 -	closed bool
+-}
+-
+-// queued is input to write, and what to run once it is written.
 +	mu            sync.Mutex
 +	cond          *sync.Cond
 +	queue         []queued
@@ -549,16 +573,21 @@ index a0054ee..06aeab8 100644
 +	closed        bool
 +	failed        chan struct{}
 +	err           error
- }
--
--// queued is input to write, and what to run once it is written.
++}
  type queued struct {
  	p    []byte
  	done func()
-@@ -1003,32 +1028,51 @@ type queued struct {
+@@ -1328,32 +1351,51 @@
  func (q *inputQueue) init() {
  	if q.cond == nil {
  		q.cond = sync.NewCond(&q.mu)
+-	}
+-}
+-
+-func (q *inputQueue) push(p []byte) { q.pushDone(p, nil) }
+-
+-// pushDone queues p, and done to run once it is written, on the queue's
+-// goroutine.
 +		q.failed = make(chan struct{})
 +	}
 +}
@@ -576,13 +605,9 @@ index a0054ee..06aeab8 100644
 +func (q *inputQueue) push(p []byte) {
 +	if len(p) > 0 {
 +		q.pushDone(p, nil)
- 	}
- }
- 
--func (q *inputQueue) push(p []byte) { q.pushDone(p, nil) }
--
--// pushDone queues p, and done to run once it is written, on the queue's
--// goroutine.
++	}
++}
++
 +// Callbacks count as chunks too; queued and in-flight work share one budget.
  func (q *inputQueue) pushDone(p []byte, done func()) {
  	q.mu.Lock()
@@ -591,10 +616,13 @@ index a0054ee..06aeab8 100644
 -	if !q.closed {
 -		q.queue = append(q.queue, queued{p, done})
 -		q.cond.Signal()
+-	}
+-	q.mu.Unlock()
+-}
+-
 +	if q.closed || (len(p) == 0 && done == nil) {
 +		return
- 	}
--	q.mu.Unlock()
++	}
 +	if len(p) > MaxInputChunk+16 || len(p) > MaxInputBytes-q.bytes || q.chunks >= MaxInputChunks {
 +		q.failLocked(ErrInputLimit)
 +		return
@@ -603,8 +631,7 @@ index a0054ee..06aeab8 100644
 +	q.bytes += len(p)
 +	q.chunks++
 +	q.cond.Signal()
- }
--
++}
  func (q *inputQueue) close() {
  	q.mu.Lock()
 +	defer q.mu.Unlock()
@@ -613,12 +640,13 @@ index a0054ee..06aeab8 100644
  	q.queue = nil
  	q.cond.Broadcast()
 -	q.mu.Unlock()
- }
+-}
 -
++}
  func (q *inputQueue) run(w io.Writer) {
  	for {
  		q.mu.Lock()
-@@ -1041,20 +1085,51 @@ func (q *inputQueue) run(w io.Writer) {
+@@ -1366,19 +1408,50 @@
  			return
  		}
  		item := q.queue[0]
@@ -629,7 +657,6 @@ index a0054ee..06aeab8 100644
 -			// Only something to run, in its place among the writes.
 -		} else if _, err := w.Write(item.p); err != nil {
 -			q.close()
--			return
 +		var n int
 +		var err error
 +		if len(item.p) > 0 {
@@ -637,11 +664,10 @@ index a0054ee..06aeab8 100644
 +		}
 +		if err == nil && n != len(item.p) {
 +			err = io.ErrShortWrite
- 		}
--		if item.done != nil {
++		}
 +		if err == nil && item.done != nil {
- 			item.done()
- 		}
++			item.done()
++		}
 +		q.mu.Lock()
 +		q.bytes -= len(item.p)
 +		q.chunks--
@@ -650,11 +676,16 @@ index a0054ee..06aeab8 100644
 +		}
 +		q.mu.Unlock()
 +		if err != nil {
-+			return
-+		}
- 	}
- }
- 
+ 			return
+ 		}
+-		if item.done != nil {
+-			item.done()
+-		}
+-	}
+-}
++	}
++}
++
 +// InputError does not expose connection errors which may contain credentials.
 +func (t *Terminal) InputError() error {
 +	t.in.mu.Lock()
@@ -672,15 +703,13 @@ index a0054ee..06aeab8 100644
 +// unblock the supplied Conn. Remote exit status is provided by Kubernetes,
 +// never Terminal.ExitCode, which only describes the local stream.
 +func (t *Terminal) IOFinished() { <-t.done; <-t.inputDone; <-t.failureDone }
-+
+ 
  func vtCursor(s CursorStyle) vt.CursorStyle {
  	switch s {
- 	case CursorBar:
 diff --git a/view.go b/view.go
-index a7ba7b7..c290942 100644
 --- a/view.go
 +++ b/view.go
-@@ -9,7 +9,6 @@ import (
+@@ -8,7 +8,6 @@
  	"time"
  	"unicode/utf8"
  
@@ -688,7 +717,7 @@ index a7ba7b7..c290942 100644
  	"github.com/egoist/mygo/plugins/terminal/internal/vt"
  	"github.com/egoist/mygo/transfer"
  	"github.com/egoist/mygo/ui"
-@@ -52,6 +51,8 @@ func View(c *ui.Context, t *Terminal) ui.Element {
+@@ -125,6 +124,8 @@
  // viewOf returns the terminal's view state, made on the first frame
  // showing it.
  func (t *Terminal) viewOf(c *ui.Context) *view {
@@ -697,7 +726,18 @@ index a7ba7b7..c290942 100644
  	if t.v == nil {
  		t.v = &view{t: t, blinkStart: time.Now()}
  		t.v.shaped.init(4096)
-@@ -233,47 +234,7 @@ func (v *view) answerReads(c *ui.Context, term *vt.Terminal) {
+@@ -262,9 +263,7 @@
+ // build updates the view as a frame builds.
+ func (v *view) build(c *ui.Context, e ui.Element) {
+ 	t := v.t
+-	if files := e.DroppedFiles(); len(files) > 0 {
+-		t.dropFiles(files)
+-	}
++	// File drops must not send local paths to the remote session.
+ 	v.lang = c.Locale()
+ 	dark := c.Theme().Dark
+ 	focused := e.Focused()
+@@ -372,47 +371,7 @@
  
  // answerRead answers r if it can this frame, and reports whether it did.
  func (v *view) answerRead(c *ui.Context, term *vt.Terminal, r *clipboardRequest) bool {
@@ -746,7 +786,7 @@ index a7ba7b7..c290942 100644
  	return true
  }
  
-@@ -289,40 +250,9 @@ func (v *view) readAnswer(r *clipboardRequest) int8 {
+@@ -428,40 +387,9 @@
  // finishRead answers a read with what the clipboard holds of what the
  // program asked for, read here on the main thread, or with its refusal.
  func (v *view) finishRead(term *vt.Terminal, r *clipboardRequest, allow bool) {
@@ -783,12 +823,13 @@ index a7ba7b7..c290942 100644
 -		if m := offerMIME(f); m != "" && !slices.Contains(available, m) {
 -			available = append(available, m)
 -		}
- 	}
+-	}
 -	v.answer(term, r, true, contents, available)
++	}
  }
  
  // answer writes the answer of a read under t.mu, as the reader goroutine
-@@ -342,13 +272,7 @@ func (v *view) answer(term *vt.Terminal, r *clipboardRequest, allow bool, conten
+@@ -481,13 +409,7 @@
  // text it would read as one line, the types it asked for when the
  // clipboard holds no text, or that the clipboard is empty.
  func (v *view) readMessage(r *clipboardRequest) string {
@@ -803,7 +844,7 @@ index a7ba7b7..c290942 100644
  }
  
  // previewText is text as one line of at most 200 runes.
-@@ -378,7 +302,7 @@ func (v *view) release() {
+@@ -517,7 +439,7 @@
  		v.mouse = nil
  	}
  	if v.gesture != nil {
@@ -812,14 +853,15 @@ index a7ba7b7..c290942 100644
  		v.gesture = nil
  	}
  }
-@@ -403,18 +327,17 @@ func (v *view) menu(m *ui.Menu) {
- 		text, selected = t.term.SelectionText()
+@@ -543,21 +465,20 @@
+ 		alt = t.term.AltScreen()
  	}
  	t.mu.Unlock()
 -	tx := l10n.In(v.lang)
 -	if v.menuItem(m, tx.Copy(), ActionCopy).Disabled(!selected || text == "").Chosen() {
 +	if v.menuItem(m, "Copy", ActionCopy).Disabled(!selected || text == "").Chosen() {
  		v.services.WriteClipboard(text)
+ 		v.copied(text, CopyUser)
  	}
 -	if v.menuItem(m, tx.Paste(), ActionPaste).Chosen() {
 +	if v.menuItem(m, "Paste", ActionPaste).Chosen() {
@@ -830,12 +872,14 @@ index a7ba7b7..c290942 100644
  		v.selectAll()
  	}
  	m.Separator()
--	if m.Item(tx.ClearScrollback()).Chosen() {
-+	if m.Item("Clear scrollback").Chosen() {
- 		t.Feed([]byte("\x1b[3J"))
+ 	// Clear clears as ⌘K does, as Ghostty's: clearing the scrollback
+ 	// alone would change nothing on the screen.
+-	if v.menuItem(m, tx.ClearTerminal(), ActionClearScreen).Disabled(alt).Chosen() {
++	if v.menuItem(m, "Clear terminal", ActionClearScreen).Disabled(alt).Chosen() {
+ 		v.clearScreen()
  	}
  }
-@@ -439,6 +362,10 @@ func (v *view) input(ev ui.InputEvent) bool {
+@@ -582,6 +503,10 @@
  		v.typed(ev.Text)
  		return true
  	case ui.InputCompose:
@@ -846,7 +890,7 @@ index a7ba7b7..c290942 100644
  		v.preedit, v.preeditCaret, v.pending = ev.Text, ev.Caret, nil
  		return true
  	case ui.InputCommand:
-@@ -454,35 +381,9 @@ func (v *view) input(ev ui.InputEvent) bool {
+@@ -597,36 +522,9 @@
  		}
  		return true
  	case ui.InputPointerDown, ui.InputPointerUp, ui.InputPointerMove:
@@ -862,6 +906,7 @@ index a7ba7b7..c290942 100644
 -			// up while another program has it.
 -			v.copying = ""
 -			v.services.WriteClipboard(text)
+-			v.copied(text, CopySelect)
 -		}
 -		if a := v.rightClick; a != RightClickContextMenu {
 -			// Outside pointerEvent's lock, which copying and pasting take.
@@ -885,7 +930,7 @@ index a7ba7b7..c290942 100644
  	case ui.InputScroll:
  		return v.scroll(ev)
  	}
-@@ -661,6 +562,10 @@ func (v *view) keyUp(ev ui.InputEvent) bool {
+@@ -801,6 +699,10 @@
  
  // typed sends text typed or committed by an input method.
  func (v *view) typed(text string) {
@@ -896,7 +941,7 @@ index a7ba7b7..c290942 100644
  	v.preedit = ""
  	p := v.pending
  	v.pending = nil
-@@ -725,7 +630,7 @@ func (v *view) encodeKey(k vt.KeyEvent, press bool) bool {
+@@ -865,7 +767,7 @@
  	if len(b) == 0 {
  		return false
  	}
@@ -905,7 +950,7 @@ index a7ba7b7..c290942 100644
  	if press {
  		t.term.ScrollToBottom()
  		t.term.SetSelection(nil)
-@@ -776,30 +681,9 @@ func (v *view) copy(clear bool) bool {
+@@ -925,30 +827,9 @@
  // later, from the terminal's goroutine, where the clipboard cannot be
  // read: it reads what was read here.
  func (v *view) paste() bool {
@@ -939,7 +984,7 @@ index a7ba7b7..c290942 100644
  	return true
  }
  
-@@ -817,21 +701,13 @@ func (v *view) clearSelection() {
+@@ -966,22 +847,13 @@
  func (v *view) selectAll() {
  	t := v.t
  	t.mu.Lock()
@@ -957,25 +1002,26 @@ index a7ba7b7..c290942 100644
 -		// Outside the lock, which the clipboard may hold up while
 -		// another program has it.
 -		v.services.WriteClipboard(text)
+-		v.copied(text, CopySelect)
 -	}
 +	// Selection is not authorization to write the host clipboard.
  	v.services.Invalidate()
  }
  
-@@ -945,10 +821,8 @@ func (v *view) pointerEvent(ev ui.InputEvent) bool {
- // is a file path: none without Command, or while the primary button
- // selects or the program has a press; t.mu is held.
- func (v *view) linkUnder(mods ui.Modifiers, x, y float32) (link string, path bool) {
--	if mods&ui.Cmd == 0 || v.selecting || v.reporting || v.cellW == 0 {
--		return "", false
+@@ -1139,10 +1011,8 @@
+ // a file path, and its cells: none without Command, or while the primary
+ // button selects or the program has a press; t.mu is held.
+ func (v *view) linkUnder(mods ui.Modifiers, x, y float32) (link string, path bool, at linkSpan) {
+-	if mods&ui.Cmd == 0 || v.selecting || v.reporting || v.cellW == 0 || v.overScrollbar(x, y) {
+-		return "", false, linkSpan{}
 -	}
 -	return v.linkAt(v.cellAt(x, y))
-+	// Disable link activation/hover before parsing remote output.
-+	return "", false
++	// Remote output does not authorize opening a local application.
++	return "", false, linkSpan{}
  }
  
- // linkAt is the link at the cell: a hyperlink (OSC 8), a URL printed as
-@@ -1023,7 +897,7 @@ func (v *view) report(ev ui.InputEvent) bool {
+ // scrollbarStrip is how wide the strip at the right edge is over which the
+@@ -1324,7 +1194,7 @@
  	v.mouse.Sync(t.term, v.ox*2+v.cols*v.cellW, v.oy*2+v.rows*v.cellH, v.cellW, v.cellH, v.ox, v.oy, pressed)
  	out := v.mouse.Encode(action, b, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale)
  	if len(out) > 0 {
@@ -984,7 +1030,7 @@ index a7ba7b7..c290942 100644
  	}
  	return ev.Kind != ui.InputPointerMove || len(out) > 0
  }
-@@ -1090,7 +964,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1417,7 +1287,7 @@
  		}
  		for range abs(rows) {
  			if out := v.mouse.Encode(vt.MousePress, button, vtMods(ev.Mods), ev.X*v.scale, ev.Y*v.scale); len(out) > 0 {
@@ -993,7 +1039,7 @@ index a7ba7b7..c290942 100644
  			}
  		}
  	case v.wheelArrows():
-@@ -1107,7 +981,7 @@ func (v *view) scroll(ev ui.InputEvent) bool {
+@@ -1434,7 +1304,7 @@
  			key = vt.KeyArrowUp
  		}
  		for range abs(rows) {
@@ -1002,3 +1048,50 @@ index a7ba7b7..c290942 100644
  		}
  	default:
  		t.term.ScrollBy(rows)
+diff --git a/terminal.go b/terminal.go
+index 95bb237..d514f66 100644
+--- a/terminal.go
++++ b/terminal.go
+@@ -411,6 +411,8 @@ const (
+ 
+ // Zoom is a change of the font's size the user asks for (Options.OnZoom).
+ type Zoom struct {
++	// Scale multiplies the font size for a pinch; zero leaves it unchanged.
++	Scale float32
+ 	// Steps is how many steps, larger positive: a notch of the wheel
+ 	// rolled up, or a press of a key bound to ActionIncreaseFontSize, is
+ 	// 1. A trackpad's moves add up to notches.
+@@ -940,10 +942,15 @@ func (t *Terminal) zoom(z Zoom) {
+ 	switch {
+ 	case z.Reset:
+ 		t.fontSize = 0
+-	case z.Steps != 0:
++	case z.Steps != 0 || z.Scale > 0:
+ 		f := t.font()
+ 		size := f.key(1).size
+-		t.fontSize = max(size+float32(z.Steps), 1)
++		if z.Scale > 0 {
++			size *= z.Scale
++		} else {
++			size += float32(z.Steps)
++		}
++		t.fontSize = max(size, 1)
+ 	}
+ 	t.mu.Unlock()
+ 	t.redraw()
+diff --git a/view.go b/view.go
+index 7545b25..0df9a86 100644
+--- a/view.go
++++ b/view.go
+@@ -527,6 +527,11 @@ func (v *view) input(ev ui.InputEvent) bool {
+ 		return v.pointerEvent(ev)
+ 	case ui.InputScroll:
+ 		return v.scroll(ev)
++	case ui.InputZoom:
++		if ev.Scale > 0 && !math.IsInf(float64(ev.Scale), 0) {
++			v.zoom(Zoom{Scale: ev.Scale})
++			return true
++		}
+ 	}
+ 	return false
+ }

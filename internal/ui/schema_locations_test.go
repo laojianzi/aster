@@ -35,7 +35,7 @@ func chooseDiagnostic(h *relationshipHarness, path string) schemaLocation {
 	for _, target := range h.w.schemaLocations {
 		if target.position.Pointer == path {
 			h.click("Schema location")
-			if err := h.tt.ChooseMenuItem(target.label); err != nil {
+			if err := h.tt.Click(target.label); err != nil {
 				h.t.Fatal(err)
 			}
 			if h.w.schemaLocationChoice != target.label {
@@ -164,7 +164,7 @@ func TestNativeSchemaNavigationRespectsCompositionAndIsOneShot(t *testing.T) {
 func TestNativeSchemaLocationControlsAtMinimumWindow(t *testing.T) {
 	h := diagnosticHarness(t)
 	h.tt.SetSize(1100, 700)
-	for _, label := range []string{"Manifest editor", "Schema location", "Go to location", "Schema assistance", "Preview edit", "Apply", "Close detail", "Preview delete"} {
+	for _, label := range []string{"Manifest editor", "Schema location", "Go to location", "Schema assistance", "Preview edit", "Apply", "Close detail", "Actions"} {
 		r, ok := h.tt.Find(label)
 		if !ok || r.W <= 0 || r.H <= 0 || r.X < 0 || r.Y < 0 || r.X+r.W > 1088 || r.Y+r.H > 700 {
 			t.Errorf("%s outside minimum window: %+v found=%v", label, r, ok)
@@ -265,7 +265,7 @@ func TestNativeSchemaLocationMenuCannotApplyStaleSelection(t *testing.T) {
 	choice := h.w.schemaLocationChoice
 	h.click("Schema location")
 	h.w.clearSchema()
-	if err := h.tt.ChooseMenuItem(choice); err != nil {
+	if err := h.tt.Click(choice); err != nil {
 		t.Fatal(err)
 	}
 	if h.w.schemaLocationChoice != "" || h.w.schemaJump != nil {

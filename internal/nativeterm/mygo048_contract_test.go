@@ -3,6 +3,7 @@ package nativeterm
 import (
 	"bufio"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +31,14 @@ func TestTerminalNativeMyGo048WheelRoutingAndClose(t *testing.T) {
 			tt := ui.NewTester(func(c *ui.Context) { View(c, term).Fill() }, 800, 500)
 			term.Feed([]byte(strings.Repeat("history\r\n", 100) + tc.modes))
 			tt.Frame()
-			tt.Scroll(100, 100, 0, -40)
+			notch := float32(-40)
+			switch runtime.GOOS {
+			case "linux":
+				notch = -50
+			case "windows":
+				notch = -99
+			}
+			tt.Wheel(100, 100, 0, notch)
 			// A queued marker is an ordering barrier, not a timed assertion that
 			// no input happened. The bounded reader observes all preceding bytes.
 			term.Send([]byte{0})

@@ -20,7 +20,12 @@ class GoToolchainPolicyTests(unittest.TestCase):
                 found.add(p.relative_to(ROOT).as_posix())
         self.assertEqual(found, set(policy.PINS) - {'go.mod'})
         self.assertEqual(sum(v[0] for k, v in policy.PINS.items() if k != 'go.mod'), 10)
+        # Retired reversibility is one named carve-out, not a category. A second
+        # file losing its previous image has to grow this set deliberately.
+        self.assertEqual({k for k, v in policy.PINS.items() if v[1] is None}, {'go.mod'})
         for path, (count, old_sha, new_sha) in policy.PINS.items():
+            if old_sha is None:
+                continue
             with self.subTest(path=path):
                 data = (ROOT / path).read_bytes()
                 self.assertEqual(hashlib.sha256(data).hexdigest(), new_sha)
@@ -28,15 +33,31 @@ class GoToolchainPolicyTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(old).hexdigest(), old_sha)
                 self.assertNotEqual(old, data)
 
+    def test_retired_go_mod_image_admits_but_never_reconstructs(self):
+        data = (ROOT / 'go.mod').read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(), policy.PINS['go.mod'][2])
+        self.assertEqual(policy.verify_admitted('go.mod', data), data)
+        # Asking for the old image must fail loudly rather than return a guess.
+        with self.assertRaises(ValueError):
+            policy.previous_toolchain_bytes('go.mod', data)
+        # Retiring reversibility must not retire admission: any byte outside the
+        # reviewed digest, or a duplicated token, still fails closed.
+        for changed in (data.replace(b'mygo v0.7.4', b'mygo v0.7.5'),
+                        data.replace(b'go 1.27.3', b'go 1.27.3\ngo 1.27.3'),
+                        data + b'\n'):
+            with self.subTest(changed=changed[-16:]):
+                with self.assertRaises(ValueError):
+                    policy.verify_admitted('go.mod', changed)
+
     def test_older_newer_floating_duplicate_and_missing_pins_are_refused(self):
         for path in policy.PINS:
             data = (ROOT / path).read_bytes()
             for wrong in (b'1.27.2', b'1.27.4', b'1.27', b'latest', b''):
                 with self.subTest(path=path, wrong=wrong):
                     with self.assertRaises(ValueError):
-                        policy.previous_toolchain_bytes(path, data.replace(b'1.27.3', wrong))
+                        policy.verify_admitted(path, data.replace(b'1.27.3', wrong))
             with self.assertRaises(ValueError):
-                policy.previous_toolchain_bytes(path, data + b"\n# 1.27.3\n")
+                policy.verify_admitted(path, data + b"\n# 1.27.3\n")
 
     def test_actions_permissions_timeouts_and_required_tests_are_not_normalized(self):
         path = '.github/workflows/ci.yml'
@@ -59,18 +80,31 @@ class GoToolchainPolicyTests(unittest.TestCase):
         data = (ROOT / 'go.mod').read_bytes()
         self.assertIn(b'github.com/ebitengine/purego v0.11.1', data)
         with self.assertRaises(ValueError):
-            policy.previous_toolchain_bytes('go.mod', data.replace(b'purego v0.11.1', b'purego v0.11.2'))
+            policy.verify_admitted('go.mod', data.replace(b'purego v0.11.1', b'purego v0.11.2'))
         other = b'go 1.27.3\n'
         self.assertEqual(policy.previous_toolchain_bytes('unregistered.yml', other), other)
 
     def test_old_journal_fixture_remains_immutable(self):
         data = (ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json').read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(),
-                         'a67c2846450f78c9fe8cfea87d0a90dd8d6b6470368eb8b895b9dff3e7d77109')
+                         'e5c86c5f57c995689c5b3ac1f4dc2a534863c7c6e5da7fee97aeb265098ed561')
         fixture = json.loads(data)
         for path, old_hash in fixture['unchanged_source_sha256'].items():
             restored = policy.previous_toolchain_bytes(path, (ROOT / path).read_bytes())
             self.assertEqual(hashlib.sha256(restored).hexdigest(), old_hash, path)
+        # Files the v0.7.x migrations rewrote are frozen at their reviewed bytes
+        # under a separate key, so no entry here claims an image it cannot show.
+        for path, reviewed in fixture['refrozen_source_sha256'].items():
+            self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(),
+                             reviewed, path)
+        # go.mod is admitted by PINS alone; it has no image in either key because
+        # its toolchain token and mygo requirement moved together.
+        self.assertEqual(set(fixture) - {'schema', 'source_commit', 'hash_convention',
+                                         'required', 'unchanged_source_sha256',
+                                         'refrozen_source_sha256'}, set())
+        self.assertNotIn('go.mod', fixture['unchanged_source_sha256'])
+        self.assertNotIn('go.mod', fixture['refrozen_source_sha256'])
+        self.assertIn('go.mod', policy.PINS)
 
     def test_installed_go_matches_official_security_sources(self):
         receipt = policy.installed_toolchain()

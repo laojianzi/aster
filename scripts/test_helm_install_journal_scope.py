@@ -97,8 +97,12 @@ class InstallJournalScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+digest)
         self.assertTrue(added <= tracked)
         self.assertEqual(len(rows),260)
+        # Re-frozen for the mygo v0.7.x migrations. The row count and the
+        # protected set are unchanged; only the bytes behind 64 of them moved.
+        # Previous values 7e8a4d4c... (8de1541) and d59a129d... (v0.7.3) are
+        # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '7e8a4d4c2695cb3054139fa133c794564a47233a3a402f49af15b58d59e83e1c')
+                         '1b58eddf59119768992f448066f66100f3fd5fbbe853bed9415f825db3361b79')
 
     def test_precise_hook_exception_preserves_original_content(self):
         data=(ROOT/DRY_RUN_FIXTURE).read_bytes()

@@ -19,7 +19,7 @@ func (w *Workbench) stopForward() {
 	w.forwardActive, w.forwardLocal, w.forwardAddress, w.forwardStatus = false, 0, "", "Stopped"
 }
 func (w *Workbench) startForward() {
-	if w.detail == nil || w.backend == nil || w.creating || w.detailKind.GVR.Group != "" || w.detailKind.GVR.Resource != "pods" || w.forwardActive {
+	if !w.bindDiagnostic() || w.backend == nil || w.forwardActive {
 		return
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(w.forwardPort))
@@ -28,24 +28,24 @@ func (w *Workbench) startForward() {
 		return
 	}
 	w.stopForward()
-	epoch, revision := w.detailEpoch, w.forwardEpoch
-	backend, target := w.backend, w.target()
+	epoch, revision := w.diagnosticEpoch, w.forwardEpoch
+	backend, target := w.backend, w.diagnostic.target
 	ctx, cancel := context.WithTimeout(w.operationContext(), 8*time.Hour)
 	w.forwardCancel, w.forwardActive, w.forwardStatus = cancel, true, "Connecting"
 	w.run(func(context.Context) {
 		defer cancel()
 		err := backend.ForwardPod(ctx, target, port, func(local uint16) {
 			w.emit(func() {
-				if epoch != w.detailEpoch || revision != w.forwardEpoch || ctx.Err() != nil {
+				if epoch != w.diagnosticEpoch || revision != w.forwardEpoch || ctx.Err() != nil {
 					return
 				}
 				w.forwardLocal = local
 				w.forwardAddress = fmt.Sprintf("127.0.0.1:%d → %s/%s:%d", local, target.Namespace, target.Name, port)
-				w.forwardStatus = "Active · local connections are not individually authenticated"
+				w.forwardStatus = "Active; local connections are not individually authenticated"
 			})
 		})
 		w.emit(func() {
-			if epoch != w.detailEpoch || revision != w.forwardEpoch {
+			if epoch != w.diagnosticEpoch || revision != w.forwardEpoch {
 				return
 			}
 			w.forwardActive, w.forwardLocal, w.forwardAddress = false, 0, ""
@@ -58,9 +58,10 @@ func (w *Workbench) startForward() {
 	})
 }
 func (w *Workbench) forwardView(c *ui.Context) {
-	ui.Text(c, "Pod port forward").Bold()
-	ui.Text(c, "IPv4 loopback only · ephemeral local port · no automatic reconnect").FontSize(11)
-	ui.Text(c, "Closing this resource or disconnecting the cluster closes the listener. Maximum session: 8 hours.").FontSize(11)
+	if !w.bindDiagnostic() {
+		return
+	}
+	ui.Text(c, "IPv4 loopback only; maximum 8 hours").FontSize(12 * max(1, c.Preferences().TextScale)).Tooltip("An available local port is assigned automatically. No automatic reconnect. Closing this diagnostic or disconnecting the cluster closes the listener.")
 	if w.forwardPort == "" {
 		w.forwardPort = "8080"
 	}
@@ -73,6 +74,8 @@ func (w *Workbench) forwardView(c *ui.Context) {
 			w.stopForward()
 		})
 	})
-	ui.Text(c, w.forwardStatus).FontSize(12)
-	ui.TextArea(c.Key("field.forwardAddress"), &w.forwardAddress).Label("Forwarded address").ReadOnly(true).Height(80)
+	ui.Text(c, w.forwardStatus).FontSize(12 * max(1, c.Preferences().TextScale))
+	if w.forwardAddress != "" {
+		ui.TextArea(c.Key("field.forwardAddress"), &w.forwardAddress).Label("Forwarded address").ReadOnly(true).Height(80)
+	}
 }

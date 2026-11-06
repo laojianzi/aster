@@ -28,7 +28,7 @@ func TestNativeSchemaBooleanCollectionsHistoryAndNavigation(t *testing.T) {
 			snapshot, identity := h.w.editor.Snapshot(), h.w.draftIdentity()
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
-			if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/"+tc.field+" · "+tc.code) || strings.Count(h.w.schemaText, tc.message) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+			if len(h.w.schemaLocations) != 1 || !strings.Contains(h.w.schemaText, "/spec/"+tc.field+": "+tc.code) || strings.Count(h.w.schemaText, tc.message) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 				t.Fatal("boolean identity did not produce one complete private parent hint")
 			}
 			if strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_") || strings.Contains(h.w.schemaText, "9007199254740993") {
@@ -125,7 +125,7 @@ func TestNativeSchemaBooleanCollectionsMinimumWindowIncomplete(t *testing.T) {
 			identity := h.w.draftIdentity()
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
-			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "· list-set") || strings.Contains(h.w.schemaText, "· list-map-keys") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_") {
+			if !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, ": list-set") || strings.Contains(h.w.schemaText, ": list-map-keys") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "PRIVATE_") {
 				t.Fatal("incomplete boolean identity leaked an early duplicate or value")
 			}
 			if h.w.editor != buffer || h.w.editorText() != draft || h.w.draftIdentity() != identity || h.w.plan != nil || writes.Load() != 0 {
@@ -189,6 +189,7 @@ func TestNativeSchemaBooleanCollectionsStaleResults(t *testing.T) {
 					h.tt.Type("x")
 				case "tab":
 					h.click("YAML")
+					h.click("Read-only")
 				}
 				before := h.w.editorText()
 				complete()

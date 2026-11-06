@@ -78,7 +78,7 @@ func TestNativeSchemaListMapPreservesDraftAndHistory(t *testing.T) {
 	h.tt.SetClipboard("selection was not copied after list-map inspection")
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/named · list-map-keys") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
+	if !strings.Contains(h.w.schemaText, "/spec/named: list-map-keys") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") {
 		t.Fatal("list-map inspection missed repeated identities or conflated distinct empty, Unicode or delimited tuples")
 	}
 	for _, private := range []string{"PRIVATE_DUPLICATE_KEY", "PRIVATE_NONKEY_A", "PRIVATE_NONKEY_B", "PRIVATE_NONKEY_C", "船🚢", "a|b", "b|c"} {
@@ -162,7 +162,7 @@ func TestNativeSchemaListMapPreservesDraftAndHistory(t *testing.T) {
 	h.tt.Type(duplicate)
 	h.click("Check draft")
 	h.pump(func() bool { return !h.w.schemaActive })
-	if !strings.Contains(h.w.schemaText, "/spec/scoped · list-map-keys") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "船🚢") || h.w.editorText() != duplicate || h.w.plan != nil {
+	if !strings.Contains(h.w.schemaText, "/spec/scoped: list-map-keys") || len(h.w.schemaLocations) != 1 || strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText+h.w.schemaStatus, "船🚢") || h.w.editorText() != duplicate || h.w.plan != nil {
 		t.Fatal("list-map inspection missed an exact Unicode tuple duplicate or changed source/privacy")
 	}
 	focusMultipleOfEditorByKeyboard(h)
@@ -199,8 +199,8 @@ func TestNativeSchemaListMapMinimumWindowAndIncomplete(t *testing.T) {
 		wantItems             int
 		wantKeyBytes          int
 	}{
-		{"late-invalid-identities-after-duplicate", nativeListMapFieldSchema, prefix + "  - {value: PRIVATE_MISSING_KEY}\n  - {name: null}\n  - {name: 123456789}\n  - PRIVATE_NONOBJECT\n", []string{"/spec/malformed/2/name · required", "/spec/malformed/3/name · type", "/spec/malformed/4/name · type", "/spec/malformed/5 · type"}, 6, 0},
-		{"late-malformed-metadata-with-wrong-type", malformedMetadata, "  malformed: PRIVATE_WRONG_ARRAY_TYPE\n", []string{"/spec/malformed · type"}, 0, 0},
+		{"late-invalid-identities-after-duplicate", nativeListMapFieldSchema, prefix + "  - {value: PRIVATE_MISSING_KEY}\n  - {name: null}\n  - {name: 123456789}\n  - PRIVATE_NONOBJECT\n", []string{"/spec/malformed/2/name: required", "/spec/malformed/3/name: type", "/spec/malformed/4/name: type", "/spec/malformed/5: type"}, 6, 0},
+		{"late-malformed-metadata-with-wrong-type", malformedMetadata, "  malformed: PRIVATE_WRONG_ARRAY_TYPE\n", []string{"/spec/malformed: type"}, 0, 0},
 		{"entry-budget-after-duplicate", nativeListMapFieldSchema, entryBudget, nil, schemaassist.MaxListMapItems + 1, 0},
 		{"key-byte-budget-after-duplicate", nativeListMapFieldSchema, keyBudget, nil, 3, schemaassist.MaxListMapValueBytes + 1},
 	} {
@@ -231,7 +231,7 @@ func TestNativeSchemaListMapMinimumWindowAndIncomplete(t *testing.T) {
 			}
 			h.click("Check draft")
 			h.pump(func() bool { return !h.w.schemaActive })
-			if !strings.Contains(h.w.schemaText, "/spec/checked · list-map-keys") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed · list-map-keys") || len(h.w.schemaLocations) != 1+len(tc.structural) {
+			if !strings.Contains(h.w.schemaText, "/spec/checked: list-map-keys") || !strings.Contains(h.w.schemaText, "Inspection is incomplete") || strings.Contains(h.w.schemaText, "/spec/malformed: list-map-keys") || len(h.w.schemaLocations) != 1+len(tc.structural) {
 				t.Fatal("late invalid metadata/identities or budget emitted a premature duplicate hint or lost incompleteness/structural checks")
 			}
 			for _, diagnostic := range tc.structural {

@@ -17,7 +17,7 @@ from pathlib import Path
 
 GATE = Path(__file__).resolve().parent / 'check_terminal_provenance.py'
 MODULE = 'github.com/egoist/mygo'
-VERSION = 'v0.7.3'
+VERSION = 'v0.7.4'
 LIB_BYTES = b'fake native library payload\n'
 
 
@@ -34,7 +34,7 @@ def build_fixture(root, lib_name='libghostty-vt.so', version=VERSION):
         {'module': MODULE, 'version': version, 'files': []}, indent=2), encoding='utf-8')
 
     (root / 'go.mod').write_text(
-        'module aster\n\ngo 1.27.3\n\nrequire (\n\t' + MODULE + ' v0.7.3\n)\n',
+        'module aster\n\ngo 1.27.3\n\nrequire (\n\t' + MODULE + ' v0.7.4\n)\n',
         encoding='utf-8')
 
     generated = root / 'internal' / 'nativeterm' / 'upstream' / 'only.go'

@@ -15,6 +15,7 @@ import (
 func TestNativeTTYInputAndLifecycleAgainstRealCluster(t *testing.T) {
 	terminalTestLibrary(t)
 	f := testcluster.NewHTTPPod(t)
+	next := testcluster.NewHTTPPod(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 	_, current, err := kubeconfig.Contexts("")
@@ -66,7 +67,10 @@ func TestNativeTTYInputAndLifecycleAgainstRealCluster(t *testing.T) {
 	pump(func() bool { return containsRowUID(w.rows, string(f.Pod.UID)) })
 	click(f.Pod.Name)
 	pump(func() bool { return w.detail != nil })
-	click("Terminal")
+	click("Diagnostics")
+	if err := tt.Click("Terminal"); err != nil {
+		t.Fatal(err)
+	}
 	set("Terminal argv JSON", `["/bin/sh"]`)
 	set("Confirm Pod for terminal", f.Pod.Name)
 	click("Open terminal")
@@ -79,13 +83,18 @@ func TestNativeTTYInputAndLifecycleAgainstRealCluster(t *testing.T) {
 	// satisfy this assertion without the remote program actually evaluating it.
 	tt.Type("printf 'ASTER_%s\\n' tty-native-ok\r")
 	pump(func() bool { return strings.Contains(w.terminal.Text(), "ASTER_tty-native-ok") })
+	if _, ok := tt.Find("Terminal open"); !ok {
+		saveNativeScreenshot(t, tt)
+		t.Fatalf("terminal with remote output has misleading status: %s", w.terminalStatus)
+	}
 	tt.Type("test -t 0 && printf 'NATIVE_%s\\n' is-tty\r")
 	pump(func() bool { return strings.Contains(w.terminal.Text(), "NATIVE_is-tty") })
 	tt.SetSize(1100, 700)
-	if r, ok := tt.Find("Remote terminal screen"); !ok || r.H < 50 || r.X+r.W > 1088 || r.Y+r.H > 700 {
+	if r, ok := tt.Find("Remote terminal screen"); !ok || r.H < 100 || r.X+r.W > 1088 || r.Y+r.H > 700 {
 		t.Fatal("terminal did not resize inside workbench", r)
 	}
 	saveNativeScreenshot(t, tt)
+	click("Remote terminal screen")
 	tt.Type("exit 7\r")
 	pump(func() bool { return !w.terminalActive && strings.Contains(w.terminalStatus, "exit code 7") })
 	// Screen remains available after the real exit; close frees capacity and IO.
@@ -97,14 +106,28 @@ func TestNativeTTYInputAndLifecycleAgainstRealCluster(t *testing.T) {
 	set("Confirm Pod for terminal", f.Pod.Name)
 	click("Open terminal")
 	pump(func() bool { return w.terminal != nil })
+	term := w.terminal
+	w.openResourceKind(catalog()[0], resourceRow{Name: next.Pod.Name, Namespace: next.Pod.Namespace, UID: string(next.Pod.UID)})
+	pump(func() bool { return w.detail != nil && w.detail.GetUID() == next.Pod.UID })
 	click("YAML")
+	if w.terminal != term || !w.terminalActive || w.diagnostic.target.UID != f.Pod.UID {
+		t.Fatal("object navigation changed the live terminal target")
+	}
+	click("Remote terminal screen")
+	tt.Type("printf 'AFTER_%s\\n' navigation\r")
+	pump(func() bool { return strings.Contains(w.terminal.Text(), "AFTER_navigation") })
+	saveNativeScreenshot(t, tt)
+	click("Close terminal")
 	pump(func() bool { return !w.terminalJoining })
 	if w.terminalActive || w.terminal != nil || !strings.Contains(w.terminalStatus, "not confirmed") {
-		t.Fatal("hidden terminal did not disconnect")
+		t.Fatal("explicit terminal close did not disconnect")
 	}
 	// Cancel while an asynchronous preflight/publication is outstanding. Old
 	// callbacks must not resurrect the terminal or keep a workspace joining.
-	click("Terminal")
+	click("Diagnostics")
+	if err := tt.Click("Terminal"); err != nil {
+		t.Fatal(err)
+	}
 	set("Confirm Pod for terminal", f.Pod.Name)
 	click("Open terminal")
 	click("Close detail")

@@ -119,6 +119,10 @@ func (w *Workbench) closeDelivery() {
 	w.cancelDelivery()
 	w.delivery.open = false
 	w.notice = "Delivery retained in this workspace. Reopen Deliver manifests to continue; accepted objects are not rolled back."
+	if d := &w.delivery; d.set == nil && (d.editor == nil || d.editor.Snapshot().ByteLen() == 0) && d.retainedPaste == "" && !d.helm.open {
+		w.notice = ""
+		d.status = ""
+	}
 }
 
 func (w *Workbench) stopDeliveryReview() {
@@ -378,9 +382,9 @@ func (w *Workbench) previewDelivery(reviewAgain bool) {
 				if plan.Kind() == "apply" {
 					var owners string
 					owners, err = manifest.OwnershipReview(before, after)
-					diff = "APPLY · aster-apply · force disabled\nOmitted previously owned fields may be removed.\n\n" + diff + owners
+					diff = "APPLY; aster-apply; force disabled\nOmitted previously owned fields may be removed.\n\n" + diff + owners
 				} else {
-					diff = "CREATE ONLY · aster-desktop\nA concurrent existing object will not be overwritten.\n\n" + diff
+					diff = "CREATE ONLY; aster-desktop\nA concurrent existing object will not be overwritten.\n\n" + diff
 				}
 			}
 		}
@@ -405,7 +409,7 @@ func (w *Workbench) previewDelivery(reviewAgain bool) {
 			d.plan, d.planBinding, d.diff = plan, binding, diff
 			d.outcomes[index].State = "Ready"
 			d.halted, d.showOutcomes = false, false
-			d.status = "Review " + plan.Kind() + " for " + plan.Target().Namespace + "/" + plan.Target().Name + " · expires " + plan.Expires().Local().Format("15:04:05")
+			d.status = "Review " + plan.Kind() + " for " + plan.Target().Namespace + "/" + plan.Target().Name + "; expires " + plan.Expires().Local().Format("15:04:05")
 		})
 	})
 }
@@ -440,7 +444,7 @@ func (w *Workbench) executeDelivery() {
 		w.emit(func() {
 			w.pendingWrites--
 			target := plan.Target()
-			w.recordHistory(fmt.Sprintf("%s [%s] %s %s/%s · %s", plan.ID()[:12], contextName, plan.Kind(), target.Namespace, target.Name, result.State))
+			w.recordHistory(fmt.Sprintf("%s [%s] %s %s/%s; %s", plan.ID()[:12], contextName, plan.Kind(), target.Namespace, target.Name, result.State))
 			d := &w.delivery
 			ownedWrite := d.writeID == plan.ID()
 			if ownedWrite {
@@ -492,7 +496,7 @@ func (d *deliveryState) outcomeText() string {
 		return "Import a set to review its per-object outcomes."
 	}
 	for i, item := range d.set.Items() {
-		fmt.Fprintf(&b, "%d. %s %s/%s · %s\n", i+1, item.Kind.Kind, item.Namespace, item.Name, d.outcomes[i].State)
+		fmt.Fprintf(&b, "%d. %s %s/%s; %s\n", i+1, item.Kind.Kind, item.Namespace, item.Name, d.outcomes[i].State)
 		if dropped := d.outcomes[i].Dropped; dropped != 0 {
 			fmt.Fprintf(&b, "   %d earlier attempt records omitted; latest %d retained.\n", dropped, maxDeliveryAttempts)
 		}
@@ -501,7 +505,7 @@ func (d *deliveryState) outcomeText() string {
 			if len(id) > 12 {
 				id = id[:12]
 			}
-			fmt.Fprintf(&b, "   %s %s · %s\n", a.Kind, id, a.State)
+			fmt.Fprintf(&b, "   %s %s; %s\n", a.Kind, id, a.State)
 		}
 	}
 	return b.String()
@@ -512,25 +516,24 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 	t := c.Theme()
 	ui.Column(c.Key("delivery.panel")).Grow(1).Padding(12).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
-			ui.Text(c, "Deliver manifests").FontSize(20).Bold().Grow(1)
-			ui.Button(c, "Cancel delivery work").Disabled(d.busy == "" && d.plan == nil).OnClick(w.cancelDelivery)
+			ui.Text(c, "Deliver manifests").FontSize(c.Theme().FontSize * 1.4).Bold().Grow(1)
+			ui.Button(c, "Cancel delivery work").Hidden(d.busy == "" && d.plan == nil).OnClick(w.cancelDelivery)
 			ui.Button(c, "Back to resources").OnClick(w.closeDelivery)
 		})
 		namespace := strings.TrimSpace(w.namespace)
 		if d.set != nil {
 			namespace = d.set.Namespace()
 		}
-		ui.Text(c, "Context: "+w.activeContext+" · Delivery namespace: "+namespace).Label("Delivery identity").FontSize(12).SingleLine()
-		ui.Text(c, "Rendered YAML · 2 MiB / 160000 newlines / 32 objects · one namespace. Back pauses and retains this set.").FontSize(11).SingleLine()
+		ui.Text(c, "Context: "+w.activeContext+"; Delivery namespace: "+namespace).Label("Delivery identity").FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 		if d.origin != "" {
-			ui.Text(c, d.origin).Label("Delivery render origin").FontSize(10).SingleLine()
+			ui.Text(c, d.origin).Label("Delivery render origin").FontSize(12 * max(1, c.Preferences().TextScale)).SingleLine()
 		}
 		if d.set == nil {
 			if d.helm.open {
 				w.helmRenderView(c)
 			}
 			if d.retainedPaste != "" {
-				ui.Text(c, fmt.Sprintf("Clipboard paste retained separately (%d bytes); original draft unchanged. Import is paused. Clipboard preflight also limits potential lines to 8192 bytes.", len(d.retainedPaste))).Label("Delivery retained paste").FontSize(12)
+				ui.Text(c, fmt.Sprintf("Clipboard paste retained separately (%d bytes); original draft unchanged. Import is paused. Clipboard preflight also limits potential lines to 8192 bytes.", len(d.retainedPaste))).Label("Delivery retained paste").FontSize(12 * max(1, c.Preferences().TextScale))
 				ui.Button(c, "Discard retained paste").OnClick(func() {
 					w.stopDeliveryReview()
 					d.retainedPaste = ""
@@ -566,12 +569,13 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 				item := items[row]
 				switch col {
 				case 0:
-					ui.Button(c, fmt.Sprintf("%d. %s", row+1, item.Name)).Disabled(d.busy == "Submitting").OnClick(func() {
+					selectItem := func() {
 						if d.selected != row {
 							d.selected = row
 							w.deliverySelectionChanged()
 						}
-					})
+					}
+					ui.Button(c, fmt.Sprintf("%d. %s", row+1, item.Name)).Disabled(d.busy == "Submitting").OnClick(selectItem).OnShortcut(0, ui.KeyEnter, selectItem)
 				case 1:
 					ui.Text(c, item.Kind.Label()).SingleLine()
 				case 2:
@@ -579,7 +583,7 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 				case 3:
 					ui.Text(c, d.outcomes[row].State).SingleLine()
 				}
-			}).Label("Delivery inventory").Height(135).Disabled(d.busy == "Submitting")
+			}).Label("Delivery inventory").Height(t.Space(8) + float32(min(len(items), 3))*(t.Rem(1.5)+t.Space(6))).Disabled(d.busy == "Submitting")
 			if inventory.Changed() {
 				w.deliverySelectionChanged()
 			}
@@ -590,7 +594,7 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Button(c, "Review details").OnClick(func() { d.showOutcomes = false })
 				ui.Button(c, "Delivery outcomes").OnClick(func() { d.showOutcomes = true })
-				ui.Text(c, "Imported input is locked until Change manifests.").FontSize(11).TextColor(t.TextMuted).Grow(1).SingleLine()
+				ui.Text(c, "Imported input is locked until Change manifests.").FontSize(12 * max(1, c.Preferences().TextScale)).TextColor(t.TextMuted).Grow(1).SingleLine()
 			})
 			text := d.diff
 			if text == "" {
@@ -599,22 +603,22 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			if d.showOutcomes {
 				text = d.outcomeText()
 			}
-			ui.Scroll(c.Key("delivery.preview.scroll")).Grow(1).Children(func() { ui.Text(c, text).Label("Delivery preview").FontSize(12) })
+			ui.Scroll(c.Key("delivery.preview.scroll")).Grow(1).Children(func() { ui.Text(c, text).Label("Delivery preview").FontSize(12 * max(1, c.Preferences().TextScale)) })
 			ui.Row(c).Gap(8).Children(func() {
 				e := guardedTextInput(c, fmt.Sprintf("delivery.confirmation.%d", d.epoch), &d.confirmation, d.plan != nil && d.busy == "").Label("Delivery confirmation").Placeholder("Type the exact reviewed resource name").Grow(1).Disabled(d.plan == nil || d.busy != "")
 				d.confirmationComposing = e.Composing()
 				ui.PrimaryButton(c, "Submit reviewed object").Disabled(d.plan == nil || d.busy != "" || d.halted || d.confirmationComposing || w.pendingWrites != 0 || d.plan != nil && d.confirmation != d.plan.Target().Name).OnClick(w.executeDelivery)
 			})
 			ui.Row(c).Gap(8).Children(func() {
-				ui.Button(c, "Preview next object").Disabled(d.busy != "" || d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(false) })
-				ui.Button(c, "Review remaining again").Disabled(d.busy != "" || !d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(true) })
+				ui.Button(c, "Preview next").Label("Preview next object").Disabled(d.busy != "" || d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(false) })
+				ui.Button(c, "Review remaining").Label("Review remaining again").Disabled(d.busy != "" || !d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(true) })
 				inspectable := d.selected >= 0 && d.selected < len(d.outcomes) && d.outcomes[d.selected].State == "Succeeded" && d.outcomes[d.selected].UID != ""
-				ui.Button(c, "Inspect accepted resource").Disabled(d.busy != "" || !inspectable).OnClick(w.inspectDeliveryResource)
+				ui.Button(c, "Inspect resource").Label("Inspect accepted resource").Disabled(d.busy != "" || !inspectable).OnClick(w.inspectDeliveryResource)
 				ui.Button(c, "Change manifests").Disabled(d.busy == "Submitting" || w.pendingWrites != 0).OnClick(w.changeDeliveryManifests)
 			})
 		}
 		ui.Scroll(c.Key("delivery.status.scroll")).Height(48).Children(func() {
-			ui.Text(c, d.status).Label("Delivery status").FontSize(11)
+			ui.Text(c, d.status).Label("Delivery status").FontSize(12 * max(1, c.Preferences().TextScale))
 		})
 	})
 }
