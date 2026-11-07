@@ -102,7 +102,7 @@ class InstallJournalScopeTests(unittest.TestCase):
         # Previous values 7e8a4d4c... (8de1541) and d59a129d... (v0.7.3) are
         # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '1b58eddf59119768992f448066f66100f3fd5fbbe853bed9415f825db3361b79')
+                         'b757f49d317210eacd8f20be698948545ad1c1d507dbb707ff12744dc60dbaab')
 
     def test_precise_hook_exception_preserves_original_content(self):
         data=(ROOT/DRY_RUN_FIXTURE).read_bytes()

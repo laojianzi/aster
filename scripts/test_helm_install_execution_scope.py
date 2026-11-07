@@ -78,7 +78,7 @@ class InstallExecutionScopeTests(unittest.TestCase):
         # Previous values 261f30e8... (8de1541) and 0474a120... (v0.7.3) are
         # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '6dddf5421fe1cfd330a4129df6e2a8301a20feefe5b92faeacd7f6d3f2ed38c3')
+                         'bef187aac428672f052c2f2c7ac17828b1af3f3a917a07662a19c04731deb12d')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):

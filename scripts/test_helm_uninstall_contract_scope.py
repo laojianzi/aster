@@ -111,10 +111,10 @@ class HelmUninstallContractScopeTests(unittest.TestCase):
             commands = [line.strip() for line in text.splitlines() if 'go test -race -tags=' in line
                         and ('./e2e/...' in line or './internal/helmrender/...' in line)]
             self.assertEqual(len(commands), 2)
-            self.assertIn('go test -race -tags=' + tags + ' -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee ', commands[0])
+            self.assertIn('go test -race -tags=' + tags + ' -shuffle=on -count=1 -timeout=20m -json ./e2e/... ./internal/ui/... | tee ', commands[0])
             self.assertNotIn(' -run ', commands[0])
             self.assertNotIn('./internal/helmrender/...', commands[0])
-            self.assertIn("go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=12m -json ./internal/helmrender/... | tee -a ", commands[1])
+            self.assertIn("go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=20m -json ./internal/helmrender/... | tee -a ", commands[1])
             self.assertEqual(commands[0].split(' | tee ', 1)[1], commands[1].split(' | tee -a ', 1)[1])
             self.assertNotIn('|| true', '\n'.join(commands))
         # The original renderer unit suite remains required in BOTH full unit

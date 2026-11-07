@@ -13,10 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 # Re-frozen, not re-reviewed, for the mygo v0.7.x migrations: go.mod
 # 89f0705d -> 75f65e22, go.sum 5e0f9648 -> 53133cc8 and UPSTREAM.json
 # 9fec119b -> 1015174c for v0.7.4 (the v0.7.3 values were ced4d9f5 /
-# 5310164c / c98eaa31 at 8de1541). Every other entry is still the d19a692
-# image; no workflow byte moved.
+# 5310164c / c98eaa31 at 8de1541). The CI infrastructure fix of 2026-11-07
+# then re-froze ci.yml at 8c500f0a: a dependency step moved ahead of the
+# tests that need it and four deadlines gained headroom. Every other entry
+# is still the d19a692 image.
 FROZEN = {'.github/workflows/branch-cleanup.yml': 'dc31f44ae8aedf3f2cdc3f34d908e938d3fb0f7870db4adf1e75e63f302212c0',
- '.github/workflows/ci.yml': '7ee11db7b12f95aac5c21c4800848bcbf8ca034aefd5676d01534fa8bbb4b1c6',
+ '.github/workflows/ci.yml': '8c500f0ace61c20d00f4237b4f6908cdb915041ead13c6aaaf50c0d9b47a30fa',
  '.github/workflows/native-migration.yml': '899e1b524b26ab3396b65e4d2acc1788575ffd4b7576f6976a62bccc9289cb33',
  '.github/workflows/offline-devkit.yml': '12fdf79c9baef63ec1e0e8666dbf297f17ab7b421679f4479d65a62a95c2e405',
  '.github/workflows/oidc-qualification.yml': 'f808d03d07563ae4ac7004b7b644820c9e5ecf203154b896fbb3fbc424b4f7b0',

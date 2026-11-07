@@ -1786,7 +1786,6 @@
     }
   },
   "unchanged_source_sha256": {
-    ".github/workflows/ci.yml": "95b5bbeb09c72d72a348d4dec47f955e42cbee29342432a38cda98b1ff804bc4",
     ".github/workflows/native-migration.yml": "7f0d5609c7e7b674e37236b21a338bdcdb95253eaa92112e54d128d8a9c3af06",
     ".github/workflows/source-evidence.yml": "b0d4cde5750f15a46a4c749d1edc656bd68f6c7d11cfcd83296fa5fd27f31453",
     ".github/workflows/oidc-qualification.yml": "dbd09f1223f11683dbaa1f59f057dab08e9ce04a5ddc0a16b921b5b3082b059a",
@@ -1795,6 +1794,7 @@
     "internal/ui/helm_uninstall_e2e_test.go": "2e6cfb8925688aca7deb1e1d8989b8dad3aacb86a5c7e28701a1f3a35f46edc6"
   },
   "refrozen_source_sha256": {
+    ".github/workflows/ci.yml": "8c500f0ace61c20d00f4237b4f6908cdb915041ead13c6aaaf50c0d9b47a30fa",
     "go.sum": "53133cc8afe72c9ae7fe4af0340b7303edea97a2707aa578a716131a70d69d3d",
     "internal/ui/helm_uninstall_ui_test.go": "96dab4176f5820c985039e0c6147f0cbde9db4221ccb44715619441b39dd0263"
   }

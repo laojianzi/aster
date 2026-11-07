@@ -13,7 +13,7 @@ class UnitRaceSchedulingTests(unittest.TestCase):
         commands = [line.strip() for line in block.splitlines() if line.strip().startswith('go test ')]
         self.assertEqual(len(commands), 1)
         self.assertEqual(shlex.split(commands[0]), [
-            'go', 'test', '-race', '-shuffle=on', '-count=1', '-timeout=5m',
+            'go', 'test', '-race', '-shuffle=on', '-count=1', '-timeout=10m',
             '-p=1', '-json', './...', '|', 'tee', 'artifacts/unit/tests.jsonl',
         ])
         self.assertIn('set -o pipefail', block)

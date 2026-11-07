@@ -19,6 +19,14 @@ of the commit that lands the migration.
 The same day the mygo requirement moved once more, v0.7.3 to v0.7.4, so the
 reviewed digest was re-set again with no change to the None slot: a dependency
 bump no longer promises any reconstructible pre-image here.
+
+On 2026-11-07 ci.yml became the second file with a retired reversible slot.
+It needed non-version edits: the Linux display/font dependency step ran after
+the tests that use it, and the enlarged UI test package measured 296.1s
+against a 300s package deadline. Reversing four version tokens cannot undo a
+moved step or a changed deadline, so no pre-1.27.3 image is claimed. Its
+reviewed digest remains the whole admission gate; the retired image was
+95b5bbeb09c72d72a348d4dec47f955e42cbee29342432a38cda98b1ff804bc4.
 """
 import hashlib
 import json
@@ -29,13 +37,14 @@ import subprocess
 VERSION = 'go1.27.3'
 # path: (version-token count, previous SHA-256 or None, reviewed SHA-256)
 # A None previous digest means "admitted but not reversible"; see the module
-# docstring. Only go.mod carries it, and only because of the v0.7.x migrations.
+# docstring. go.mod carries it for the v0.7.x migrations, ci.yml for the
+# 2026-11-07 deadline/dependency-order fix; both are still digest-gated.
 PINS = {'go.mod': (1,
             None,
             '75f65e223ff31075f82184c4093f177ece4e1f2a6f599cf4cd28aeb36c3fafc8'),
  '.github/workflows/ci.yml': (4,
-                              '95b5bbeb09c72d72a348d4dec47f955e42cbee29342432a38cda98b1ff804bc4',
-                              '7ee11db7b12f95aac5c21c4800848bcbf8ca034aefd5676d01534fa8bbb4b1c6'),
+                              None,
+                              '8c500f0ace61c20d00f4237b4f6908cdb915041ead13c6aaaf50c0d9b47a30fa'),
  '.github/workflows/native-migration.yml': (2,
                                             '7f0d5609c7e7b674e37236b21a338bdcdb95253eaa92112e54d128d8a9c3af06',
                                             '899e1b524b26ab3396b65e4d2acc1788575ffd4b7576f6976a62bccc9289cb33'),

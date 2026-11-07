@@ -61,7 +61,7 @@ jobs:
           # Keep external-process integration packages from competing with other
           # test binaries for runner CPU. Package tests still use -race and their
           # existing internal concurrency; no test or operation deadline changes.
-          go test -race -shuffle=on -count=1 -timeout=5m -p=1 -json ./... | tee artifacts/unit/tests.jsonl
+          go test -race -shuffle=on -count=1 -timeout=10m -p=1 -json ./... | tee artifacts/unit/tests.jsonl
       - name: Validate test evidence
         run: |
           python3 -m unittest discover -s scripts -p "test_*.py"
@@ -102,7 +102,7 @@ jobs:
           - os: windows-latest
             binary: aster.exe
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts
     steps:
@@ -137,6 +137,11 @@ jobs:
           elif [[ "$RUNNER_OS" == "Linux" ]]; then
             python scripts/test_evidence.py artifacts/vault/tests.jsonl --suite actual-os-vault --require TestOSVaultUnavailableSessionBusFailsClosed
           fi
+      - name: Install Linux display dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0t64 libgl1-mesa-dri libegl1 libfontconfig1 fonts-dejavu-core
       - name: Native interaction tests on this OS
         shell: bash
         run: |
@@ -144,7 +149,7 @@ jobs:
           mkdir -p artifacts
           go version > artifacts/environment.txt
           git rev-parse HEAD >> artifacts/environment.txt
-          go test -count=1 -timeout=5m -json ./internal/ui/... ./internal/nativeterm/... ./internal/credentialexec/... | tee artifacts/tests.jsonl
+          go test -count=1 -timeout=10m -json ./internal/ui/... ./internal/nativeterm/... ./internal/credentialexec/... | tee artifacts/tests.jsonl
           python scripts/test_evidence.py artifacts/tests.jsonl --suite native-os-interactions --require TestNativeSchemaListSetPreservesDraftAndHistory --require TestNativeSchemaListSetMinimumWindowAndIncomplete --require TestNativeSchemaListMapPreservesDraftAndHistory --require TestNativeSchemaListMapMinimumWindowAndIncomplete --require TestNativeSchemaEnumPreservesDraftAndHistory --require TestNativeSchemaEnumMinimumWindowAndIncomplete --require TestNativeSchemaFormatPreservesDraftAndHistory --require TestNativeSchemaFormatMinimumWindowAndIncomplete --require TestNativeSchemaPatternPreservesDraftAndHistory --require TestNativeSchemaPatternMinimumWindowAndIncomplete --require TestNativeSchemaMultipleOfPreservesNumbersAndHistory --require TestNativeSchemaMultipleOfMinimumWindowAndIncomplete --require TestNativeDeliveryImportPreviewAndConfirm --require TestNativeDeliveryPartialUnknownAndReviewAgain --require TestNativeDeliveryStaleWorkAndWorkspaceIsolation --require TestNativeDeliveryMinimumWindowUnicodeAndBudget --require TestNativeSchemaConstraintsPreserveNumbersDraftAndHistory --require TestNativeSchemaConstraintsMinimumWindowAndNoValueDisclosure --require TestManifestBufferImmutableConcurrentSnapshotsAndExportBounds --require TestManifestBufferIdleRevisionChecksAllocateNothing --require TestNativeManifestBufferStableIdentitySnapshotAndUndo --require TestNativeManifestBufferPreeditNoOpPreservesSemanticRevision --require TestNativeManifestBufferQueuedSchemaSeesUnrenderedEdit --require TestNativeManifestBufferUnrenderedChangeRevokesPreparedPlan --require TestNativeManifestBufferOversizeCannotBecomeEmptyPreview --require TestNativeManifestBufferOversizeIsPreservedUntilExplicitRestore --require TestNativeFindLiteralNavigationUndoAndWrap --require TestNativeFindQueuedResultsCannotCrossEpochs --require TestNativeFindSingleAdmissionAndOneShotSelection --require TestNativeFindCompositionDefersAndRejectsChangedDraft --require TestNativeFindReadOnlyBudgetsAndMinimumWindow --require TestNativeFindQueuedSelectionCannotCrossDraftOrQuery --require TestNativeFindDeferredSelectionLosesFocusAndPreservesTruncation --require TestNativeVaultControlsAtMinimumWindow --require TestNativeVaultCAFileChangeInvalidatesReviewedTarget --require TestNativeVaultUncertainStatusAtMinimumWindow --require TestNativeVaultSubmissionCannotUndoTokenHistory --require TestNativeVaultRequiresExplicitConfirmationAndErasesInput --require TestExecCredentialProcessTreeIsReclaimed --require TestExecCredentialOutputBudgetsDeadlineAndCancellation --require TestNativeExecAuthenticationTrustExpiryAndNoRefresh --require TestNativeExecAuthenticationCancellationAndSingleAdmission --require TestNativeTerminalMinimumWindowAndConfirmation --require TestTerminalNativeUnicodeInputAndOSC52CannotWriteClipboard --require TestTerminalNativeRemoteLinksCannotLaunchLocalApplications --require TestTerminalNativePasteCannotBypassInputBudget --require TestTerminalInputBudgetClosesRatherThanSilentlyDropping --require TestNativeApplyControlsAtMinimumWindow --require TestNativeApplyAcknowledgmentReviewAndDraftIsolation --require TestNativeWorkspaceControlsAtMinimumWindow --require TestNativeNewWorkspaceDoesNotCopyIdentityOrPreparedState --require TestNativeRelationshipsNavigateAndRevalidateIdentity --require TestNativeRelationshipsCloseCancelsOutstandingRead --require TestNativeMetricsControlsStayInsideMinimumWindow --require TestNativeMetricsReadOnlyAndTabLifecycle --require TestNativeNavigationAndUnicodeInput --require TestDetailActionsStayInsideMinimumWindow --require TestNativeCommandRequiresConfirmationAndDoesNotInterpretShell --require TestNativeSchemaReadOnlyDraftAndTabLifecycle --require TestNativeSchemaControlsAtMinimumWindow --require TestNativeSchemaTabChangeCancelsRequest
       - name: Build native desktop
         shell: bash
@@ -154,11 +159,6 @@ jobs:
           cp .aster-native/provenance.json dist/terminal-provenance.json
           mkdir -p dist/licenses
           cp third_party/native-terminal/LICENSE.* dist/licenses/
-      - name: Install Linux display dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0t64 libgl1-mesa-dri libegl1 libfontconfig1 fonts-dejavu-core
       - name: Linux real-window smoke
         if: runner.os == 'Linux'
         run: xvfb-run -a -s '-screen 0 1600x1000x24' python3 scripts/window_smoke.py dist/aster artifacts/window.log
@@ -181,7 +181,7 @@ jobs:
   kind-e2e:
     name: Real cluster and native E2E / ${{ matrix.k8s }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/e2e
       ASTER_E2E_CONTEXT: kind-aster-e2e
@@ -232,8 +232,8 @@ jobs:
           mkdir -p artifacts/e2e
           kubectl version > artifacts/e2e/environment.txt
           git rev-parse HEAD >> artifacts/e2e/environment.txt
-          python scripts/with_test_vault.py go test -race -tags=e2e,osvault -shuffle=on -count=1 -timeout=12m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
-          go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=12m -json ./internal/helmrender/... | tee -a artifacts/e2e/tests.jsonl
+          python scripts/with_test_vault.py go test -race -tags=e2e,osvault -shuffle=on -count=1 -timeout=20m -json ./e2e/... ./internal/ui/... | tee artifacts/e2e/tests.jsonl
+          go test -race -tags=e2e -shuffle=on -run '^TestRealHelmUninstallContractResourcesAndHistory$' -count=1 -timeout=20m -json ./internal/helmrender/... | tee -a artifacts/e2e/tests.jsonl
       - name: Validate real-cluster evidence
         run: |
           python3 scripts/test_evidence.py artifacts/e2e/tests.jsonl --suite real-cluster-native --require TestRealSchemaListSetAgreeWithDryRun --require TestNativeSchemaListSetAgainstRealCluster --require TestRealSchemaListMapAgreeWithDryRun --require TestNativeSchemaListMapAgainstRealCluster --require TestRealSchemaEnumAgreeWithDryRun --require TestNativeSchemaEnumAgainstRealCluster --require TestRealSchemaFormatAgreeWithDryRun --require TestNativeSchemaFormatAgainstRealCluster --require TestRealSchemaPatternAgreeWithDryRun --require TestNativeSchemaPatternAgainstRealCluster --require TestRealSchemaMultipleOfAgreeWithDryRun --require TestNativeSchemaMultipleOfAgainstRealCluster --require TestRealManifestDeliveryReviewedSetSafety --require TestNativeManifestDeliveryAgainstRealCluster --require TestNativeSchemaConstraintsAgainstRealCluster --require TestRealSchemaConstraintsAgreeWithDryRun --require TestNativeFindCorrectionUndoAgainstRealCluster --require TestNativeOSStoredTokenIdentityAndExpiryAgainstRealCluster --require TestRealSchemaBuiltinsAndReadOnlyAssistance --require TestRealSchemaDiscoveryAuthorizationIsIndependent --require TestRealSchemaStructuralCRDAndPreservedFields --require TestNativeSchemaDiagnosticNavigationAgainstRealCluster --require TestNativeSchemaAssistanceAgainstRealCluster --require TestRealExecCredentialTrustRBACAndExpiry --require TestNativeExecCredentialLiveLogsExpireAgainstRealCluster --require TestRealTTYInteractiveInputResizeAndExit --require TestRealTTYCancelAndLeaseDoNotInventExit --require TestRealTTYReadOnlyRBACPreventsExecution --require TestNativeTTYInputAndLifecycleAgainstRealCluster --require TestRealApplySharedOwnershipWithoutValueChanges --require TestRealApplyStructuralCRDListOwnershipAndStrictValidation --require TestRealApplyOwnershipDryRunOmissionAndConflict --require TestRealApplyPreconditionsPreventRecreationAndReplacementWrites --require TestRealApplyCommittedResponseLossIsUnknownWithoutReplay --require TestRealApplyRejectsReadOnlyIdentity --require TestNativeApplyReviewAgainstRealCluster --require TestNativeWorkbenchEditAgainstRealCluster --require TestNativeLogsAndPortForwardLifecycle --require TestNativeScaleTracksActualReadiness --require TestReviewedScaleThenRealControllerReadiness --require TestNativePodCommandLifecycleAgainstRealCluster --require TestRealPodCommandExitOutputAndNoImplicitShell --require TestRealPodCommandRejectsReadOnlyIdentity --require TestRealPodCommandCancellationDoesNotInventAnExitCode --require TestRealPodCommandDeadlineDoesNotClaimTermination --require TestRealCommittedMutationsAreUnknownAndNeverReplayed --require TestRealWorkloadRelationshipsRespectUIDAndSelectors --require TestRealRelationshipsReportRBACPartialResults --require TestNativeRelationshipNavigationToPodForwardAgainstRealCluster --require TestRealMetricsPodNodeAndIndependentRBAC --require TestNativeMetricsAgainstRealServerAndTeardown

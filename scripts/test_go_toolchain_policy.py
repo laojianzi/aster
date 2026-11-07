@@ -20,9 +20,12 @@ class GoToolchainPolicyTests(unittest.TestCase):
                 found.add(p.relative_to(ROOT).as_posix())
         self.assertEqual(found, set(policy.PINS) - {'go.mod'})
         self.assertEqual(sum(v[0] for k, v in policy.PINS.items() if k != 'go.mod'), 10)
-        # Retired reversibility is one named carve-out, not a category. A second
-        # file losing its previous image has to grow this set deliberately.
-        self.assertEqual({k for k, v in policy.PINS.items() if v[1] is None}, {'go.mod'})
+        # Retired reversibility is a named carve-out, not a category. ci.yml
+        # joined go.mod on 2026-11-07: its non-version edits (a moved
+        # dependency step and raised deadlines) cannot be reversed by a
+        # version-token substitution. Both are still admitted by digest.
+        self.assertEqual({k for k, v in policy.PINS.items() if v[1] is None},
+                         {'go.mod', '.github/workflows/ci.yml'})
         for path, (count, old_sha, new_sha) in policy.PINS.items():
             if old_sha is None:
                 continue
@@ -65,7 +68,7 @@ class GoToolchainPolicyTests(unittest.TestCase):
         mutations = (
             (b'timeout-minutes: 20', b'timeout-minutes: 21'),
             (b'contents: read', b'contents: write'),
-            (b'-timeout=5m', b'-timeout=10m'),
+            (b'-timeout=10m', b'-timeout=11m'),
             (b'-race', b''),
             (b'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', b'actions/checkout@main'),
             (b'--require TestSchemaListSetStringEquality', b'--require NotTheReviewedTest'),
@@ -87,7 +90,7 @@ class GoToolchainPolicyTests(unittest.TestCase):
     def test_old_journal_fixture_remains_immutable(self):
         data = (ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json').read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(),
-                         'e5c86c5f57c995689c5b3ac1f4dc2a534863c7c6e5da7fee97aeb265098ed561')
+                         '6f5f56c93bdfe09f1229820ac51a09c4700d67bbaace46df564a0e56463b76ca')
         fixture = json.loads(data)
         for path, old_hash in fixture['unchanged_source_sha256'].items():
             restored = policy.previous_toolchain_bytes(path, (ROOT / path).read_bytes())

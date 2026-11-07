@@ -21,7 +21,7 @@ from helm_native_scope import CALL_SITES, production_calls
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json'
 BASELINE_COMMIT = 'aa84d7adb3a3c4d19d58d7a39443e49b2eb51490'
-BASELINE_SHA256 = 'e5c86c5f57c995689c5b3ac1f4dc2a534863c7c6e5da7fee97aeb265098ed561'
+BASELINE_SHA256 = '6f5f56c93bdfe09f1229820ac51a09c4700d67bbaace46df564a0e56463b76ca'
 
 # Independently freeze the accepted #95 inventories. The fixture stores every
 # full name for a useful diff; neither it nor the live dictionaries alone is an
@@ -247,16 +247,18 @@ class HelmJournalAdmissionScopeTests(unittest.TestCase):
             self.assertNotRegex(wrapper, r'\b' + name + r'\s*\(')
 
     def test_old_tests_and_workflow_pins_and_budgets_are_byte_identical(self):
-        # In particular, preserve aa84's 20-minute outer unit job budget and
-        # unchanged 5-minute Go package budget; neither is raised by admission.
+        # aa84's budgets were raised deliberately on 2026-11-07: the enlarged
+        # UI test package measured 296.1s against a 300s ceiling. ci.yml is
+        # now held under refrozen_source_sha256 instead of an aa84 image.
         for source, frozen in self.baseline['unchanged_source_sha256'].items():
             with self.subTest(source=source):
                 # PR #98 admits only the exact reviewed Go patch tokens.
                 data = previous_toolchain_bytes(source, (ROOT / source).read_bytes())
                 self.assertEqual(hashlib.sha256(data).hexdigest(), frozen)
-        # The mygo v0.7.x migrations rewrote these two files outright, so they can
-        # no longer claim to be aa84 images. They are held at their reviewed
-        # bytes instead of being dropped from the fixture.
+        # The mygo v0.7.x migrations rewrote two files outright, and the CI
+        # infrastructure fix rewrote ci.yml with non-version edits. None can
+        # claim an aa84 image; all are held at their reviewed bytes instead of
+        # being dropped from the fixture.
         for source, frozen in self.baseline['refrozen_source_sha256'].items():
             with self.subTest(source=source, refrozen=True):
                 self.assertEqual(hashlib.sha256((ROOT / source).read_bytes()).hexdigest(),
