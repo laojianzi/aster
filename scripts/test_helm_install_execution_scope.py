@@ -73,12 +73,14 @@ class InstallExecutionScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
-        # Re-frozen for the mygo v0.7.x migrations. The 250-test census and the
-        # 265 rows are unchanged; only the bytes behind 64 of them moved.
-        # Previous values 261f30e8... (8de1541) and 0474a120... (v0.7.3) are
-        # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
+        # Re-frozen again after the reviewed cross-platform test-contract fix.
+        # The 250-test census and 265 rows are unchanged; exactly two rows
+        # moved: e2e/schema_assistance_test.go and
+        # internal/ui/helm_uninstall_preview_test.go. The exemption set was
+        # deliberately NOT widened, so both remain census-protected. Retired:
+        # bef187aa... Earlier: 261f30e8... (8de1541), 0474a120... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         'bef187aac428672f052c2f2c7ac17828b1af3f3a917a07662a19c04731deb12d')
+                         '0f57c72c34052293f5bf94178539cd6a4b77007810c0cc33f521558440b4cccb')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):

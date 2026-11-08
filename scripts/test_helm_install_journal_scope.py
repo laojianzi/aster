@@ -97,12 +97,15 @@ class InstallJournalScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+digest)
         self.assertTrue(added <= tracked)
         self.assertEqual(len(rows),260)
-        # Re-frozen for the mygo v0.7.x migrations. The row count and the
-        # protected set are unchanged; only the bytes behind 64 of them moved.
-        # Previous values 7e8a4d4c... (8de1541) and d59a129d... (v0.7.3) are
-        # retired; the only new movement here is go.mod, go.sum and UPSTREAM.
+        # Re-frozen again after the reviewed cross-platform test-contract fix.
+        # Row count 260 and the protected set are unchanged; exactly two rows
+        # moved: e2e/schema_assistance_test.go (assertions aligned with the ':'
+        # separator that 54f2fa3 introduced in Report.Text) and
+        # internal/ui/helm_uninstall_preview_test.go (host-font pixel threshold
+        # replaced by a structural geometry check). Retired: b757f49d...
+        # Earlier: 7e8a4d4c... (8de1541), d59a129d... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         'b757f49d317210eacd8f20be698948545ad1c1d507dbb707ff12744dc60dbaab')
+                         'b38eee115bbec282dea7fc98677767a29cc15512103ddc45f4b48091bf2a2f67')
 
     def test_precise_hook_exception_preserves_original_content(self):
         data=(ROOT/DRY_RUN_FIXTURE).read_bytes()

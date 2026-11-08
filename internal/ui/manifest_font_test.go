@@ -1,6 +1,7 @@
 package uiworkbench
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -24,7 +25,11 @@ func TestNativeManifestWordNavigationAcrossScripts(t *testing.T) {
 			}
 			tt.Key(ui.Cmd, ui.KeyA)
 			tt.Type(tc.text)
-			tt.Key(ui.Ctrl, ui.KeyLeft)
+			wordBack := ui.Ctrl
+			if runtime.GOOS == "darwin" {
+				wordBack = ui.Alt
+			}
+			tt.Key(wordBack, ui.KeyLeft)
 			tt.Type("|")
 			if got := w.editorText(); got != tc.want {
 				t.Fatalf("word navigation: got %q, want %q", got, tc.want)

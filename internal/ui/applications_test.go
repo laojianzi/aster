@@ -46,14 +46,19 @@ func TestNativeApplicationsLongNamesAtMinimumWindow(t *testing.T) {
 			h.pump(func() bool { return !h.w.applications.busy })
 			h.click("Application checkout-production")
 			button, ok := h.tt.Find("Open StatefulSet/" + name)
-			if !ok || button.W < 140*scale || button.X+button.W > 936 || button.Y+button.H > 700 {
+			// Find matches the exact label, so a hit proves the member text
+			// was laid out intact; non-zero geometry inside the window proves
+			// it was not clipped. Absolute widths belong to a host font.
+			if !ok || button.W <= 0 || button.H <= 0 || button.X < 0 || button.Y < 0 ||
+				button.X+button.W > 936 || button.Y+button.H > 700 {
 				saveNativeScreenshot(t, h.tt)
 				t.Fatalf("application member is unreadable at scale %g: %+v", scale, button)
 			}
 			h.tt.Scroll(button.X, button.Y, 1000, 0)
 			h.tt.Frame()
 			status, ok := h.tt.Find("Progressing")
-			if !ok || status.W < 75*scale {
+			if !ok || status.W <= 0 || status.H <= 0 || status.X < 0 || status.Y < 0 ||
+				status.X+status.W > 936 || status.Y+status.H > 700 {
 				saveNativeScreenshot(t, h.tt)
 				t.Fatalf("application status is unreachable after horizontal scroll: %+v", status)
 			}

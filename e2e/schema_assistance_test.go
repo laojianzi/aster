@@ -46,7 +46,7 @@ func TestRealSchemaBuiltinsAndReadOnlyAssistance(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, err := d.Check(f.ctx, map[string]any{"apiVersion": "v1", "kind": "ConfigMap", "metadata": map[string]any{"name": before.Name}, "data": map[string]any{"bad": int64(42)}})
-	if err != nil || !strings.Contains(r.Text(), "/data/bad · type") {
+	if err != nil || !strings.Contains(r.Text(), "/data/bad: type") {
 		t.Fatalf("%+v %v", r, err)
 	}
 	after := f.read(t)
@@ -138,7 +138,7 @@ func TestRealSchemaStructuralCRDAndPreservedFields(t *testing.T) {
 	}
 	draft := map[string]any{"apiVersion": group + "/v1", "kind": "SchemaThing", "metadata": map[string]any{"name": "not-created"}, "spec": map[string]any{"opaque": map[string]any{"arbitrary": "private"}}}
 	r, err := d.Check(f.ctx, draft)
-	if err != nil || !strings.Contains(r.Text(), "/spec/replicas · required") || strings.Contains(r.Text(), "/spec/opaque/arbitrary") {
+	if err != nil || !strings.Contains(r.Text(), "/spec/replicas: required") || strings.Contains(r.Text(), "/spec/opaque/arbitrary") {
 		t.Fatalf("%+v %v", r, err)
 	}
 	// Inspection must not create the draft's resource.

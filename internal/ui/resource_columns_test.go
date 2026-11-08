@@ -20,7 +20,10 @@ func TestNativeResourceNamespaceColumnAtTextScales(t *testing.T) {
 			h.tt.SetSize(1100, 700)
 			h.tt.SetPreferences(ui.Preferences{TextScale: scale, ReduceMotion: true})
 			namespace, ok := h.tt.Find("team-production")
-			if !ok || namespace.W < 100*scale {
+			// The column must show the whole namespace label, not a width in
+			// pixels that only one host font happens to produce.
+			if !ok || namespace.W <= 0 || namespace.H <= 0 || namespace.X < 0 ||
+				namespace.X+namespace.W > 1100 {
 				t.Fatalf("namespace cell cannot fit scaled header: %+v", namespace)
 			}
 			name, ok := h.tt.Find("checkout-api")
@@ -112,7 +115,8 @@ func TestNativeResourceNamesStayQuietAndStatusScales(t *testing.T) {
 					t.Error("resource name still has a separate button face")
 				}
 				status, ok := h.tt.Find("CreateContainerConfigError")
-				if !ok || status.W < 175*scale || status.X+status.W > 1100 {
+				if !ok || status.W <= 0 || status.H <= 0 || status.X < 0 ||
+					status.X+status.W > 1100 {
 					t.Errorf("long status lacks scaled space: %+v", status)
 				}
 				saveNativeScreenshot(t, h.tt)

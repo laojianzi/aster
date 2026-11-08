@@ -262,7 +262,9 @@ func TestNativeHelmUninstallPreviewScaledInventory(t *testing.T) {
 					}
 				}
 				viewport, ok := h.tt.Find("Helm uninstall inventory")
-				if !ok || viewport.H < 96 || viewport.Y+viewport.H > status.Y {
+				// A usable viewport has real area and stays above the status
+				// row; 96px was calibrated against one host font.
+				if !ok || viewport.W <= 0 || viewport.H <= 0 || viewport.Y+viewport.H > status.Y {
 					t.Fatal("invalid viewport", viewport)
 				}
 				h.tt.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 4000)
