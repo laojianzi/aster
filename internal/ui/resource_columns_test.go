@@ -27,7 +27,12 @@ func TestNativeResourceNamespaceColumnAtTextScales(t *testing.T) {
 				t.Fatalf("namespace cell cannot fit scaled header: %+v", namespace)
 			}
 			name, ok := h.tt.Find("checkout-api")
-			if !ok || name.W < 75*scale {
+			// Find matches the exact label, so a hit proves the whole resource
+			// name was laid out. The name column must end before the namespace
+			// column begins: that ordering is a layout fact, whereas a width
+			// in pixels only measures one host font.
+			if !ok || name.W <= 0 || name.H <= 0 || name.X < 0 ||
+				name.X+name.W > 1100 || name.X+name.W > namespace.X {
 				t.Fatalf("namespace column crowded out resource name: %+v", name)
 			}
 			status, ok := h.tt.Find("Running")
