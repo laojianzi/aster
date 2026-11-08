@@ -97,15 +97,18 @@ class InstallJournalScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+digest)
         self.assertTrue(added <= tracked)
         self.assertEqual(len(rows),260)
-        # Re-frozen again after the reviewed cross-platform test-contract fix.
-        # Row count 260 and the protected set are unchanged; exactly two rows
-        # moved: e2e/schema_assistance_test.go (assertions aligned with the ':'
-        # separator that 54f2fa3 introduced in Report.Text) and
-        # internal/ui/helm_uninstall_preview_test.go (host-font pixel threshold
-        # replaced by a structural geometry check). Retired: b757f49d...
-        # Earlier: 7e8a4d4c... (8de1541), d59a129d... (v0.7.3).
+        # Re-frozen after the reviewed sidebar-contract fix. Row count 260 and
+        # the protected set are unchanged; exactly four rows moved:
+        # internal/ui/create_e2e_test.go, internal/ui/relationships_test.go,
+        # internal/ui/schema_list_set_e2e_test.go and
+        # internal/ui/schema_list_map_e2e_test.go. No expectation was relaxed:
+        # the create test now expands the group the product really collapsed,
+        # and the e2e tests now click the exact label the sidebar really
+        # renders when several discovered CRDs share a Kind. Retired:
+        # b38eee11... (86193f7), b757f49d... (2ac9161),
+        # 7e8a4d4c... (8de1541), d59a129d... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         'b38eee115bbec282dea7fc98677767a29cc15512103ddc45f4b48091bf2a2f67')
+                         'ef6bbd75c1ac96665254d2559d6af13886eaea075100f2a8c4945f3215c80148')
 
     def test_precise_hook_exception_preserves_original_content(self):
         data=(ROOT/DRY_RUN_FIXTURE).read_bytes()

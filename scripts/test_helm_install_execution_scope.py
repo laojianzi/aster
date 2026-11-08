@@ -73,14 +73,16 @@ class InstallExecutionScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
-        # Re-frozen again after the reviewed cross-platform test-contract fix.
-        # The 250-test census and 265 rows are unchanged; exactly two rows
-        # moved: e2e/schema_assistance_test.go and
-        # internal/ui/helm_uninstall_preview_test.go. The exemption set was
-        # deliberately NOT widened, so both remain census-protected. Retired:
-        # bef187aa... Earlier: 261f30e8... (8de1541), 0474a120... (v0.7.3).
+        # Re-frozen after the reviewed sidebar-contract fix. The 250-test
+        # census and 265 rows are unchanged; exactly four rows moved:
+        # internal/ui/create_e2e_test.go (expand "Configuration" before
+        # clicking "ConfigMaps"), internal/ui/relationships_test.go (new
+        # selectDiscoveredKind helper), and the two schema_list_*_e2e_test.go
+        # call sites. The exemption set was deliberately NOT widened, so all
+        # four remain census-protected. Retired: 0f57c72c... (86193f7),
+        # bef187aa... (2ac9161), 261f30e8... (8de1541), 0474a120... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '0f57c72c34052293f5bf94178539cd6a4b77007810c0cc33f521558440b4cccb')
+                         'e8edff95f5daf9cedad978a098ee12a0b498ec7cc45bcbc50249660ed4816014')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):

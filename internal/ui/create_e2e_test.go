@@ -79,6 +79,7 @@ func TestNativeCreatePreviewConfirmationAndPersistence(t *testing.T) {
 	}
 	click("Connect")
 	pump(func() bool { return w.status == "Live" })
+	click("Configuration")
 	click("ConfigMaps")
 	pump(func() bool { return w.status == "Live" })
 	click("New resource")

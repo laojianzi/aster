@@ -15,6 +15,7 @@ import (
 	"github.com/laojianzi/aster/internal/relationship"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )
 
@@ -272,4 +273,34 @@ func (h *relationshipHarness) selectSidebarResource(label string) {
 	}
 	saveNativeScreenshot(h.t, h.tt)
 	h.t.Fatalf("resource %q unreachable through sidebar", label)
+}
+
+// selectDiscoveredKind clicks the sidebar row of the discovered CRD with the
+// given GVR. The sidebar labels a kind by its bare Kind while that name is
+// unique, and by "Kind (group)" once discovery holds several kinds with the
+// same name (view.go). A real-cluster test therefore cannot assume either
+// form: another test's CRD may still be terminating, and -shuffle=on changes
+// which tests overlap. Derive the exact label from the current discovery set,
+// and always pick the row for the GVR this test owns rather than any same-named
+// neighbour.
+func (h *relationshipHarness) selectDiscoveredKind(gvr schema.GroupVersionResource, kind string) {
+	h.t.Helper()
+	same, exact := 0, kind
+	for _, k := range h.w.kinds {
+		if k.Kind != kind {
+			continue
+		}
+		same++
+		if k.GVR == gvr {
+			exact = k.Label()
+			if exact == kind {
+				exact = kind + " (core)"
+			}
+		}
+	}
+	if same > 1 {
+		h.selectSidebarResource(exact)
+		return
+	}
+	h.selectSidebarResource(kind)
 }
