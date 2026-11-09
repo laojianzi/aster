@@ -807,6 +807,14 @@ func TestNativeDeliveryExitNoticeRequiresRetainedWork(t *testing.T) {
 }
 
 func TestNativeDeliveryInventoryRowsRemainReachable(t *testing.T) {
+	// A fractional-metric host engine can measure a span one float32 ULP
+	// wider than the layout rect that very same span occupies. macOS CI
+	// reported changeWidth=202.07295 against b.W=202.07294 while every
+	// other condition passed; Pango rounds both to integers, so only
+	// CoreText/DirectWrite expose it. A genuinely clipped button loses
+	// whole glyphs (18 DIP at scale 2 in a 700-wide window), far above
+	// this sub-hundredth-DIP tolerance. The clipping check keeps its teeth.
+	const textWidthTolerance float32 = 0.01
 	for _, size := range [][2]int{{1440, 1000}, {1100, 700}} {
 		for _, scale := range []float32{1, 2} {
 			t.Run(fmt.Sprintf("%dx%d-scale-%g", size[0], size[1], scale), func(t *testing.T) {
@@ -842,7 +850,7 @@ func TestNativeDeliveryInventoryRowsRemainReachable(t *testing.T) {
 				status, _ := h.tt.Find("Connection status")
 				for _, label := range []string{"Delivery confirmation", "Submit reviewed object", "Change manifests"} {
 					b, ok := h.tt.Find(label)
-					if !ok || b.H < 12 || b.Y+b.H > status.Y || b.X+b.W > float32(size[0]) || label == "Change manifests" && b.W < changeWidth {
+					if !ok || b.H < 12 || b.Y+b.H > status.Y || b.X+b.W > float32(size[0]) || label == "Change manifests" && b.W+textWidthTolerance < changeWidth {
 						t.Fatalf("delivery action clipped %s: rect=%v ok=%v H=%v bottom=%v statusY=%v right=%v window=%d width=%v changeWidth=%v", label, b, ok, b.H, b.Y+b.H, status.Y, b.X+b.W, size[0], b.W, changeWidth)
 					}
 				}

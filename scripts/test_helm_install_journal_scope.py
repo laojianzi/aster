@@ -97,17 +97,20 @@ class InstallJournalScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+digest)
         self.assertTrue(added <= tracked)
         self.assertEqual(len(rows),260)
-        # Re-frozen for the CI runner budget and delivery failure diagnostics.
-        # Row count 260 and the protected set are unchanged; two rows moved:
-        # ci.yml timeout-minutes 20 -> 30 for the unit/race job (run
-        # 42596603353 had Coverage cancelled at 20m15s), and delivery_test.go
-        # now reports the four clipping conditions with their measurements.
-        # No expectation was relaxed and the exemption set was NOT widened.
-        # Retired: f1c7f130... (same-Kind call sites), ef6bbd75... (b48981a),
+        # Re-frozen for the delivery float32 comparison correction. Row
+        # count 260 and the protected set are unchanged; one row moved:
+        # delivery_test.go now uses b.W+0.01 < changeWidth. macOS CI printed
+        # changeWidth=202.07295 vs b.W=202.07294 (one float32 ULP) while
+        # bottom/right/H/ok all passed, so the old exact comparison was a
+        # false positive. A genuine 18-DIP clip is still rejected. The
+        # Wrap() experiment this exposed was reverted as disproven. No
+        # expectation was relaxed and the exemption set was NOT widened.
+        # Retired: 4439e782... (runner budget + diagnostics),
+        # f1c7f130... (same-Kind call sites), ef6bbd75... (b48981a),
         # b38eee11... (86193f7), b757f49d... (2ac9161),
         # 7e8a4d4c... (8de1541), d59a129d... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         '4439e782dd0511e80a82fa1f4c7ac65fc76c82dfcf1897c4a31497df263e6335')
+                         '7a09aca8772b814b0252db6cbd3971345ab803e140fbecebe9e441c644bd907d')
 
     def test_precise_hook_exception_preserves_original_content(self):
         data=(ROOT/DRY_RUN_FIXTURE).read_bytes()
