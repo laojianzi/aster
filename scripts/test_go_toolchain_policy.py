@@ -66,7 +66,7 @@ class GoToolchainPolicyTests(unittest.TestCase):
         path = '.github/workflows/ci.yml'
         data = (ROOT / path).read_bytes()
         mutations = (
-            (b'timeout-minutes: 20', b'timeout-minutes: 21'),
+            (b'timeout-minutes: 30', b'timeout-minutes: 31'),
             (b'contents: read', b'contents: write'),
             (b'-timeout=10m', b'-timeout=11m'),
             (b'-race', b''),
@@ -90,7 +90,7 @@ class GoToolchainPolicyTests(unittest.TestCase):
     def test_old_journal_fixture_remains_immutable(self):
         data = (ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json').read_bytes()
         self.assertEqual(hashlib.sha256(data).hexdigest(),
-                         '6f5f56c93bdfe09f1229820ac51a09c4700d67bbaace46df564a0e56463b76ca')
+                         'e1e77f150ba4ae7db7e11fba88f48e7a573c40275f91cf4146f23b3d0b82efe3')
         fixture = json.loads(data)
         for path, old_hash in fixture['unchanged_source_sha256'].items():
             restored = policy.previous_toolchain_bytes(path, (ROOT / path).read_bytes())

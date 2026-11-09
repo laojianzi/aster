@@ -19,7 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     # Keep complete race and coverage evidence in one job, including cold builds.
     # This runner budget does not increase any test or application deadline.
-    timeout-minutes: 20
+    # Run 42596603353 took 20m15s and had its Coverage step cancelled at 20m,
+    # while the preceding run finished in 17m38s; -shuffle=on and runner load
+    # move the total. Give the whole-job budget the same headroom as e2e.
+    timeout-minutes: 30
     env:
       ASTER_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/unit
     steps:

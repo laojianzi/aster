@@ -615,7 +615,7 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 				d.confirmationComposing = e.Composing()
 				ui.PrimaryButton(c, "Submit reviewed object").Disabled(d.plan == nil || d.busy != "" || d.halted || d.confirmationComposing || w.pendingWrites != 0 || d.plan != nil && d.confirmation != d.plan.Target().Name).OnClick(w.executeDelivery)
 			})
-			ui.Row(c).Gap(8).Children(func() {
+			ui.Row(c).Gap(8).Wrap().Children(func() {
 				ui.Button(c, "Preview next").Label("Preview next object").Disabled(d.busy != "" || d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(false) })
 				ui.Button(c, "Review remaining").Label("Review remaining again").Disabled(d.busy != "" || !d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(true) })
 				ui.Button(c, "Change manifests").Disabled(d.busy == "Submitting" || w.pendingWrites != 0).OnClick(w.changeDeliveryManifests)

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # tests that need it and four deadlines gained headroom. Every other entry
 # is still the d19a692 image.
 FROZEN = {'.github/workflows/branch-cleanup.yml': 'dc31f44ae8aedf3f2cdc3f34d908e938d3fb0f7870db4adf1e75e63f302212c0',
- '.github/workflows/ci.yml': '8c500f0ace61c20d00f4237b4f6908cdb915041ead13c6aaaf50c0d9b47a30fa',
+ '.github/workflows/ci.yml': 'd98439cacba9b68988655689a6cc06380d0ab249ed1d38110a9a3fc9ca4fb4f4',
  '.github/workflows/native-migration.yml': '899e1b524b26ab3396b65e4d2acc1788575ffd4b7576f6976a62bccc9289cb33',
  '.github/workflows/offline-devkit.yml': '12fdf79c9baef63ec1e0e8666dbf297f17ab7b421679f4479d65a62a95c2e405',
  '.github/workflows/oidc-qualification.yml': 'f808d03d07563ae4ac7004b7b644820c9e5ecf203154b896fbb3fbc424b4f7b0',

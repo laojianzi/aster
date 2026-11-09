@@ -73,18 +73,17 @@ class InstallExecutionScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
-        # Re-frozen after completing the same-Kind sidebar selection contract.
-        # The 250-test census and 265 rows are unchanged; five rows moved:
-        # schema_enum/format/constraints/pattern/multipleof e2e tests now call
-        # selectDiscoveredKind(f.GVR, f.GVK.Kind) instead of clicking the bare
-        # Kind. b48981a converted only two of seven equivalent call sites, so
-        # -shuffle=on could still overlap a terminating CRD with the same Kind
-        # and the sidebar would label it "Kind (group)". No assertion was
-        # relaxed and the exemption set was deliberately NOT widened. Retired:
-        # e8edff95... (b48981a), 0f57c72c... (86193f7), bef187aa... (2ac9161),
-        # 261f30e8... (8de1541), 0474a120... (v0.7.3).
+        # Re-frozen for the enlarged CI runner budget and a self-diagnosing
+        # delivery failure message. The 250-test census and 265 rows are
+        # unchanged; two rows moved: ci.yml's whole-job budget went 20m -> 30m
+        # after run 42596603353 cancelled Coverage at 20m15s, and
+        # delivery_test.go now prints changeWidth/statusY/rect when an action
+        # is clipped. The assertion condition itself is unchanged. Retired:
+        # aabe72c2... (same-Kind call sites), e8edff95... (b48981a),
+        # 0f57c72c... (86193f7), bef187aa... (2ac9161), 261f30e8... (8de1541),
+        # 0474a120... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         'aabe72c21f1273f17c3d314430a510f61a3ec948309aff1a4b6ed67fd204f5e6')
+                         'a08e0de74b2a19f576a67d46535c82d8040e0354c87aa8e82c9a764db7c4a0bb')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):

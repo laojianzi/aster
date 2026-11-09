@@ -843,7 +843,7 @@ func TestNativeDeliveryInventoryRowsRemainReachable(t *testing.T) {
 				for _, label := range []string{"Delivery confirmation", "Submit reviewed object", "Change manifests"} {
 					b, ok := h.tt.Find(label)
 					if !ok || b.H < 12 || b.Y+b.H > status.Y || b.X+b.W > float32(size[0]) || label == "Change manifests" && b.W < changeWidth {
-						t.Fatal("delivery action clipped", label, b)
+						t.Fatalf("delivery action clipped %s: rect=%v ok=%v H=%v bottom=%v statusY=%v right=%v window=%d width=%v changeWidth=%v", label, b, ok, b.H, b.Y+b.H, status.Y, b.X+b.W, size[0], b.W, changeWidth)
 					}
 				}
 				_, previews, writes := f.counts()

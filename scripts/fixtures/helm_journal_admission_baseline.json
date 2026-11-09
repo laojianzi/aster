@@ -1794,7 +1794,7 @@
     "internal/ui/helm_uninstall_e2e_test.go": "2e6cfb8925688aca7deb1e1d8989b8dad3aacb86a5c7e28701a1f3a35f46edc6"
   },
   "refrozen_source_sha256": {
-    ".github/workflows/ci.yml": "8c500f0ace61c20d00f4237b4f6908cdb915041ead13c6aaaf50c0d9b47a30fa",
+    ".github/workflows/ci.yml": "d98439cacba9b68988655689a6cc06380d0ab249ed1d38110a9a3fc9ca4fb4f4",
     "go.sum": "53133cc8afe72c9ae7fe4af0340b7303edea97a2707aa578a716131a70d69d3d",
     "internal/ui/helm_uninstall_ui_test.go": "96dab4176f5820c985039e0c6147f0cbde9db4221ccb44715619441b39dd0263"
   }

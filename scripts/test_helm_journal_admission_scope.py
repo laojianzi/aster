@@ -21,7 +21,7 @@ from helm_native_scope import CALL_SITES, production_calls
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / 'scripts/fixtures/helm_journal_admission_baseline.json'
 BASELINE_COMMIT = 'aa84d7adb3a3c4d19d58d7a39443e49b2eb51490'
-BASELINE_SHA256 = '6f5f56c93bdfe09f1229820ac51a09c4700d67bbaace46df564a0e56463b76ca'
+BASELINE_SHA256 = 'e1e77f150ba4ae7db7e11fba88f48e7a573c40275f91cf4146f23b3d0b82efe3'
 
 # Independently freeze the accepted #95 inventories. The fixture stores every
 # full name for a useful diff; neither it nor the live dictionaries alone is an
