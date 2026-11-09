@@ -31,8 +31,7 @@ func (w *Workbench) View(c *ui.Context) {
 	}
 	w.frames++
 	t := c.Theme()
-	_, height := c.Size()
-	compact := w.detail != nil && height < min(600, 300*c.Preferences().TextScale)
+	compact := w.detail != nil && compactDetail(c)
 	headerPadding := float32(12)
 	if compact {
 		headerPadding = 6

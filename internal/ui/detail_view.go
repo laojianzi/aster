@@ -13,6 +13,22 @@ import (
 	"time"
 )
 
+// compactDetail reports whether the window has too little room for the
+// non-compact object chrome. TextScale multiplies the natural width of every
+// control while the window stays in DIPs, so a height-only test misses the
+// case where three wrapped toolbar rows consume the document area: at
+// 900x700 / 2x the YAML document was only 68px tall (F1). 550 is the scale-1
+// equivalent width at which the toolbars still fit on one line (1100 DIP at
+// TextScale=2), measured with the headless layout probe. The 1100 cap keeps
+// the compact layout scoped to genuinely narrow windows: wider windows keep
+// the full chrome at any text scale (1100x700 / 2.5x still exposes a direct
+// "Close detail" button).
+func compactDetail(c *ui.Context) bool {
+	width, height := c.Size()
+	scale := c.Preferences().TextScale
+	return height < min(600, 300*scale) || width < min(1100, 550*scale)
+}
+
 func (w *Workbench) detailView(c *ui.Context) {
 	t := c.Theme()
 	var reviewOpener ui.Element
@@ -30,8 +46,7 @@ func (w *Workbench) detailView(c *ui.Context) {
 		}
 		displayMode = "Overview"
 	}
-	_, height := c.Size()
-	compact := height < min(600, 300*c.Preferences().TextScale)
+	compact := compactDetail(c)
 	padding, gap := float32(16), float32(6)
 	if compact {
 		padding, gap = 8, 3

@@ -1021,6 +1021,59 @@ func TestNativeWorkbenchTypographyFollowsTextScale(t *testing.T) {
 	}
 }
 
+// TestNativeDetailDocumentKeepsReadableHeightAtScaledMinimumWindow is the F1
+// regression gate. The original acceptance checked outer workspace geometry
+// (>150px) instead of the editor itself, so 12 geometric assertions passed
+// while field.detailText was only 80px at 900x700 / 2x. mygo keeps the window
+// in DIPs while TextScale multiplies every control's natural width, so three
+// wrapped toolbar rows consumed the document area. This asserts the real
+// Resource document rect, not a proxy, and keeps the compact chrome reachable.
+func TestNativeDetailDocumentKeepsReadableHeightAtScaledMinimumWindow(t *testing.T) {
+	const minReadableHeight float32 = 120
+	w := New()
+	t.Cleanup(w.Close)
+	w.detail, w.detailKind, w.detailMode = modelObject("f1-uid", "pod"), catalog()[0], "YAML"
+	w.detailText = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: demo\nstatus:\n  phase: Running\n"
+	tt := ui.NewTester(w.View, 900, 700)
+	tt.SetPreferences(ui.Preferences{TextScale: 2})
+	tt.Frame()
+
+	doc, ok := tt.Find("Resource document")
+	if !ok {
+		saveNativeScreenshot(t, tt)
+		t.Fatal("resource document is missing at the scaled minimum window")
+	}
+	if doc.H < minReadableHeight {
+		saveNativeScreenshot(t, tt)
+		t.Fatalf("resource document has only %.1f DIP of usable height, want >= %.0f: %v",
+			doc.H, minReadableHeight, doc)
+	}
+	if doc.X < 0 || doc.Y < 0 || doc.X+doc.W > 900 || doc.Y+doc.H > 700 {
+		saveNativeScreenshot(t, tt)
+		t.Fatalf("resource document leaves the window: %v", doc)
+	}
+	for _, label := range []string{"Object sections", "YAML", "Actions", "Diagnostics", "Read-only", "Edit", "Field ownership"} {
+		if _, ok := tt.Find(label); !ok {
+			saveNativeScreenshot(t, tt)
+			t.Fatalf("compact chrome lost %q", label)
+		}
+	}
+	// Compact chrome folds Refresh/Close into the Actions menu. F1's protocol
+	// permits folding but forbids removing the function, so exercise it.
+	if err := tt.Click("Actions"); err != nil {
+		saveNativeScreenshot(t, tt)
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Close detail"); err != nil {
+		saveNativeScreenshot(t, tt)
+		t.Fatal(err)
+	}
+	if w.detail != nil {
+		t.Fatal("compact Actions menu lost the close-detail function")
+	}
+}
+
 func TestNativeObjectHeaderReservesTitleAndKeepsActions(t *testing.T) {
 	for _, scale := range []float32{1, 2, 2.5} {
 		t.Run(fmt.Sprint(scale), func(t *testing.T) {
