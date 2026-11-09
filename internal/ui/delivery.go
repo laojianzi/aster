@@ -514,7 +514,11 @@ func (d *deliveryState) outcomeText() string {
 func (w *Workbench) deliveryView(c *ui.Context) {
 	d := &w.delivery
 	t := c.Theme()
-	ui.Column(c.Key("delivery.panel")).Grow(1).Padding(12).Gap(8).Children(func() {
+	panel := ui.Column(c.Key("delivery.panel"))
+	if d.set != nil {
+		panel = ui.Scroll(c.Key("delivery.panel.scroll")).MinHeight(0)
+	}
+	panel.Grow(1).Padding(12).Gap(8).Children(func() {
 		ui.Row(c).Gap(8).Children(func() {
 			ui.Text(c, "Deliver manifests").FontSize(c.Theme().FontSize * 1.4).Bold().Grow(1)
 			ui.Button(c, "Cancel delivery work").Hidden(d.busy == "" && d.plan == nil).OnClick(w.cancelDelivery)
@@ -594,6 +598,8 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Button(c, "Review details").OnClick(func() { d.showOutcomes = false })
 				ui.Button(c, "Delivery outcomes").OnClick(func() { d.showOutcomes = true })
+				inspectable := d.selected >= 0 && d.selected < len(d.outcomes) && d.outcomes[d.selected].State == "Succeeded" && d.outcomes[d.selected].UID != ""
+				ui.Button(c, "Inspect resource").Label("Inspect accepted resource").Disabled(d.busy != "" || !inspectable).OnClick(w.inspectDeliveryResource)
 				ui.Text(c, "Imported input is locked until Change manifests.").FontSize(12 * max(1, c.Preferences().TextScale)).TextColor(t.TextMuted).Grow(1).SingleLine()
 			})
 			text := d.diff
@@ -612,8 +618,6 @@ func (w *Workbench) deliveryView(c *ui.Context) {
 			ui.Row(c).Gap(8).Children(func() {
 				ui.Button(c, "Preview next").Label("Preview next object").Disabled(d.busy != "" || d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(false) })
 				ui.Button(c, "Review remaining").Label("Review remaining again").Disabled(d.busy != "" || !d.halted || d.next() < 0 || w.pendingWrites != 0).OnClick(func() { w.previewDelivery(true) })
-				inspectable := d.selected >= 0 && d.selected < len(d.outcomes) && d.outcomes[d.selected].State == "Succeeded" && d.outcomes[d.selected].UID != ""
-				ui.Button(c, "Inspect resource").Label("Inspect accepted resource").Disabled(d.busy != "" || !inspectable).OnClick(w.inspectDeliveryResource)
 				ui.Button(c, "Change manifests").Disabled(d.busy == "Submitting" || w.pendingWrites != 0).OnClick(w.changeDeliveryManifests)
 			})
 		}

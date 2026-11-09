@@ -36,7 +36,7 @@ func TestNativeSchemaEnumAgainstRealCluster(t *testing.T) {
 		}
 		return false
 	})
-	h.selectSidebarResource(f.GVK.Kind)
+	h.selectDiscoveredKind(f.GVR, f.GVK.Kind)
 	if h.w.kindChoice != label || h.w.currentKind.GVR != f.GVR || h.w.currentKind.Kind != f.GVK.Kind || !h.w.currentKind.Namespaced {
 		t.Fatal("native sidebar did not choose the actually discovered enum CRD")
 	}

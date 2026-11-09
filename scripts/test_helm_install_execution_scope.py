@@ -73,16 +73,18 @@ class InstallExecutionScopeTests(unittest.TestCase):
                 rows.append(path+'\0'+mode+'\0'+hashlib.sha256((ROOT/path).read_bytes()).hexdigest())
         self.assertEqual(count,250)
         self.assertEqual(len(rows),265)
-        # Re-frozen after the reviewed sidebar-contract fix. The 250-test
-        # census and 265 rows are unchanged; exactly four rows moved:
-        # internal/ui/create_e2e_test.go (expand "Configuration" before
-        # clicking "ConfigMaps"), internal/ui/relationships_test.go (new
-        # selectDiscoveredKind helper), and the two schema_list_*_e2e_test.go
-        # call sites. The exemption set was deliberately NOT widened, so all
-        # four remain census-protected. Retired: 0f57c72c... (86193f7),
-        # bef187aa... (2ac9161), 261f30e8... (8de1541), 0474a120... (v0.7.3).
+        # Re-frozen after completing the same-Kind sidebar selection contract.
+        # The 250-test census and 265 rows are unchanged; five rows moved:
+        # schema_enum/format/constraints/pattern/multipleof e2e tests now call
+        # selectDiscoveredKind(f.GVR, f.GVK.Kind) instead of clicking the bare
+        # Kind. b48981a converted only two of seven equivalent call sites, so
+        # -shuffle=on could still overlap a terminating CRD with the same Kind
+        # and the sidebar would label it "Kind (group)". No assertion was
+        # relaxed and the exemption set was deliberately NOT widened. Retired:
+        # e8edff95... (b48981a), 0f57c72c... (86193f7), bef187aa... (2ac9161),
+        # 261f30e8... (8de1541), 0474a120... (v0.7.3).
         self.assertEqual(hashlib.sha256('\n'.join(sorted(rows)).encode()).hexdigest(),
-                         'e8edff95f5daf9cedad978a098ee12a0b498ec7cc45bcbc50249660ed4816014')
+                         'aabe72c21f1273f17c3d314430a510f61a3ec948309aff1a4b6ed67fd204f5e6')
 
     def test_native_controls_remain_disabled_and_store_reused(self):
         for p in (ROOT/'internal/ui').glob('*.go'):
