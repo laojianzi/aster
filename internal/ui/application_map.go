@@ -211,7 +211,8 @@ func (w *Workbench) applicationMapView(c *ui.Context) {
 			counts[col] = positions[i][1] + 1
 		}
 	}
-	pitch, height := 118*scale, 80*scale
+	height := 80 * scale
+	pitch := height + 38
 	ui.Scroll(c.Key("application.map.scroll")).TrackScroll(&g.scroll).Grow(1).MinHeight(0).MinWidth(0).Children(func() {
 		ui.Box(c.Key("application.map.canvas")).MinWidth(float32(max(640, columns*200))).Height(float32(max(1, slices.Max(counts)))*pitch + 20).Draw(func(p *ui.Painter, r ui.Rect) {
 			step := r.W / float32(columns)
