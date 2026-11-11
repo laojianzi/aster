@@ -307,6 +307,42 @@ class MatrixPlanTests(unittest.TestCase):
                     f1.compact_for(cell["width"], cell["height"], cell["scale"]))
         self.assertFalse(any(c["platform"] != "L" for c in cells))
 
+    def test_case_id_is_unique_per_cell_and_is_the_screenshot_stem(self):
+        """Regression for the missing-section root cause (protocol section 4).
+
+        The human sign-off sheet uses ``case`` as its per-cell primary key.
+        Before the fix, plan_cases() omitted the section segment, so 88 rows
+        collapsed into 22 distinct ids and a signed screenshot could not be
+        attributed to its section.  Plan cells must stay 1:1 with screenshots.
+        """
+        cells = f1.plan_cases()
+        self.assertEqual(len(cells), 88)
+        case_ids = [c["case"] for c in cells]
+        self.assertEqual(len(set(case_ids)), 88)
+        for cell in cells:
+            with self.subTest(case=cell["case"]):
+                self.assertEqual(cell["screenshot"],
+                                 cell["case"] + ".png")
+                self.assertTrue(cell["case"].endswith("-" + cell["section"]))
+                self.assertIn(
+                    "-scheme-%d-" % cell["scheme"], cell["case"])
+        self.assertEqual(len({c["screenshot"] for c in cells}), 88)
+
+    def test_legacy_case_id_without_section_would_collapse_to_22(self):
+        """Negative control: prove the old naming really was ambiguous."""
+        cells = f1.plan_cases()
+        legacy = ["%dx%d-scale-%g-scheme-%d"
+                  % (c["width"], c["height"], c["scale"], c["scheme"])
+                  for c in cells]
+        self.assertEqual(len(legacy), 88)
+        self.assertEqual(len(set(legacy)), 22)
+        self.assertNotEqual(set(legacy), {c["case"] for c in cells})
+        f1_cells = f1.f1_reproduction_cells()
+        self.assertEqual(
+            {c["case"] for c in f1_cells},
+            {"900x700-scale-2-scheme-1-YAML",
+             "900x700-scale-2-scheme-2-YAML"})
+
     def test_900x480_tiling_is_registered_as_separate_design(self):
         rows = [c for c in f1.plan_cases()
                 if (c["width"], c["height"]) == (900, 480)]

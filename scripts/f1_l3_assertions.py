@@ -368,18 +368,25 @@ def plan_cases():
     Each cell is a dict with an explicit ``scheme`` and an empty
     ``human_signoff`` slot.  The replay must emit one screenshot, one bounds
     record and one sign-off row per cell; none of them is executed here.
+
+    ``case`` is the per-cell PRIMARY KEY of the human sign-off sheet, so it
+    must carry the section segment as well: without it the 88 cells collapse
+    into 22 distinct ids and a signed screenshot cannot be attributed to its
+    section -- the same missing-segment root cause recorded in protocol
+    section 4 for the missing ``-scheme-<N>-`` segment.  ``case`` is exactly
+    the screenshot filename without its ``.png`` extension.
     """
     cells = []
     for width, height, scale, note in MATRIX_ROWS:
         for scheme in SCHEMES:
             for section in SECTIONS:
+                stem = ("%dx%d-scale-%g-scheme-%d-%s"
+                        % (width, height, scale, scheme, section))
                 cells.append({
                     "width": width, "height": height, "scale": scale,
                     "scheme": scheme, "section": section,
-                    "case": "%dx%d-scale-%g-scheme-%d"
-                            % (width, height, scale, scheme),
-                    "screenshot": "%dx%d-scale-%g-scheme-%d-%s.png"
-                                  % (width, height, scale, scheme, section),
+                    "case": stem,
+                    "screenshot": stem + ".png",
                     "compact": compact_for(width, height, scale),
                     "platform": "L",
                     "human_signoff": None,
